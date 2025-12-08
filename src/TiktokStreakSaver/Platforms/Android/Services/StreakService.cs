@@ -274,129 +274,150 @@ public class StreakService : Service
         return $@"
             (function() {{
                 try {{
-                    // Find the search input or conversation list
-                    const searchInput = document.querySelector('input[placeholder*=""Search""]') || 
-                                       document.querySelector('[data-e2e=""search-input""]');
+                    console.log('[StreakSaver] Looking for user: {escapedUsername}');
                     
-                    if (searchInput) {{
-                        // Clear and type username
-                        searchInput.value = '';
-                        searchInput.focus();
+                    let found = false;
+                    let chatIndex = 0;
+                    const chatItems = document.querySelectorAll(""[data-e2e*='chat-list-item']"");
+                    console.log('[StreakSaver] Found ' + chatItems.length + ' chat items');
+                    
+                    if (chatItems.length === 0) {{
+                        StreakApp.onMessageSent('{escapedUsername}', false, 'No chat items found');
+                        return;
+                    }}
+                    
+                    // Function to check each chat item
+                    function checkNextChat() {{
+                        if (found || chatIndex >= chatItems.length) {{
+                            if (!found) {{
+                                console.log('[StreakSaver] User not found after checking all chats');
+                                StreakApp.onMessageSent('{escapedUsername}', false, 'User not found in chat list');
+                            }}
+                            return;
+                        }}
                         
-                        // Simulate typing
-                        const inputEvent = new Event('input', {{ bubbles: true }});
-                        searchInput.value = '{escapedUsername}';
-                        searchInput.dispatchEvent(inputEvent);
+                        // Click on current chat item
+                        const chatItem = chatItems[chatIndex];
+                        console.log('[StreakSaver] Clicking chat item ' + (chatIndex + 1) + '/' + chatItems.length);
+                        chatItem.click();
                         
-                        // Wait for search results
+                        // Wait for chat to load, then search for StyledLink
                         setTimeout(function() {{
-                            // Look for the user in results
-                            const userElements = document.querySelectorAll('[class*=""UserItem""], [class*=""conversation""], [class*=""chat-item""]');
-                            let found = false;
+                            const profileLinks = document.querySelectorAll('[class*=""StyledLink""]');
+                            console.log('[StreakSaver] Found ' + profileLinks.length + ' profile links');
                             
-                            for (let elem of userElements) {{
-                                if (elem.textContent.toLowerCase().includes('{escapedUsername}'.toLowerCase())) {{
-                                    elem.click();
+                            for (var profileLink of profileLinks) {{
+                                const href = profileLink.getAttribute('href') || '';
+                                const match = href.match(/\/@(.+)/);
+                                const currentUsername = match ? match[1] : '';
+                                
+                                if (currentUsername && currentUsername.toLowerCase().includes('{escapedUsername}'.toLowerCase())) {{
                                     found = true;
-                                    break;
+                                    console.log('[StreakSaver] Found target user: ' + currentUsername);
+                                    
+                                    // User found - now send message
+                                    sendMessageToUser();
+                                    return;
                                 }}
                             }}
                             
-                            if (found) {{
-                                // Wait for chat to load, then send message
-                                setTimeout(function() {{
-                                    const messageInput = document.querySelector('textarea[placeholder*=""Send""]') || 
-                                                        document.querySelector('[data-e2e=""message-input""]') ||
-                                                        document.querySelector('div[contenteditable=""true""]');
-                                    
-                                    if (messageInput) {{
-                                        messageInput.focus();
-                                        
-                                        if (messageInput.tagName === 'TEXTAREA' || messageInput.tagName === 'INPUT') {{
-                                            messageInput.value = '{escapedMessage}';
-                                        }} else {{
-                                            messageInput.textContent = '{escapedMessage}';
-                                        }}
-                                        
-                                        messageInput.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                                        
-                                        // Find and click send button
-                                        setTimeout(function() {{
-                                            const sendBtn = document.querySelector('[data-e2e=""send-button""]') ||
-                                                           document.querySelector('button[type=""submit""]') ||
-                                                           document.querySelector('[class*=""send"" i]');
-                                            
-                                            if (sendBtn) {{
-                                                sendBtn.click();
-                                                StreakApp.onMessageSent('{escapedUsername}', true, '');
-                                            }} else {{
-                                                // Try pressing Enter
-                                                const enterEvent = new KeyboardEvent('keydown', {{
-                                                    key: 'Enter',
-                                                    code: 'Enter',
-                                                    keyCode: 13,
-                                                    which: 13,
-                                                    bubbles: true
-                                                }});
-                                                messageInput.dispatchEvent(enterEvent);
-                                                StreakApp.onMessageSent('{escapedUsername}', true, '');
-                                            }}
-                                        }}, 1000);
-                                    }} else {{
-                                        StreakApp.onMessageSent('{escapedUsername}', false, 'Message input not found');
-                                    }}
-                                }}, 2000);
-                            }} else {{
-                                StreakApp.onMessageSent('{escapedUsername}', false, 'User not found in search results');
-                            }}
-                        }}, 2000);
-                    }} else {{
-                        // Try clicking directly on conversation if already in list
-                        const conversations = document.querySelectorAll('[class*=""conversation""], [class*=""chat-list""] > div');
-                        let found = false;
+                            // Not found in this chat, try next
+                            chatIndex++;
+                            checkNextChat();
+                        }}, 1500); // Wait 1.5s after clicking chat item
+                    }}
+                    
+                    // Function to send message after user is found
+                    function sendMessageToUser() {{
+                        // Click message button
+                        var messageButton = document.querySelector(""[data-e2e*='message-button']"");
                         
-                        for (let conv of conversations) {{
-                            if (conv.textContent.toLowerCase().includes('{escapedUsername}'.toLowerCase())) {{
-                                conv.click();
-                                found = true;
+                        if (messageButton) {{
+                            console.log('[StreakSaver] Clicking message button...');
+                            messageButton.click();
+                            
+                            // Wait for message dialog to open
+                            setTimeout(function() {{
+                                const messageInput = document.querySelector('.public-DraftStyleDefault-block') ||
+                                                    document.querySelector('[class*=""public-DraftStyleDefault""]') ||
+                                                    document.querySelector('[class*=""DraftEditor""]') ||
+                                                    document.querySelector('div[contenteditable=""true""]');
+                                
+                                if (messageInput) {{
+                                    console.log('[StreakSaver] Found message input, typing...');
+                                    messageInput.click();
+                                    messageInput.focus();
+                                    
+                                    // Set message content
+                                    messageInput.textContent = '{escapedMessage}';
+                                    messageInput.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                                    messageInput.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                                    
+                                    // Send with Enter key
+                                    setTimeout(function() {{
+                                        messageInput.dispatchEvent(new KeyboardEvent('keydown', {{
+                                            key: 'Enter',
+                                            code: 'Enter',
+                                            keyCode: 13,
+                                            which: 13,
+                                            bubbles: true,
+                                            cancelable: true
+                                        }}));
+                                        
+                                        messageInput.dispatchEvent(new KeyboardEvent('keyup', {{
+                                            key: 'Enter',
+                                            code: 'Enter',
+                                            keyCode: 13,
+                                            which: 13,
+                                            bubbles: true
+                                        }}));
+                                        
+                                        console.log('[StreakSaver] Message sent to {escapedUsername}');
+                                        StreakApp.onMessageSent('{escapedUsername}', true, '');
+                                    }}, 500);
+                                }} else {{
+                                    console.log('[StreakSaver] Message input not found');
+                                    StreakApp.onMessageSent('{escapedUsername}', false, 'Message input not found');
+                                }}
+                            }}, 2000);
+                        }} else {{
+                            // No message button - we're already in the chat, try to send directly
+                            console.log('[StreakSaver] No message button, trying to send directly...');
+                            
+                            const messageInput = document.querySelector('.public-DraftStyleDefault-block') ||
+                                                document.querySelector('[class*=""public-DraftStyleDefault""]') ||
+                                                document.querySelector('[class*=""DraftEditor""]') ||
+                                                document.querySelector('div[contenteditable=""true""]');
+                            
+                            if (messageInput) {{
+                                messageInput.click();
+                                messageInput.focus();
+                                messageInput.textContent = '{escapedMessage}';
+                                messageInput.dispatchEvent(new Event('input', {{ bubbles: true }}));
                                 
                                 setTimeout(function() {{
-                                    const messageInput = document.querySelector('textarea[placeholder*=""Send""]') || 
-                                                        document.querySelector('div[contenteditable=""true""]');
+                                    messageInput.dispatchEvent(new KeyboardEvent('keydown', {{
+                                        key: 'Enter',
+                                        code: 'Enter',
+                                        keyCode: 13,
+                                        which: 13,
+                                        bubbles: true
+                                    }}));
                                     
-                                    if (messageInput) {{
-                                        messageInput.focus();
-                                        if (messageInput.tagName === 'TEXTAREA') {{
-                                            messageInput.value = '{escapedMessage}';
-                                        }} else {{
-                                            messageInput.textContent = '{escapedMessage}';
-                                        }}
-                                        messageInput.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                                        
-                                        setTimeout(function() {{
-                                            const enterEvent = new KeyboardEvent('keydown', {{
-                                                key: 'Enter',
-                                                code: 'Enter',
-                                                keyCode: 13,
-                                                which: 13,
-                                                bubbles: true
-                                            }});
-                                            messageInput.dispatchEvent(enterEvent);
-                                            StreakApp.onMessageSent('{escapedUsername}', true, '');
-                                        }}, 1000);
-                                    }} else {{
-                                        StreakApp.onMessageSent('{escapedUsername}', false, 'Message input not found');
-                                    }}
-                                }}, 2000);
-                                break;
+                                    console.log('[StreakSaver] Message sent directly to {escapedUsername}');
+                                    StreakApp.onMessageSent('{escapedUsername}', true, '');
+                                }}, 500);
+                            }} else {{
+                                StreakApp.onMessageSent('{escapedUsername}', false, 'Message input not found');
                             }}
                         }}
-                        
-                        if (!found) {{
-                            StreakApp.onMessageSent('{escapedUsername}', false, 'Search input not found and user not in conversation list');
-                        }}
                     }}
+                    
+                    // Start checking chats
+                    checkNextChat();
+                    
                 }} catch (e) {{
+                    console.log('[StreakSaver] Error: ' + e.message);
                     StreakApp.onMessageSent('{escapedUsername}', false, 'Error: ' + e.message);
                 }}
             }})();
