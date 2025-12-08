@@ -39,8 +39,20 @@ public partial class MainPage : ContentPage
             return;
         }
 
+        // On first install, default to not logged in
+        // Only trust saved session if user has previously logged in successfully
+        var lastCheck = _sessionService.GetLastCheckTime();
+        if (lastCheck == null)
+        {
+            // Never checked before - assume not logged in
+            _sessionCheckCompleted = true;
+            UpdateLoginButtonState(false);
+            return;
+        }
+
         // Start session validation
         _isCheckingSession = true;
+        _navigationCount = 0;
         UpdateLoginButtonState(false, isChecking: true);
 
 #if ANDROID
@@ -49,6 +61,12 @@ public partial class MainPage : ContentPage
         
         // Load messages page to check if we're logged in
         SessionCheckWebView.Source = TikTokWebViewHelper.MessagesUrl;
+        
+        // Set a timeout - if no redirect after 10 seconds, check current state
+        _sessionCheckTimeout = Dispatcher.CreateTimer();
+        _sessionCheckTimeout.Interval = TimeSpan.FromSeconds(10);
+        _sessionCheckTimeout.Tick += OnSessionCheckTimeout;
+        _sessionCheckTimeout.Start();
 #else
         // On non-Android platforms, just check the saved session state
         _sessionCheckCompleted = true;
@@ -56,23 +74,82 @@ public partial class MainPage : ContentPage
 #endif
     }
 
+    private int _navigationCount = 0;
+#if ANDROID
+    private IDispatcherTimer? _sessionCheckTimeout;
+#endif
+
+#if ANDROID
+    private void OnSessionCheckTimeout(object? sender, EventArgs e)
+    {
+        _sessionCheckTimeout?.Stop();
+        
+        if (_isCheckingSession)
+        {
+            // Timeout reached - assume not logged in for safety
+            _isCheckingSession = false;
+            _sessionCheckCompleted = true;
+            _sessionService.SetSessionValid(false);
+            
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                UpdateLoginButtonState(false);
+            });
+        }
+    }
+#endif
+
     private void OnSessionCheckNavigated(object? sender, WebNavigatedEventArgs e)
     {
         if (!_isCheckingSession) return;
         
-        _isCheckingSession = false;
-        _sessionCheckCompleted = true;
+        _navigationCount++;
         
         // Use helper to check login status
         var result = TikTokWebViewHelper.CheckLoginStatus(e.Url);
         
-        // Update session service
-        TikTokWebViewHelper.UpdateSessionStatus(_sessionService, result.IsLoggedIn);
-        
-        MainThread.BeginInvokeOnMainThread(() =>
+        // If redirected to login, we're definitely not logged in
+        if (result.IsValidUrl && e.Url?.ToLower().Contains("/login") == true)
         {
-            UpdateLoginButtonState(result.IsLoggedIn);
-        });
+#if ANDROID
+            _sessionCheckTimeout?.Stop();
+#endif
+            _isCheckingSession = false;
+            _sessionCheckCompleted = true;
+            
+            TikTokWebViewHelper.UpdateSessionStatus(_sessionService, false);
+            
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                UpdateLoginButtonState(false);
+            });
+            return;
+        }
+        
+        // If we're on messages page and this is at least the 2nd navigation (after potential redirect)
+        // then we're likely logged in
+        if (result.IsLoggedIn && _navigationCount >= 1)
+        {
+            // Wait a bit more to ensure no further redirect to login
+            Task.Delay(2000).ContinueWith(_ =>
+            {
+                if (_isCheckingSession)
+                {
+#if ANDROID
+                    _sessionCheckTimeout?.Stop();
+#endif
+                    _isCheckingSession = false;
+                    _sessionCheckCompleted = true;
+                    
+                    TikTokWebViewHelper.UpdateSessionStatus(_sessionService, true);
+                    
+                    MainThread.BeginInvokeOnMainThread(() =>
+                    {
+                        UpdateLoginButtonState(true);
+                    });
+                }
+            });
+        }
     }
 
     private void UpdateLoginButtonState(bool isSessionValid, bool isChecking = false)
@@ -83,6 +160,8 @@ public partial class MainPage : ContentPage
             LoginButton.BackgroundColor = Color.FromArgb("#888888");
             LoginButton.IsEnabled = false;
             SessionCheckingIndicator.IsVisible = true;
+            RunNowButton.IsEnabled = false;
+            RunNowButton.Opacity = 0.5;
         }
         else if (isSessionValid)
         {
@@ -90,6 +169,8 @@ public partial class MainPage : ContentPage
             LoginButton.BackgroundColor = Color.FromArgb("#4CAF50"); // Green
             LoginButton.IsEnabled = false;
             SessionCheckingIndicator.IsVisible = false;
+            RunNowButton.IsEnabled = true;
+            RunNowButton.Opacity = 1.0;
         }
         else
         {
@@ -97,6 +178,8 @@ public partial class MainPage : ContentPage
             LoginButton.BackgroundColor = Color.FromArgb("#FE2C55"); // Primary red
             LoginButton.IsEnabled = true;
             SessionCheckingIndicator.IsVisible = false;
+            RunNowButton.IsEnabled = false;
+            RunNowButton.Opacity = 0.5;
         }
     }
 
