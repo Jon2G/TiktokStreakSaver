@@ -20,6 +20,14 @@ jobs:
     runs-on: windows-latest
     
     steps:
+
+    - name: Decode Keystore
+      run: |
+        $keystoreBytes = [Convert]::FromBase64String("${{ secrets.ANDROID_KEYSTORE_BASE64 }}")
+        [IO.File]::WriteAllBytes("src/TiktokStreakSaver/streaksaver.keystore", $keystoreBytes)
+        Write-Host "Keystore file created successfully"
+      shell: pwsh
+
     - name: Checkout repository
       uses: actions/checkout@v4
 
@@ -39,12 +47,6 @@ jobs:
 
     - name: Restore dependencies
       run: dotnet restore ${{ env.PROJECT_PATH }}
-
-    - name: Decode Keystore
-      run: |
-        echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" > keystore_base64.txt
-        certutil -decode keystore_base64.txt src/TiktokStreakSaver/streaksaver.keystore
-      shell: cmd
 
     - name: Build Android Release
       run: |
