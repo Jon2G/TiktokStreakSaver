@@ -21,7 +21,7 @@
 		<Nullable>enable</Nullable>
 
 		<!-- Display name -->
-		<ApplicationTitle>TiktokStreakSaver</ApplicationTitle>
+		<ApplicationTitle>Streak Saver</ApplicationTitle>
 
 		<!-- App Identifier -->
 		<ApplicationId>com.companyname.tiktokstreaksaver</ApplicationId>
@@ -42,11 +42,11 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<!-- App Icon -->
-		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4" />
+		<!-- App Icon - TikTok-inspired flame icon -->
+		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#FE2C55" />
 
-		<!-- Splash Screen -->
-		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128" />
+		<!-- Splash Screen - TikTok red background with flame -->
+		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#FE2C55" BaseSize="128,128" />
 
 		<!-- Images -->
 		<MauiImage Include="Resources\Images\*" />
@@ -60,8 +60,10 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<PackageReference Include="asyncawaitbestpractices" Version="10.0.0" />
 		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.8" />
+		<PackageReference Include="RandomUserAgent" Version="1.1.2" />
 	</ItemGroup>
 
 </Project>
