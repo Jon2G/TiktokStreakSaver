@@ -4,7 +4,7 @@ using TiktokStreakSaver.Services;
 
 namespace TiktokStreakSaver.Platforms.Android.Receivers;
 
-[BroadcastReceiver(Name = "com.companyname.tiktokstreaksaver.Receivers.BootReceiver", Enabled = true, Exported = true)]
+[BroadcastReceiver(Name = "com.jon2g.tiktokstreaksaver.Receivers.BootReceiver", Enabled = true, Exported = true)]
 [IntentFilter(new[] { Intent.ActionBootCompleted, "android.intent.action.QUICKBOOT_POWERON" })]
 public class BootReceiver : BroadcastReceiver
 {

@@ -14,7 +14,7 @@ using WebView = Android.Webkit.WebView;
 
 namespace TiktokStreakSaver.Platforms.Android.Services;
 
-[Service(Name = "com.companyname.tiktokstreaksaver.Services.StreakService", ForegroundServiceType = global::Android.Content.PM.ForegroundService.TypeDataSync)]
+[Service(Name = "com.jon2g.tiktokstreaksaver.Services.StreakService", ForegroundServiceType = global::Android.Content.PM.ForegroundService.TypeDataSync)]
 public class StreakService : Service
 {
     private const string ChannelId = "streak_service_channel";

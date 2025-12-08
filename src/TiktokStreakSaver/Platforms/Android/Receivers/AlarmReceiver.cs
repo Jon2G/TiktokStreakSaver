@@ -5,10 +5,10 @@ using TiktokStreakSaver.Platforms.Android.Services;
 
 namespace TiktokStreakSaver.Platforms.Android.Receivers;
 
-[BroadcastReceiver(Name = "com.companyname.tiktokstreaksaver.Receivers.AlarmReceiver", Enabled = true, Exported = false)]
+[BroadcastReceiver(Name = "com.jon2g.tiktokstreaksaver.Receivers.AlarmReceiver", Enabled = true, Exported = false)]
 public class AlarmReceiver : BroadcastReceiver
 {
-    public const string ActionStreakAlarm = "com.companyname.tiktokstreaksaver.ACTION_STREAK_ALARM";
+    public const string ActionStreakAlarm = "com.jon2g.tiktokstreaksaver.ACTION_STREAK_ALARM";
 
     public override void OnReceive(Context? context, Intent? intent)
     {
