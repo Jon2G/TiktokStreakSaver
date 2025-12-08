@@ -1,0 +1,111 @@
+name: Android Release Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.0)'
+        required: true
+        default: '1.0.0'
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  PROJECT_PATH: 'src/TiktokStreakSaver/TiktokStreakSaver.csproj'
+
+jobs:
+  build-android:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Setup Java JDK
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'microsoft'
+        java-version: '17'
+
+    - name: Install MAUI workload
+      run: dotnet workload install maui-android
+
+    - name: Restore dependencies
+      run: dotnet restore ${{ env.PROJECT_PATH }}
+
+    - name: Decode Keystore
+      run: |
+        echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" > keystore_base64.txt
+        certutil -decode keystore_base64.txt src/TiktokStreakSaver/streaksaver.keystore
+      shell: cmd
+
+    - name: Build Android Release
+      run: |
+        dotnet publish ${{ env.PROJECT_PATH }} -f net9.0-android -c Release -o ./artifacts
+      env:
+        ANDROID_SIGNING_PASSWORD: ${{ secrets.ANDROID_SIGNING_PASSWORD }}
+
+    - name: Get version from tag
+      id: get_version
+      run: |
+        if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+          echo "VERSION=${{ github.event.inputs.version }}" >> $env:GITHUB_OUTPUT
+        } else {
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+        }
+      shell: pwsh
+
+    - name: Rename APK
+      run: |
+        $apk = Get-ChildItem -Path ./artifacts -Filter "*.apk" | Select-Object -First 1
+        if ($apk) {
+          $newName = "StreakSaver-v${{ steps.get_version.outputs.VERSION }}.apk"
+          Rename-Item -Path $apk.FullName -NewName $newName
+          echo "APK_NAME=$newName" >> $env:GITHUB_OUTPUT
+          echo "APK_PATH=./artifacts/$newName" >> $env:GITHUB_OUTPUT
+        }
+      shell: pwsh
+      id: rename_apk
+
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-apk
+        path: ./artifacts/*.apk
+        retention-days: 30
+
+    - name: Create GitHub Release
+      if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', github.event.inputs.version) || github.ref_name }}
+        name: Streak Saver v${{ steps.get_version.outputs.VERSION }}
+        body: |
+          ## Streak Saver v${{ steps.get_version.outputs.VERSION }}
+          
+          ### Installation
+          1. Download the APK file below
+          2. Enable "Install from unknown sources" on your Android device
+          3. Install the APK
+          
+          ### Features
+          - Automatic TikTok streak messages every 23 hours
+          - Configurable friend list
+          - Background service with reliable scheduling
+          
+          ### Requirements
+          - Android 7.0 (API 24) or higher
+        files: ./artifacts/*.apk
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

@@ -3,6 +3,11 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
+# Android Keystore files (NEVER commit these!)
+*.keystore
+*.jks
+keystore_base64.txt
+
 # User-specific files
 *.rsuser
 *.suo
