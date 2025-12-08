@@ -17,6 +17,7 @@ env:
 
 jobs:
   build-android:
+    permissions: write-all
     runs-on: windows-latest
     
     steps:
