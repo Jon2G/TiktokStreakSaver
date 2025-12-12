@@ -5,6 +5,7 @@ namespace TiktokStreakSaver.Services;
 /// <summary>
 /// Helper class for TikTok WebView configuration and login detection
 /// </summary>
+[Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
 public static class TikTokWebViewHelper
 {
     public const string LoginUrl = "https://www.tiktok.com/login";

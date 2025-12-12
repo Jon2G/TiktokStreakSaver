@@ -6,6 +6,7 @@ namespace TiktokStreakSaver.Services;
 /// <summary>
 /// Service for managing app settings and persistent storage
 /// </summary>
+[Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
 public class SettingsService
 {
     private const string FriendsListKey = "friends_list";

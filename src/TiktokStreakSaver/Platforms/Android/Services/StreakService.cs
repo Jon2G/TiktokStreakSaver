@@ -7,6 +7,7 @@ using AndroidX.Core.App;
 using System.Text.Json;
 using Android.Content.PM;
 using Java.Interop;
+using Microsoft.Maui.Controls.Internals;
 using RandomUserAgent;
 using TiktokStreakSaver.Models;
 using TiktokStreakSaver.Services;
@@ -15,6 +16,7 @@ using WebView = Android.Webkit.WebView;
 namespace TiktokStreakSaver.Platforms.Android.Services;
 
 [Service(Name = "com.jon2g.tiktokstreaksaver.Services.StreakService", ForegroundServiceType = global::Android.Content.PM.ForegroundService.TypeDataSync)]
+[Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
 public class StreakService : Service
 {
     private const string ChannelId = "streak_service_channel";

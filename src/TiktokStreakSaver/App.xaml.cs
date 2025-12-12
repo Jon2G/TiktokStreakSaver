@@ -1,5 +1,5 @@
 ﻿namespace TiktokStreakSaver
-{
+{[Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
     public partial class App : Application
     {
         public App()

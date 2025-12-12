@@ -3,7 +3,7 @@ using RandomUserAgent;
 using TiktokStreakSaver.Services;
 
 namespace TiktokStreakSaver;
-
+[Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
 public partial class LoginPage : ContentPage
 {
     private readonly SessionService _sessionService;

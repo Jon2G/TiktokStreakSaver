@@ -4,6 +4,7 @@ using Android.Runtime;
 namespace TiktokStreakSaver
 {
     [Application]
+    [Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
     public class MainApplication : MauiApplication
     {
         public MainApplication(IntPtr handle, JniHandleOwnership ownership)

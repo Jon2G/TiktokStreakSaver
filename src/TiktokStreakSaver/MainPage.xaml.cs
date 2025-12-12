@@ -3,7 +3,7 @@ using TiktokStreakSaver.Models;
 using TiktokStreakSaver.Services;
 
 namespace TiktokStreakSaver;
-
+[Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
 public partial class MainPage : ContentPage
 {
     private readonly SettingsService _settingsService;

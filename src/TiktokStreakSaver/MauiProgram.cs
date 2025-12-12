@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 
 namespace TiktokStreakSaver
-{
+{[Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
     public static class MauiProgram
     {
         public static MauiApp CreateMauiApp()

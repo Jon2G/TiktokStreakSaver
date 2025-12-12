@@ -3,6 +3,7 @@ namespace TiktokStreakSaver.Services;
 /// <summary>
 /// Service for managing TikTok session state
 /// </summary>
+[Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
 public class SessionService
 {
     private const string SessionValidKey = "session_valid";

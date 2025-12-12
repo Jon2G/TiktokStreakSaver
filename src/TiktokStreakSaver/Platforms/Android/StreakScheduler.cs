@@ -10,6 +10,7 @@ namespace TiktokStreakSaver.Platforms.Android;
 /// <summary>
 /// Manages alarm scheduling for the streak service
 /// </summary>
+[Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
 public static class StreakScheduler
 {
     private const int AlarmRequestCode = 1001;
