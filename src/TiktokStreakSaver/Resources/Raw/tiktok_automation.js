@@ -20,8 +20,39 @@
         return document.querySelectorAll("[data-e2e*='chat-list-item']");
     };
 
-    var findProfileLinks = function () {
-        return document.querySelectorAll('[class*="StyledLink"]');
+    var findCurrentChatUsername = function () {
+        // Find the username from the chat header (the opened conversation)
+        var chatHeader = document.querySelector('[class*="ChatHeader"]') ||
+                         document.querySelector('[class*="chatHeader"]') ||
+                         document.querySelector('[class*="DivChatHeader"]');
+        
+        if (chatHeader) {
+            var headerLink = chatHeader.querySelector('a[href*="/@"]');
+            if (headerLink) {
+                var href = headerLink.getAttribute('href') || '';
+                var match = href.match(/\/@([^\/]+)/);
+                return match ? match[1] : '';
+            }
+        }
+        
+        // Fallback: look for links with no data-e2e parent (usually header area)
+        var links = document.querySelectorAll('[class*="StyledLink"]');
+        for (var i = 0; i < links.length; i++) {
+            var link = links[i];
+            var parent = link.closest('[data-e2e]');
+            var parentAttr = parent ? parent.getAttribute('data-e2e') : '';
+            
+            // Skip inbox items, only look at header/none area
+            if (!parentAttr || parentAttr === 'chat-header') {
+                var href = link.getAttribute('href') || '';
+                var match = href.match(/\/@([^\/]+)/);
+                if (match && match[1]) {
+                    return match[1];
+                }
+            }
+        }
+        
+        return '';
     };
 
     var findMessageInput = function () {
@@ -37,11 +68,6 @@
     var findMessageButton = function () {
         return document.querySelector("[data-e2e*='message-button']") ||
             document.querySelector("[data-e2e*='message-send']");
-    };
-
-    var extractUsernameFromHref = function (href) {
-        var match = href.match(/\/@(.+)/);
-        return match ? match[1] : '';
     };
 
     var isTargetUser = function (currentUsername) {
@@ -207,21 +233,18 @@
     };
 
     var searchForUserInCurrentChat = function () {
-        var profileLinks = findProfileLinks();
-        log('Found ' + profileLinks.length + ' profile links');
+        // Get the username from the chat header (current open conversation)
+        var currentUsername = findCurrentChatUsername();
+        log('Current chat username: ' + currentUsername);
 
-        for (var i = 0; i < profileLinks.length; i++) {
-            var profileLink = profileLinks[i];
-            var href = profileLink.getAttribute('href') || '';
-            var currentUsername = extractUsernameFromHref(href);
-
-            if (isTargetUser(currentUsername)) {
-                found = true;
-                log('Found target user: ' + currentUsername);
-                sendMessageViaButton();
-                return true;
-            }
+        if (currentUsername && isTargetUser(currentUsername)) {
+            found = true;
+            log('Found target user: ' + currentUsername);
+            sendMessageViaButton();
+            return true;
         }
+        
+        log('Not the target user, moving to next chat...');
         return false;
     };
 
