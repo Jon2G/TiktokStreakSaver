@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Android.App;
 using Android.Content;
 using Android.OS;
@@ -11,6 +12,8 @@ using Microsoft.Maui.Controls.Internals;
 using RandomUserAgent;
 using TiktokStreakSaver.Models;
 using TiktokStreakSaver.Services;
+using System.Threading.Tasks;
+using AsyncAwaitBestPractices;
 using WebView = Android.Webkit.WebView;
 
 namespace TiktokStreakSaver.Platforms.Android.Services;
@@ -30,18 +33,19 @@ public class StreakService : Service
     private int _currentFriendIndex;
     private StreakRunResult? _runResult;
     private PowerManager.WakeLock? _wakeLock;
+    private string BaseScript = string.Empty;
 
     public override void OnCreate()
     {
         base.OnCreate();
-        
+
         // Create notification channel FIRST before anything else
         CreateNotificationChannel();
-        
+
         _mainHandler = new Handler(Looper.MainLooper!);
         _settingsService = new SettingsService();
         AcquireWakeLock();
-        
+
         // Start foreground IMMEDIATELY in OnCreate to avoid ANR
         StartForegroundServiceImmediate();
     }
@@ -52,17 +56,17 @@ public class StreakService : Service
         StartForegroundServiceImmediate();
 
         // Start the WebView automation on main thread
-        _mainHandler?.Post(() => StartWebViewAutomation());
+        _mainHandler?.Post(StartWebViewAutomation);
 
         return StartCommandResult.Sticky;
     }
-    
+
     private void StartForegroundServiceImmediate()
     {
         try
         {
             var notification = CreateNotification("Preparing to send streaks...");
-            
+
             if (Build.VERSION.SdkInt >= BuildVersionCodes.Q)
             {
                 // Android 10+ requires specifying the foreground service type
@@ -109,17 +113,17 @@ public class StreakService : Service
         {
             var notificationManager = (NotificationManager?)GetSystemService(NotificationService);
             if (notificationManager == null) return;
-            
+
             // Check if channel already exists
             var existingChannel = notificationManager.GetNotificationChannel(ChannelId);
             if (existingChannel != null) return;
-            
+
             var channel = new NotificationChannel(ChannelId, ChannelName, NotificationImportance.Low)
             {
                 Description = "Notification channel for streak service"
             };
             channel.SetShowBadge(false);
-            
+
             notificationManager.CreateNotificationChannel(channel);
         }
     }
@@ -173,7 +177,7 @@ public class StreakService : Service
         notificationManager?.Notify(NotificationId, builder.Build());
     }
 
-    private void StartWebViewAutomation()
+    private async void StartWebViewAutomation()
     {
         try
         {
@@ -189,14 +193,33 @@ public class StreakService : Service
 
             UpdateNotification($"Starting... (0/{_friendsToProcess.Count})");
 
+            //read tiktok_automation.js from assets
+            using var resourceStream = await FileSystem.OpenAppPackageFileAsync("tiktok_automation.js");
+            using var reader = new StreamReader(resourceStream);
+            this.BaseScript = await reader.ReadToEndAsync();
+            //Minify
+            //Remove lines starting with //
+            this.BaseScript = string.Join("\n", this.BaseScript.Split('\n').Where(line => !line.TrimStart().StartsWith("//")));
+            //Remove new lines and extra spaces
+            this.BaseScript = System.Text.RegularExpressions.Regex.Replace(this.BaseScript, @"\s+", " ");
+            this.BaseScript = this.BaseScript.Replace("\n", " ").Replace("\r", " ");
+            this.BaseScript = this.BaseScript.Trim();
+
             // Create WebView
             _webView = new WebView(this);
             _webView.Settings.JavaScriptEnabled = true;
             _webView.Settings.DomStorageEnabled = true;
             _webView.Settings.DatabaseEnabled = true;
             _webView.Settings.CacheMode = CacheModes.Normal;
-            _webView.Settings.UserAgentString = RandomUa.RandomUserAgent;
-            
+
+            _webView.Settings.UserAgentString = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36";
+            _webView.Settings.BuiltInZoomControls = true;
+            _webView.Settings.BuiltInZoomControls = true;
+            _webView.Settings.SetSupportZoom(true);
+            _webView.Settings.BuiltInZoomControls = true;
+
+            //_webView.Settings.UserAgentString = RandomUa.RandomUserAgent;
+
             // Enable cookies
             var cookieManager = CookieManager.Instance;
             cookieManager?.SetAcceptCookie(true);
@@ -210,6 +233,22 @@ public class StreakService : Service
 
             // Load TikTok messages page
             _webView.LoadUrl("https://www.tiktok.com/messages");
+
+
+            _mainHandler!.PostDelayed(() =>
+            {
+                if (!_webView.Url!.Contains("tiktok.com/messages"))
+                {
+                    _webView.LoadUrl("https://www.tiktok.com/messages");
+                    _mainHandler.PostDelayed(() =>
+                    {
+                        if (!_webView.Url.Contains("tiktok.com/messages"))
+                        {
+                            CompleteService(false, "Could not navigate to tiktok.com/messages");
+                        }
+                    }, 5000);
+                }
+            }, 5000);
         }
         catch (Exception ex)
         {
@@ -229,11 +268,12 @@ public class StreakService : Service
 
     internal void OnPageLoaded(string url)
     {
+        UpdateNotification($"Navigating... [{url}]");
         // Check if we're on the messages page
         if (url.Contains("tiktok.com/messages"))
         {
             // Wait a bit for the page to fully render, then start automation
-            _mainHandler?.PostDelayed(() => ProcessNextFriend(), 3000);
+            _mainHandler?.PostDelayed(ProcessNextFriend, 3000);
         }
         else if (url.Contains("login"))
         {
@@ -246,8 +286,8 @@ public class StreakService : Service
     {
         if (_runResult is not null && _runResult.Failed)
         {
-            CompleteService(false, $"Previous run failed: {_runResult.ErrorMessage??_runResult.FriendsErrorMessage}");
-         return;   
+            CompleteService(false, $"Previous run failed: {_runResult.ErrorMessage ?? _runResult.FriendsErrorMessage}");
+            return;
         }
         if (_friendsToProcess == null || _currentFriendIndex >= _friendsToProcess.Count)
         {
@@ -257,7 +297,7 @@ public class StreakService : Service
         }
 
         var friend = _friendsToProcess[_currentFriendIndex];
-        UpdateNotification($"Sending to {friend.DisplayName ?? friend.Username}... ({_currentFriendIndex + 1}/{_friendsToProcess.Count})", 
+        UpdateNotification($"Sending to {friend.DisplayName ?? friend.Username}... ({_currentFriendIndex + 1}/{_friendsToProcess.Count})",
                           _currentFriendIndex, _friendsToProcess.Count);
 
         var message = _settingsService?.GetMessageText() ?? SettingsService.DefaultMessage;
@@ -273,157 +313,11 @@ public class StreakService : Service
         var escapedUsername = username.Replace("\\", "\\\\").Replace("'", "\\'").Replace("\"", "\\\"");
         var escapedMessage = message.Replace("\\", "\\\\").Replace("'", "\\'").Replace("\"", "\\\"").Replace("\n", "\\n");
 
-        return $@"
-            (function() {{
-                try {{
-                    console.log('[StreakSaver] Looking for user: {escapedUsername}');
-                    
-                    let found = false;
-                    let chatIndex = 0;
-                    const chatItems = document.querySelectorAll(""[data-e2e*='chat-list-item']"");
-                    console.log('[StreakSaver] Found ' + chatItems.length + ' chat items');
-                    
-                    if (chatItems.length === 0) {{
-                        StreakApp.onMessageSent('{escapedUsername}', false, 'No chat items found');
-                        return;
-                    }}
-                    
-                    // Function to check each chat item
-                    function checkNextChat() {{
-                        if (found || chatIndex >= chatItems.length) {{
-                            if (!found) {{
-                                console.log('[StreakSaver] User not found after checking all chats');
-                                StreakApp.onMessageSent('{escapedUsername}', false, 'User not found in chat list');
-                            }}
-                            return;
-                        }}
-                        
-                        // Click on current chat item
-                        const chatItem = chatItems[chatIndex];
-                        console.log('[StreakSaver] Clicking chat item ' + (chatIndex + 1) + '/' + chatItems.length);
-                        chatItem.click();
-                        
-                        // Wait for chat to load, then search for StyledLink
-                        setTimeout(function() {{
-                            const profileLinks = document.querySelectorAll('[class*=""StyledLink""]');
-                            console.log('[StreakSaver] Found ' + profileLinks.length + ' profile links');
-                            
-                            for (var profileLink of profileLinks) {{
-                                const href = profileLink.getAttribute('href') || '';
-                                const match = href.match(/\/@(.+)/);
-                                const currentUsername = match ? match[1] : '';
-                                
-                                if (currentUsername && currentUsername.toLowerCase().includes('{escapedUsername}'.toLowerCase())) {{
-                                    found = true;
-                                    console.log('[StreakSaver] Found target user: ' + currentUsername);
-                                    
-                                    // User found - now send message
-                                    sendMessageToUser();
-                                    return;
-                                }}
-                            }}
-                            
-                            // Not found in this chat, try next
-                            chatIndex++;
-                            checkNextChat();
-                        }}, 1500); // Wait 1.5s after clicking chat item
-                    }}
-                    
-                    // Function to send message after user is found
-                    function sendMessageToUser() {{
-                        // Click message button
-                        var messageButton = document.querySelector(""[data-e2e*='message-button']"");
-                        
-                        if (messageButton) {{
-                            console.log('[StreakSaver] Clicking message button...');
-                            messageButton.click();
-                            
-                            // Wait for message dialog to open
-                            setTimeout(function() {{
-                                const messageInput = document.querySelector('.public-DraftStyleDefault-block') ||
-                                                    document.querySelector('[class*=""public-DraftStyleDefault""]') ||
-                                                    document.querySelector('[class*=""DraftEditor""]') ||
-                                                    document.querySelector('div[contenteditable=""true""]');
-                                
-                                if (messageInput) {{
-                                    console.log('[StreakSaver] Found message input, typing...');
-                                    messageInput.click();
-                                    messageInput.focus();
-                                    
-                                    // Set message content
-                                    messageInput.textContent = '{escapedMessage}';
-                                    messageInput.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                                    messageInput.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                                    
-                                    // Send with Enter key
-                                    setTimeout(function() {{
-                                        messageInput.dispatchEvent(new KeyboardEvent('keydown', {{
-                                            key: 'Enter',
-                                            code: 'Enter',
-                                            keyCode: 13,
-                                            which: 13,
-                                            bubbles: true,
-                                            cancelable: true
-                                        }}));
-                                        
-                                        messageInput.dispatchEvent(new KeyboardEvent('keyup', {{
-                                            key: 'Enter',
-                                            code: 'Enter',
-                                            keyCode: 13,
-                                            which: 13,
-                                            bubbles: true
-                                        }}));
-                                        
-                                        console.log('[StreakSaver] Message sent to {escapedUsername}');
-                                        StreakApp.onMessageSent('{escapedUsername}', true, '');
-                                    }}, 500);
-                                }} else {{
-                                    console.log('[StreakSaver] Message input not found');
-                                    StreakApp.onMessageSent('{escapedUsername}', false, 'Message input not found');
-                                }}
-                            }}, 2000);
-                        }} else {{
-                            // No message button - we're already in the chat, try to send directly
-                            console.log('[StreakSaver] No message button, trying to send directly...');
-                            
-                            const messageInput = document.querySelector('.public-DraftStyleDefault-block') ||
-                                                document.querySelector('[class*=""public-DraftStyleDefault""]') ||
-                                                document.querySelector('[class*=""DraftEditor""]') ||
-                                                document.querySelector('div[contenteditable=""true""]');
-                            
-                            if (messageInput) {{
-                                messageInput.click();
-                                messageInput.focus();
-                                messageInput.textContent = '{escapedMessage}';
-                                messageInput.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                                
-                                setTimeout(function() {{
-                                    messageInput.dispatchEvent(new KeyboardEvent('keydown', {{
-                                        key: 'Enter',
-                                        code: 'Enter',
-                                        keyCode: 13,
-                                        which: 13,
-                                        bubbles: true
-                                    }}));
-                                    
-                                    console.log('[StreakSaver] Message sent directly to {escapedUsername}');
-                                    StreakApp.onMessageSent('{escapedUsername}', true, '');
-                                }}, 500);
-                            }} else {{
-                                StreakApp.onMessageSent('{escapedUsername}', false, 'Message input not found');
-                            }}
-                        }}
-                    }}
-                    
-                    // Start checking chats
-                    checkNextChat();
-                    
-                }} catch (e) {{
-                    console.log('[StreakSaver] Error: ' + e.message);
-                    StreakApp.onMessageSent('{escapedUsername}', false, 'Error: ' + e.message);
-                }}
-            }})();
-        ";
+
+        var automationScript = this.BaseScript.Replace("[UserName]", escapedUsername);
+        automationScript = automationScript.Replace("[Message]", escapedMessage);
+
+        return automationScript;
     }
 
     internal void OnMessageResult(string username, bool success, string error)
@@ -431,7 +325,7 @@ public class StreakService : Service
         if (_friendsToProcess == null || _settingsService == null) return;
 
         var friend = _friendsToProcess.FirstOrDefault(f => f.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
-        
+
         if (friend != null)
         {
             // Update friend stats
@@ -458,7 +352,7 @@ public class StreakService : Service
 
         // Move to next friend after a delay
         _currentFriendIndex++;
-        _mainHandler?.PostDelayed(() => ProcessNextFriend(), 3000);
+        _mainHandler?.PostDelayed(ProcessNextFriend, 3000);
     }
 
     private void CompleteService(bool success, string message)
@@ -520,6 +414,13 @@ public class StreakService : Service
 
         public override bool ShouldOverrideUrlLoading(WebView? view, IWebResourceRequest? request)
         {
+            if (request?.Url is not null)
+            {
+                if ((request.Url.EncodedSchemeSpecificPart ?? "").StartsWith("//aweme"))
+                {
+                    return true;
+                }
+            }
             // Allow navigation within TikTok
             return false;
         }
@@ -543,6 +444,15 @@ public class StreakService : Service
         {
             _service._mainHandler?.Post(() => _service.OnMessageResult(username, success, error));
         }
+
+        [JavascriptInterface]
+        [Export("log")]
+        public void Log(string message)
+        {
+            Debugger.Log(0,"DEBUG",message);
+            Console.WriteLine(message);
+        }
+
     }
 }
 
