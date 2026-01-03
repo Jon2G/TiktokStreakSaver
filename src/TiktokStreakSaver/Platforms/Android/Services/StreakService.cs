@@ -232,14 +232,14 @@ public class StreakService : Service
             _webView.AddJavascriptInterface(new StreakJsInterface(this), "StreakApp");
 
             // Load TikTok messages page
-            _webView.LoadUrl("https://www.tiktok.com/messages");
+            _webView.LoadUrl("https://www.tiktok.com/messages?lang=en");
 
 
             _mainHandler!.PostDelayed(() =>
             {
                 if (!_webView.Url!.Contains("tiktok.com/messages"))
                 {
-                    _webView.LoadUrl("https://www.tiktok.com/messages");
+                    _webView.LoadUrl("https://www.tiktok.com/messages?lang=en");
                     _mainHandler.PostDelayed(() =>
                     {
                         if (!_webView.Url.Contains("tiktok.com/messages"))

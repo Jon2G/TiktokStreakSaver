@@ -277,7 +277,7 @@
                 userName = userName.substring(1);
             }
             log('Looking for user: ' + userName);
-
+            setTimeout(function () {
             chatItems = findChatItems();
             log('Found ' + chatItems.length + ' chat items');
 
@@ -287,6 +287,7 @@
             }
 
             checkNextChat();
+             }, 3000);
 
         } catch (e) {
             log('Error: ' + e.message);
