@@ -12,6 +12,7 @@ using Microsoft.Maui.Controls.Internals;
 using RandomUserAgent;
 using TiktokStreakSaver.Models;
 using TiktokStreakSaver.Services;
+using TiktokStreakSaver.Platforms.Android;
 using System.Threading.Tasks;
 using AsyncAwaitBestPractices;
 using WebView = Android.Webkit.WebView;
@@ -34,6 +35,9 @@ public class StreakService : Service
     private StreakRunResult? _runResult;
     private PowerManager.WakeLock? _wakeLock;
     private string BaseScript = string.Empty;
+    private int _failureAttemptsForCurrentFriend;
+
+    private const int MaxSendAttemptsPerFriend = 4;
 
     public override void OnCreate()
     {
@@ -183,11 +187,18 @@ public class StreakService : Service
         {
             _friendsToProcess = _settingsService?.GetEnabledFriends() ?? new List<FriendConfig>();
             _currentFriendIndex = 0;
+            _failureAttemptsForCurrentFriend = 0;
             _runResult = new StreakRunResult();
 
             if (_friendsToProcess.Count == 0)
             {
                 CompleteService(false, "No friends configured");
+                return;
+            }
+
+            if (!NetworkConnectivity.HasWifiOrCellularValidatedInternet(this))
+            {
+                CompleteSkippedNoNetwork();
                 return;
             }
 
@@ -297,7 +308,10 @@ public class StreakService : Service
         }
 
         var friend = _friendsToProcess[_currentFriendIndex];
-        UpdateNotification($"Sending to {friend.DisplayName ?? friend.Username}... ({_currentFriendIndex + 1}/{_friendsToProcess.Count})",
+        var attemptLabel = _failureAttemptsForCurrentFriend > 0
+            ? $" (attempt {_failureAttemptsForCurrentFriend + 1}/{MaxSendAttemptsPerFriend})"
+            : string.Empty;
+        UpdateNotification($"Sending to {friend.DisplayName ?? friend.Username}... ({_currentFriendIndex + 1}/{_friendsToProcess.Count}){attemptLabel}",
                           _currentFriendIndex, _friendsToProcess.Count);
 
         var message = _settingsService?.GetMessageText() ?? SettingsService.DefaultMessage;
@@ -326,31 +340,53 @@ public class StreakService : Service
 
         var friend = _friendsToProcess.FirstOrDefault(f => f.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
 
-        if (friend != null)
+        if (friend == null)
         {
-            // Update friend stats
-            if (success)
-            {
-                friend.SuccessCount++;
-                friend.LastMessageSent = DateTime.Now;
-            }
-            else
-            {
-                friend.FailureCount++;
-            }
+            _failureAttemptsForCurrentFriend = 0;
+            _currentFriendIndex++;
+            _mainHandler?.PostDelayed(ProcessNextFriend, 3000);
+            return;
+        }
+
+        if (success)
+        {
+            friend.SuccessCount++;
+            friend.LastMessageSent = DateTime.Now;
             _settingsService.UpdateFriend(friend);
 
-            // Add to run result
             _runResult?.FriendResults.Add(new FriendMessageResult
             {
                 FriendId = friend.Id,
                 Username = username,
-                Success = success,
-                ErrorMessage = success ? null : error
+                Success = true,
+                ErrorMessage = null
             });
+
+            _failureAttemptsForCurrentFriend = 0;
+            _currentFriendIndex++;
+            _mainHandler?.PostDelayed(ProcessNextFriend, 3000);
+            return;
         }
 
-        // Move to next friend after a delay
+        _failureAttemptsForCurrentFriend++;
+        if (_failureAttemptsForCurrentFriend < MaxSendAttemptsPerFriend)
+        {
+            _mainHandler?.PostDelayed(ProcessNextFriend, 3000);
+            return;
+        }
+
+        friend.FailureCount++;
+        _settingsService.UpdateFriend(friend);
+
+        _runResult?.FriendResults.Add(new FriendMessageResult
+        {
+            FriendId = friend.Id,
+            Username = username,
+            Success = false,
+            ErrorMessage = error
+        });
+
+        _failureAttemptsForCurrentFriend = 0;
         _currentFriendIndex++;
         _mainHandler?.PostDelayed(ProcessNextFriend, 3000);
     }
@@ -382,6 +418,40 @@ public class StreakService : Service
 
             // Schedule next run
             StreakScheduler.ScheduleNextRun(this);
+        }
+        finally
+        {
+            CleanupWebView();
+            StopForeground(StopForegroundFlags.Remove);
+            StopSelf();
+        }
+    }
+
+    private void CompleteSkippedNoNetwork()
+    {
+        try
+        {
+            UpdateNotification("No connection - retry in 1 hour");
+
+            if (_runResult != null && _settingsService != null)
+            {
+                _runResult.Success = false;
+                _runResult.ErrorMessage = "Skipped: no network";
+                _settingsService.AddRunResult(_runResult);
+            }
+
+            StreakScheduler.ScheduleRetryInOneHour(this);
+
+            var finalNotification = new NotificationCompat.Builder(this, ChannelId)
+                .SetContentTitle("TikTok Streak Saver")
+                .SetContentText("No Wi-Fi or cellular data. Will retry in 1 hour.")
+                .SetSmallIcon(Resource.Drawable.ic_notification)
+                .SetAutoCancel(true)
+                .SetPriority(NotificationCompat.PriorityDefault)
+                .Build();
+
+            var notificationManager = (NotificationManager?)GetSystemService(NotificationService);
+            notificationManager?.Notify(NotificationId + 1, finalNotification);
         }
         finally
         {

@@ -45,6 +45,15 @@ public static class StreakScheduler
     }
 
     /// <summary>
+    /// When the device is offline, retry the streak check in one hour without changing last-run time.
+    /// </summary>
+    public static void ScheduleRetryInOneHour(Context context)
+    {
+        ScheduleAt(context, DateTime.Now.AddHours(1));
+        new SettingsService().SetScheduled(true);
+    }
+
+    /// <summary>
     /// Schedule a run at a specific time
     /// </summary>
     public static void ScheduleAt(Context context, DateTime triggerTime)
