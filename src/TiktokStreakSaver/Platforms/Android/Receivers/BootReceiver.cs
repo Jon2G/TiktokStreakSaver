@@ -6,6 +6,7 @@ using TiktokStreakSaver.Platforms.Android;
 
 namespace TiktokStreakSaver.Platforms.Android.Receivers;
 
+[Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
 [BroadcastReceiver(Name = AppConstants.PackageName + ".Receivers.BootReceiver", Enabled = true, Exported = true)]
 [IntentFilter(new[] { Intent.ActionBootCompleted, "android.intent.action.QUICKBOOT_POWERON" })]
 public class BootReceiver : BroadcastReceiver

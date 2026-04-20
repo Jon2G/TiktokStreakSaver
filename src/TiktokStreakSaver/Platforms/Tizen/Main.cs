@@ -4,6 +4,7 @@ using Microsoft.Maui.Hosting;
 
 namespace TiktokStreakSaver
 {
+    [Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
     internal class Program : MauiApplication
     {
         protected override MauiApp CreateMauiApp() => MauiProgram.CreateMauiApp();

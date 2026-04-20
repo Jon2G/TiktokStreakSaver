@@ -6,6 +6,7 @@ namespace TiktokStreakSaver.Platforms.Android.Services;
 /// <summary>
 /// Checks for validated internet on Wi‑Fi or cellular.
 /// </summary>
+[Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
 internal static class NetworkConnectivity
 {
     public static bool HasWifiOrCellularValidatedInternet(Context context)

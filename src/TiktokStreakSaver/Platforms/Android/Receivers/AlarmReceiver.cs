@@ -6,6 +6,7 @@ using TiktokStreakSaver.Platforms.Android.Services;
 
 namespace TiktokStreakSaver.Platforms.Android.Receivers;
 
+[Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
 [BroadcastReceiver(Name = AppConstants.PackageName + ".Receivers.AlarmReceiver", Enabled = true, Exported = false)]
 public class AlarmReceiver : BroadcastReceiver
 {

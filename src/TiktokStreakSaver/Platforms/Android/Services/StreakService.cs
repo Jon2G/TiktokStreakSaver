@@ -704,6 +704,7 @@ public class StreakService : Service
     /// <summary>
     /// WebView client for handling page events
     /// </summary>
+    [Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
     private class StreakWebViewClient : WebViewClient
     {
         private readonly StreakService _service;
@@ -739,6 +740,7 @@ public class StreakService : Service
     /// <summary>
     /// JavaScript interface for communication from WebView
     /// </summary>
+    [Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
     private class StreakJsInterface : Java.Lang.Object
     {
         private readonly StreakService _service;

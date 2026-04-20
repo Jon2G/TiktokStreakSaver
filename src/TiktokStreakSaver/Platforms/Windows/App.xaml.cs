@@ -8,6 +8,7 @@ namespace TiktokStreakSaver.WinUI
     /// <summary>
     /// Provides application-specific behavior to supplement the default Application class.
     /// </summary>
+    [Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
     public partial class App : MauiWinUIApplication
     {
         /// <summary>

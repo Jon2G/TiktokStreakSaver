@@ -3,6 +3,7 @@ using Microsoft.Maui.ApplicationModel;
 
 namespace TiktokStreakSaver;
 
+[Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
 public partial class AboutPopupPage : ContentPage
 {
     private readonly string _assignedVersion;

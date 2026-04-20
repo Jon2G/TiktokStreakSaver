@@ -3,6 +3,7 @@ namespace TiktokStreakSaver.Models;
 /// <summary>
 /// Represents a friend configuration for sending streak messages
 /// </summary>
+[Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
 public class FriendConfig
 {
     /// <summary>
@@ -44,6 +45,7 @@ public class FriendConfig
 /// <summary>
 /// Represents the result of a streak run
 /// </summary>
+[Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
 public class StreakRunResult
 {
     public DateTime RunTime { get; set; } = DateTime.Now;
@@ -57,6 +59,7 @@ public class StreakRunResult
 /// <summary>
 /// Result of sending a message to a specific friend
 /// </summary>
+[Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
 public class FriendMessageResult
 {
     public string FriendId { get; set; } = string.Empty;

@@ -3,6 +3,7 @@ using UIKit;
 
 namespace TiktokStreakSaver
 {
+    [Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
     public class Program
     {
         // This is the main entry point of the application.

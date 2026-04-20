@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace TiktokStreakSaver.Services;
 
+[Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
 public class GitHubAsset
 {
     [JsonPropertyName("name")]
@@ -15,6 +16,7 @@ public class GitHubAsset
     public long Size { get; set; }
 }
 
+[Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
 public class GitHubRelease
 {
     [JsonPropertyName("tag_name")]
@@ -30,6 +32,7 @@ public class GitHubRelease
     public GitHubAsset[] Assets { get; set; } = [];
 }
 
+[Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
 public class UpdateInfo
 {
     public bool HasUpdate { get; set; }
@@ -42,6 +45,7 @@ public class UpdateInfo
 /// <summary>
 /// Checks GitHub releases for updates (Jon2G/TiktokStreakSaver).
 /// </summary>
+[Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
 public class UpdateService
 {
     private static readonly HttpClient HttpClient = new();

@@ -9,6 +9,7 @@ public static class TikTokWebViewHelper
     public const string LoginUrl = "https://www.tiktok.com/login";
     public const string MessagesUrl = "https://www.tiktok.com/messages";
 
+    [Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
     public class LoginStatusResult
     {
         public bool IsLoggedIn { get; set; }
