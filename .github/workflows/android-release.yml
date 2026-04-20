@@ -53,7 +53,7 @@ jobs:
         SIGNING_PASSWORD_CHECK: ${{ secrets.ANDROID_SIGNING_PASSWORD }}
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v5
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
