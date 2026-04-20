@@ -58,6 +58,25 @@
                            FontSize="12" />
                 </VerticalStackLayout>
 
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Credits" Style="{StaticResource SectionLabel}" Margin="0, 8, 0, 4"/>
+                    <Label Style="{StaticResource ValueLabel}" LineBreakMode="WordWrap">
+                        <Label.FormattedText>
+                            <FormattedString>
+                                <Span Text="Automation patterns and burst-mode ideas are aligned with the open-source Feener project (" />
+                                <Span Text="streak-tiktok"
+                                      TextColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                                      TextDecorations="Underline">
+                                    <Span.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnFeenerCreditTapped" />
+                                    </Span.GestureRecognizers>
+                                </Span>
+                                <Span Text=") by eulfen and contributors." />
+                            </FormattedString>
+                        </Label.FormattedText>
+                    </Label>
+                </VerticalStackLayout>
+
                 <!-- Data & Permissions Notice -->
                 <VerticalStackLayout Spacing="8" Margin="0, 0, 0, 12">
                     <Label Text="Privacy &amp; System Permissions" 

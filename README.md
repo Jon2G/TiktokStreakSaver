@@ -176,6 +176,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - Built with [.NET MAUI](https://dotnet.microsoft.com/apps/maui)
+- **Feener** ([streak-tiktok](https://github.com/eulfn/streak-tiktok)): upstream MAUI TikTok streak automation this project tracks for WebView scripting, burst-mode behavior, and related fixes. Thanks to [eulfen](https://github.com/eulfn) and contributors.
 - Inspired by the need to never lose a streak again
 
 ---

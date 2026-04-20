@@ -516,6 +516,15 @@ blockquote{{
         catch { }
     }
 
+    private async void OnFeenerCreditTapped(object? sender, TappedEventArgs e)
+    {
+        try
+        {
+            await Launcher.Default.OpenAsync("https://github.com/eulfn/streak-tiktok");
+        }
+        catch { }
+    }
+
     private void TriggerApkInstall(string apkPath)
     {
 #if ANDROID
