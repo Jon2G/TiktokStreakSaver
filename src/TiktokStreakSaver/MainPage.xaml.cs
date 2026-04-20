@@ -9,16 +9,13 @@ public partial class MainPage : ContentPage
     private readonly SettingsService _settingsService;
     private readonly SessionService _sessionService;
     private readonly UpdateService _updateService;
-    private readonly BurstChatService _burstChatService;
     private bool _isCheckingSession = false;
     private bool _sessionCheckCompleted = false;
     private bool _isCheckingForUpdates = false;
     private bool _isAppInForeground = false;
     private IDispatcherTimer? _statusTimer;
     private bool _suppressIntervalChanged;
-    private bool _suppressBurstTimingChanged;
     private bool _suppressSettingsToggles;
-    private bool _burstMessageTabSelected;
     private const string InitialScheduleArmedKey = "initial_background_schedule_armed";
 
     public MainPage()
@@ -27,7 +24,6 @@ public partial class MainPage : ContentPage
         _settingsService = new SettingsService();
         _sessionService = new SessionService();
         _updateService = new UpdateService();
-        _burstChatService = new BurstChatService();
     }
 
     private Color GetThemeColor(string key, string fallbackHex = "#92979E")
@@ -44,7 +40,6 @@ public partial class MainPage : ContentPage
         base.OnAppearing();
         _isAppInForeground = true;
         LoadSettings();
-        UpdateMessageTabVisualState(_burstMessageTabSelected);
         LoadFriendsList();
         LoadHistory();
         UpdateStatus();
@@ -373,8 +368,8 @@ public partial class MainPage : ContentPage
             LoginButton.BackgroundColor = GetThemeColor("Gray400");
             LoginButton.IsEnabled = false;
             SessionCheckingIndicator.IsVisible = true;
-            RunNowButton.IsEnabled = false;
-            RunNowButton.Opacity = 0.5;
+            MasterRunButton.IsEnabled = false;
+            MasterRunButton.Opacity = 0.5;
         }
         else if (isSessionValid)
         {
@@ -382,10 +377,8 @@ public partial class MainPage : ContentPage
             LoginButton.BackgroundColor = GetThemeColor("Success", "#22946E");
             LoginButton.IsEnabled = false;
             SessionCheckingIndicator.IsVisible = false;
-            RunNowButton.IsEnabled = true;
-            RunNowButton.Opacity = 1.0;
-            RunBurstNowButton.IsEnabled = true;
-            RunBurstNowButton.Opacity = 1.0;
+            MasterRunButton.IsEnabled = true;
+            MasterRunButton.Opacity = 1.0;
         }
         else
         {
@@ -393,31 +386,33 @@ public partial class MainPage : ContentPage
             LoginButton.BackgroundColor = GetThemeColor("Primary", "#FE2C55");
             LoginButton.IsEnabled = true;
             SessionCheckingIndicator.IsVisible = false;
-            RunNowButton.IsEnabled = false;
-            RunNowButton.Opacity = 0.5;
-            RunBurstNowButton.IsEnabled = false;
-            RunBurstNowButton.Opacity = 0.5;
+            MasterRunButton.IsEnabled = false;
+            MasterRunButton.Opacity = 0.5;
         }
     }
 
     private void LoadSettings()
     {
-        // Load messages
         MessageEditor.Text = _settingsService.GetMessageText();
-        BurstMessageEditor.Text = _settingsService.GetBurstMessageText();
 
         _suppressSettingsToggles = true;
         try
         {
             ScheduleSwitch.IsToggled = _settingsService.IsScheduled();
             SkipUnreachableSwitch.IsToggled = _settingsService.GetSkipUnreachableUsers();
-            BurstChatSwitch.IsToggled = _burstChatService.IsEnabled();
         }
         finally
         {
             _suppressSettingsToggles = false;
         }
-        UpdateBurstModeDescription(_burstChatService.IsEnabled());
+
+        if (_settingsService.IsBurstModeActive())
+            SetBurstModeUI();
+        else
+            SetNormalModeUI();
+
+        LoadBurstMessages();
+        BurstTargetUserEntry.Text = _settingsService.GetBurstTargetUsername();
 
         _suppressIntervalChanged = true;
         try
@@ -432,27 +427,162 @@ public partial class MainPage : ContentPage
         {
             _suppressIntervalChanged = false;
         }
+    }
 
-        _suppressBurstTimingChanged = true;
-        try
+    private void OnNormalModeTapped(object? sender, TappedEventArgs e)
+    {
+        _settingsService.SetBurstModeActive(false);
+        SetNormalModeUI();
+    }
+
+    private void OnBurstModeTapped(object? sender, TappedEventArgs e)
+    {
+        _settingsService.SetBurstModeActive(true);
+        SetBurstModeUI();
+    }
+
+    private void SetNormalModeUI()
+    {
+        NormalModeTabBorder.BackgroundColor = GetThemeColor("Primary", "#FE2C55");
+        NormalModeTabLabel.TextColor = GetThemeColor("White", "#FFFFFF");
+        BurstModeTabBorder.BackgroundColor = Colors.Transparent;
+        BurstModeTabLabel.TextColor = GetThemeColor("Gray600", "#4B5563");
+
+        NormalModeContainer.IsVisible = true;
+        BurstModeContainer.IsVisible = false;
+
+        MasterRunButton.Text = "START REGULAR STREAK";
+        MasterRunButton.BackgroundColor = GetThemeColor("Primary", "#FE2C55");
+        MasterRunButton.TextColor = GetThemeColor("White", "#FFFFFF");
+    }
+
+    private void SetBurstModeUI()
+    {
+        BurstModeTabBorder.BackgroundColor = Color.FromArgb("#8B5CF6");
+        BurstModeTabLabel.TextColor = Colors.White;
+        NormalModeTabBorder.BackgroundColor = Colors.Transparent;
+        NormalModeTabLabel.TextColor = GetThemeColor("Gray600", "#4B5563");
+
+        NormalModeContainer.IsVisible = false;
+        BurstModeContainer.IsVisible = true;
+
+        MasterRunButton.Text = "START INFINITE BURST";
+        MasterRunButton.BackgroundColor = Color.FromArgb("#8B5CF6");
+        MasterRunButton.TextColor = Colors.White;
+    }
+
+    private void LoadBurstMessages()
+    {
+        BurstMessagesStack.Children.Clear();
+        var msgs = _settingsService.GetBurstMessages();
+        if (msgs.Count == 0) msgs.Add(SettingsService.DefaultMessage);
+        foreach (var m in msgs)
+            AddBurstMessageEditorUI(m);
+        UpdateAddBurstMessageButtonVisibility();
+    }
+
+    private void AddBurstMessageEditorUI(string initialText)
+    {
+        var border = new Border
         {
-            BurstCountStepper.Value = _burstChatService.GetBurstCount();
-            BurstCountValueLabel.Text = ((int)BurstCountStepper.Value).ToString();
+            Stroke = GetThemeColor("BorderColorLight", "#E5E5E5"),
+            StrokeThickness = 1,
+            StrokeShape = new RoundRectangle { CornerRadius = 8 },
+            Margin = new Thickness(0, 0, 0, 8)
+        };
+        border.SetAppThemeColor(Border.StrokeProperty,
+            GetThemeColor("BorderColorLight", "#E5E5E5"),
+            GetThemeColor("BorderColorDark", "#404040"));
 
-            var minS = Math.Max(1, _burstChatService.GetMinDelayMs() / 1000);
-            var maxS = Math.Max(minS, _burstChatService.GetMaxDelayMs() / 1000);
-            BurstMinSecStepper.Value = Math.Min(120, minS);
-            BurstMaxSecStepper.Value = Math.Min(180, Math.Max((int)BurstMinSecStepper.Value, maxS));
-            BurstMinSecValueLabel.Text = ((int)BurstMinSecStepper.Value).ToString();
-            BurstMaxSecValueLabel.Text = ((int)BurstMaxSecStepper.Value).ToString();
-        }
-        finally
+        var grid = new Grid
         {
-            _suppressBurstTimingChanged = false;
+            ColumnDefinitions = new ColumnDefinitionCollection
+            {
+                new ColumnDefinition { Width = GridLength.Star },
+                new ColumnDefinition { Width = GridLength.Auto }
+            }
+        };
+
+        var editor = new Editor
+        {
+            Text = initialText,
+            Placeholder = "Enter burst message...",
+            HeightRequest = 60,
+            Margin = new Thickness(8)
+        };
+        editor.TextChanged += OnBurstSettingsChanged;
+
+        var removeBtn = new Button
+        {
+            Text = "X",
+            BackgroundColor = Colors.Transparent,
+            TextColor = GetThemeColor("DeleteColor", "#EF4444"),
+            FontAttributes = FontAttributes.Bold,
+            WidthRequest = 40,
+            VerticalOptions = LayoutOptions.Center
+        };
+        removeBtn.Clicked += (_, _) =>
+        {
+            if (BurstMessagesStack.Children.Count > 1)
+            {
+                BurstMessagesStack.Children.Remove(border);
+                SaveBurstSettings();
+                UpdateAddBurstMessageButtonVisibility();
+            }
+            else
+            {
+                _ = DisplayAlert("Required", "Keep at least one burst message.", "OK");
+            }
+        };
+
+        grid.Children.Add(editor);
+        Grid.SetColumn(editor, 0);
+        grid.Children.Add(removeBtn);
+        Grid.SetColumn(removeBtn, 1);
+
+        border.Content = grid;
+        BurstMessagesStack.Children.Add(border);
+    }
+
+    private void OnAddBurstMessageClicked(object? sender, EventArgs e)
+    {
+        if (BurstMessagesStack.Children.Count < 5)
+        {
+            AddBurstMessageEditorUI("");
+            SaveBurstSettings();
+            UpdateAddBurstMessageButtonVisibility();
+        }
+    }
+
+    private void UpdateAddBurstMessageButtonVisibility()
+    {
+        AddBurstMessageButton.IsVisible = BurstMessagesStack.Children.Count < 5;
+    }
+
+    private void OnBurstSettingsChanged(object? sender, TextChangedEventArgs e)
+    {
+        SaveBurstSettings();
+    }
+
+    private void SaveBurstSettings()
+    {
+        _settingsService.SetBurstTargetUsername(BurstTargetUserEntry.Text?.Trim() ?? "");
+
+        var messages = new List<string>();
+        foreach (Border border in BurstMessagesStack.Children)
+        {
+            if (border.Content is Grid g && g.Children.Count > 0 && g.Children[0] is Editor ed)
+            {
+                var text = ed.Text?.Trim() ?? "";
+                if (!string.IsNullOrEmpty(text))
+                    messages.Add(text);
+            }
         }
 
-        if (!_burstChatService.IsEnabled())
-            _burstMessageTabSelected = false;
+        if (messages.Count == 0)
+            messages.Add(SettingsService.DefaultMessage);
+
+        _settingsService.SetBurstMessages(messages);
     }
 
 #if ANDROID
@@ -485,66 +615,6 @@ public partial class MainPage : ContentPage
         await SettingsDrawer.TranslateTo(-320, 0, 200, Easing.CubicIn);
         SettingsOverlay.IsVisible = false;
         BottomRunPanel.IsVisible = true;
-    }
-
-    private void OnMessageTabNormalClicked(object? sender, EventArgs e)
-    {
-        _burstMessageTabSelected = false;
-        _suppressSettingsToggles = true;
-        try
-        {
-            BurstChatSwitch.IsToggled = false;
-        }
-        finally
-        {
-            _suppressSettingsToggles = false;
-        }
-        _burstChatService.SetEnabled(false);
-        UpdateBurstModeDescription(false);
-        UpdateMessageTabVisualState(false);
-    }
-
-    private void OnMessageTabBurstClicked(object? sender, EventArgs e)
-    {
-        _burstMessageTabSelected = true;
-        _suppressSettingsToggles = true;
-        try
-        {
-            BurstChatSwitch.IsToggled = true;
-        }
-        finally
-        {
-            _suppressSettingsToggles = false;
-        }
-        _burstChatService.SetEnabled(true);
-        UpdateBurstModeDescription(true);
-        UpdateMessageTabVisualState(true);
-    }
-
-    private void UpdateMessageTabVisualState(bool burstSelected)
-    {
-        NormalMessageTabContent.IsVisible = !burstSelected;
-        BurstMessageTabContent.IsVisible = burstSelected;
-
-        var primary = GetThemeColor("Primary", "#FE2C55");
-        var primaryText = GetThemeColor("White", "#FFFFFF");
-        var idleBg = GetThemeColor("Gray100", "#282828");
-        var idleText = GetThemeColor("Gray900", "#F0F0F0");
-
-        if (burstSelected)
-        {
-            MessageTabBurstButton.BackgroundColor = primary;
-            MessageTabBurstButton.TextColor = primaryText;
-            MessageTabNormalButton.BackgroundColor = idleBg;
-            MessageTabNormalButton.TextColor = idleText;
-        }
-        else
-        {
-            MessageTabNormalButton.BackgroundColor = primary;
-            MessageTabNormalButton.TextColor = primaryText;
-            MessageTabBurstButton.BackgroundColor = idleBg;
-            MessageTabBurstButton.TextColor = idleText;
-        }
     }
 
     private void UpdateIntervalStepperLabels()
@@ -615,46 +685,6 @@ public partial class MainPage : ContentPage
         }
 #endif
         UpdateStatus();
-    }
-
-    private void OnBurstCountStepperChanged(object? sender, ValueChangedEventArgs e)
-    {
-        if (_suppressBurstTimingChanged) return;
-        var c = (int)BurstCountStepper.Value;
-        _burstChatService.SetBurstCount(c);
-        BurstCountValueLabel.Text = c.ToString();
-        UpdateBurstModeDescription(_burstChatService.IsEnabled());
-    }
-
-    private void OnBurstDelaySecChanged(object? sender, ValueChangedEventArgs e)
-    {
-        if (_suppressBurstTimingChanged) return;
-
-        var minSec = (int)BurstMinSecStepper.Value;
-        var maxSec = (int)BurstMaxSecStepper.Value;
-        if (maxSec < minSec)
-        {
-            _suppressBurstTimingChanged = true;
-            try
-            {
-                if (sender == BurstMinSecStepper)
-                    BurstMaxSecStepper.Value = minSec;
-                else
-                    BurstMinSecStepper.Value = maxSec;
-                minSec = (int)BurstMinSecStepper.Value;
-                maxSec = (int)BurstMaxSecStepper.Value;
-            }
-            finally
-            {
-                _suppressBurstTimingChanged = false;
-            }
-        }
-
-        _burstChatService.SetMinDelayMs(minSec * 1000);
-        _burstChatService.SetMaxDelayMs(maxSec * 1000);
-        BurstMinSecValueLabel.Text = minSec.ToString();
-        BurstMaxSecValueLabel.Text = maxSec.ToString();
-        UpdateBurstModeDescription(_burstChatService.IsEnabled());
     }
 
     private void UpdateStatus()
@@ -1015,46 +1045,11 @@ public partial class MainPage : ContentPage
         _settingsService.SetSkipUnreachableUsers(e.Value);
     }
 
-    private void OnBurstChatToggled(object? sender, ToggledEventArgs e)
-    {
-        if (_suppressSettingsToggles) return;
-        _burstChatService.SetEnabled(e.Value);
-        UpdateBurstModeDescription(e.Value);
-        if (!e.Value && _burstMessageTabSelected)
-        {
-            _burstMessageTabSelected = false;
-            UpdateMessageTabVisualState(false);
-        }
-    }
-
-    private void UpdateBurstModeDescription(bool isEnabled)
-    {
-        if (isEnabled)
-        {
-            var count = _burstChatService.GetBurstCount();
-            BurstModeDescription.Text = $"Active — sending {count} messages per friend with randomized delays";
-            BurstModeDescription.TextColor = GetThemeColor("Success", "#22946E");
-        }
-        else
-        {
-            BurstModeDescription.Text = "Send multiple short messages per friend to simulate active chatting";
-            BurstModeDescription.TextColor = GetThemeColor("Gray500", "#666666");
-        }
-    }
-
     private void OnMessageChanged(object? sender, TextChangedEventArgs e)
     {
         if (!string.IsNullOrEmpty(e.NewTextValue))
         {
             _settingsService.SetMessageText(e.NewTextValue);
-        }
-    }
-
-    private void OnBurstMessageChanged(object? sender, TextChangedEventArgs e)
-    {
-        if (!string.IsNullOrEmpty(e.NewTextValue))
-        {
-            _settingsService.SetBurstMessageText(e.NewTextValue);
         }
     }
 
@@ -1177,75 +1172,80 @@ public partial class MainPage : ContentPage
 #endif
     }
 
-    private async void OnRunNowClicked(object? sender, EventArgs e)
+    private async void OnMasterRunClicked(object? sender, EventArgs e)
     {
-        var friends = _settingsService.GetEnabledFriends();
-        if (friends.Count == 0)
+        if (_settingsService.IsBurstModeActive())
         {
-            await DisplayAlert("No Friends", "Please add at least one friend before running.", "OK");
+            SaveBurstSettings();
+            var target = _settingsService.GetBurstTargetUsername().Trim().TrimStart('@');
+            if (string.IsNullOrEmpty(target))
+            {
+                await DisplayAlert("Burst target", "Enter the TikTok username to burst (without @).", "OK");
+                return;
+            }
+
+            var msgs = _settingsService.GetBurstMessages();
+            if (msgs.Count == 0 || msgs.All(string.IsNullOrWhiteSpace))
+            {
+                await DisplayAlert("Burst messages", "Add at least one non-empty burst message.", "OK");
+                return;
+            }
+
+            var confirm = await DisplayAlert(
+                "Infinite burst",
+                $"Send random burst messages to @{target} continuously until you tap Stop. Continue?",
+                "Start",
+                "Cancel");
+            if (!confirm) return;
+
+#if ANDROID
+            await RequestNotificationPermission();
+            var context = Platform.CurrentActivity ?? Android.App.Application.Context;
+            bool started = TiktokStreakSaver.Platforms.Android.StreakScheduler.RunNow(context, isBurstMode: true);
+            if (started)
+            {
+                await DisplayAlert("Burst started", "Infinite burst is running. Check the notification for progress.", "OK");
+                UpdateStatus();
+            }
+            else
+            {
+                await DisplayAlert("Already running", "A process is already running. Please wait for it to finish.", "OK");
+            }
+#else
+            await DisplayAlert("Info", "This feature is only available on Android.", "OK");
+#endif
             return;
         }
 
-        var confirm = await DisplayAlert("Run Now", 
-            $"This will send your streak message to {friends.Count} friend{(friends.Count != 1 ? "s" : "")}. Continue?", 
-            "Run", "Cancel");
+        var friends = _settingsService.GetEnabledFriends();
+        if (friends.Count == 0)
+        {
+            await DisplayAlert("No friends", "Please add at least one friend before running.", "OK");
+            return;
+        }
 
-        if (!confirm) return;
+        var confirmRegular = await DisplayAlert(
+            "Run now",
+            $"This will send your streak message to {friends.Count} friend{(friends.Count != 1 ? "s" : "")}. Continue?",
+            "Run",
+            "Cancel");
+        if (!confirmRegular) return;
 
 #if ANDROID
-        // Request notification permission first on Android 13+
         await RequestNotificationPermission();
-
-        var context = Platform.CurrentActivity ?? Android.App.Application.Context;
-        bool started = TiktokStreakSaver.Platforms.Android.StreakScheduler.RunNow(context);
-        
-        if (started)
+        var ctx = Platform.CurrentActivity ?? Android.App.Application.Context;
+        bool startedRegular = TiktokStreakSaver.Platforms.Android.StreakScheduler.RunNow(ctx);
+        if (startedRegular)
         {
             await DisplayAlert("Started", "Regular streak run started. Check the notification for progress.", "OK");
-            UpdateStatus(); // refresh next-run display after alarm reschedule
-        }
-        else
-        {
-            await DisplayAlert("Already Running", "A process is already running. Please wait for it to finish.", "OK");
-        }
-#else
-        await DisplayAlert("Info", "This feature is only available on Android", "OK");
-#endif
-    }
-
-    private async void OnRunBurstNowClicked(object? sender, EventArgs e)
-    {
-        var friends = _settingsService.GetEnabledFriends();
-        if (friends.Count == 0)
-        {
-            await DisplayAlert("No Friends", "Please add at least one friend before running.", "OK");
-            return;
-        }
-
-        var bc = _burstChatService.GetBurstCount();
-        var confirm = await DisplayAlert("Burst Mode", 
-            $"This will send {bc} message chunk{(bc != 1 ? "s" : "")} per friend to {friends.Count} friend{(friends.Count != 1 ? "s" : "")}, with delays between chunks. Continue?", 
-            "Run Burst", "Cancel");
-
-        if (!confirm) return;
-
-#if ANDROID
-        await RequestNotificationPermission();
-
-        var context = Platform.CurrentActivity ?? Android.App.Application.Context;
-        bool started = TiktokStreakSaver.Platforms.Android.StreakScheduler.RunNow(context, isBurstMode: true);
-        
-        if (started)
-        {
-            await DisplayAlert("Burst Started", "Burst Mode started. Check the notification for progress.", "OK");
             UpdateStatus();
         }
         else
         {
-            await DisplayAlert("Already Running", "A process is already running.", "OK");
+            await DisplayAlert("Already running", "A process is already running. Please wait for it to finish.", "OK");
         }
 #else
-        await DisplayAlert("Info", "This feature is only available on Android", "OK");
+        await DisplayAlert("Info", "This feature is only available on Android.", "OK");
 #endif
     }
 
@@ -1442,7 +1442,6 @@ public partial class MainPage : ContentPage
     private async void OnRefreshing(object? sender, EventArgs e)
     {
         LoadSettings();
-        UpdateMessageTabVisualState(_burstMessageTabSelected);
         LoadFriendsList();
         LoadHistory();
         UpdateStatus();

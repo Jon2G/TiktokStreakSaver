@@ -17,8 +17,11 @@ public class SettingsService
     private const string IntervalHoursKey = "interval_hours";
     private const string IntervalMinutesKey = "interval_minutes";
     private const string SkipUnreachableUsersKey = "skip_unreachable_users";
-    private const string BurstMessageTextKey = "burst_message_text";
+    private const string BurstMessageTextKey = "burst_message_text"; // Legacy single line
+    private const string BurstMessagesKey = "burst_messages_list";
     private const string BurstLastRunKey = "burst_last_run";
+    private const string IsBurstModeActiveKey = "is_burst_mode_active";
+    private const string BurstTargetUsernameKey = "burst_target_username";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -123,6 +126,55 @@ public class SettingsService
     public void SetBurstMessageText(string message)
     {
         Preferences.Set(BurstMessageTextKey, message);
+    }
+
+    /// <summary>Burst templates; migrates from legacy <see cref="BurstMessageTextKey"/> when empty.</summary>
+    public List<string> GetBurstMessages()
+    {
+        try
+        {
+            var json = Preferences.Get(BurstMessagesKey, string.Empty);
+            if (string.IsNullOrEmpty(json))
+            {
+                var legacy = Preferences.Get(BurstMessageTextKey, string.Empty);
+                if (!string.IsNullOrEmpty(legacy))
+                    return new List<string> { legacy };
+                return new List<string> { "Burst Message" };
+            }
+
+            return JsonSerializer.Deserialize<List<string>>(json, JsonOptions) ?? new List<string> { "Burst Message" };
+        }
+        catch
+        {
+            return new List<string> { "Burst Message" };
+        }
+    }
+
+    public void SetBurstMessages(List<string> messages)
+    {
+        if (messages == null || messages.Count == 0)
+            messages = new List<string> { "Burst Message" };
+        Preferences.Set(BurstMessagesKey, JsonSerializer.Serialize(messages, JsonOptions));
+    }
+
+    public bool IsBurstModeActive()
+    {
+        return Preferences.Get(IsBurstModeActiveKey, false);
+    }
+
+    public void SetBurstModeActive(bool active)
+    {
+        Preferences.Set(IsBurstModeActiveKey, active);
+    }
+
+    public string GetBurstTargetUsername()
+    {
+        return Preferences.Get(BurstTargetUsernameKey, string.Empty);
+    }
+
+    public void SetBurstTargetUsername(string username)
+    {
+        Preferences.Set(BurstTargetUsernameKey, username ?? string.Empty);
     }
 
     #endregion

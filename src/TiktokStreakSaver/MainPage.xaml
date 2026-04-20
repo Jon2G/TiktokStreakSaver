@@ -64,7 +64,33 @@
 
                         </Grid>
 
+                        <VerticalStackLayout VerticalOptions="Center" Spacing="4" Margin="0,0,0,8">
+                            <Border Stroke="{AppThemeBinding Light={StaticResource BorderColorLight}, Dark={StaticResource BorderColorDark}}"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 20"
+                                    BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}">
+                                <Grid ColumnDefinitions="*,*" HeightRequest="40">
+                                    <Border x:Name="NormalModeTabBorder" Grid.Column="0" StrokeThickness="0"
+                                            BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                                            StrokeShape="RoundRectangle 20">
+                                        <Label x:Name="NormalModeTabLabel" Text="Regular streak" TextColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource PrimaryDarkText}}"
+                                               FontFamily="InterSemiBold" FontSize="14" HorizontalOptions="Center" VerticalOptions="Center"/>
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Tapped="OnNormalModeTapped"/>
+                                        </Border.GestureRecognizers>
+                                    </Border>
+                                    <Border x:Name="BurstModeTabBorder" Grid.Column="1" StrokeThickness="0" BackgroundColor="Transparent" StrokeShape="RoundRectangle 20">
+                                        <Label x:Name="BurstModeTabLabel" Text="Burst mode" TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}"
+                                               FontFamily="InterSemiBold" FontSize="14" HorizontalOptions="Center" VerticalOptions="Center"/>
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Tapped="OnBurstModeTapped"/>
+                                        </Border.GestureRecognizers>
+                                    </Border>
+                                </Grid>
+                            </Border>
+                        </VerticalStackLayout>
 
+                        <VerticalStackLayout x:Name="NormalModeContainer" IsVisible="True" Spacing="16">
 
                         <!-- System Status Card -->
 
@@ -182,173 +208,16 @@
 
 
 
-                        <!-- Regular / Burst message editors (tabs switch visibility only) -->
-
                         <Border Style="{StaticResource SectionCard}">
-
                             <VerticalStackLayout Spacing="12">
-
-                                <Label Text="Messages" Style="{StaticResource SectionLabel}"/>
-
-
-
-                                <Grid ColumnDefinitions="*, *" ColumnSpacing="8">
-
-                                    <Button x:Name="MessageTabNormalButton"
-
-                                            Grid.Column="0"
-
-                                            Text="Regular"
-
-                                            FontFamily="InterSemiBold"
-
-                                            CornerRadius="10"
-
-                                            HeightRequest="44"
-
-                                            Padding="8,0"
-
-                                            Clicked="OnMessageTabNormalClicked"/>
-
-                                    <Button x:Name="MessageTabBurstButton"
-
-                                            Grid.Column="1"
-
-                                            Text="Burst"
-
-                                            FontFamily="InterSemiBold"
-
-                                            CornerRadius="10"
-
-                                            HeightRequest="44"
-
-                                            Padding="8,0"
-
-                                            Clicked="OnMessageTabBurstClicked"/>
-
-                                </Grid>
-
-
-
-                                <VerticalStackLayout x:Name="NormalMessageTabContent" Spacing="12" IsVisible="True">
-
-                                    <Label Text="Regular streak message" Style="{StaticResource DataLabel}"/>
-
-                                    <Border Stroke="{AppThemeBinding Light={StaticResource BorderColorLight}, Dark={StaticResource BorderColorDark}}"
-
-                                            StrokeThickness="1"
-
-                                            StrokeShape="RoundRectangle 8">
-
-                                        <Editor x:Name="MessageEditor"
-
-                                                Placeholder="Enter your streak message..."
-
-                                                HeightRequest="80"
-
-                                                Margin="8"
-
-                                                TextChanged="OnMessageChanged"/>
-
-                                    </Border>
-
-                                </VerticalStackLayout>
-
-
-
-                                <VerticalStackLayout x:Name="BurstMessageTabContent" Spacing="12" IsVisible="False">
-
-                                    <Grid ColumnDefinitions="*, Auto" ColumnSpacing="16">
-
-                                        <VerticalStackLayout VerticalOptions="Center" Spacing="4">
-
-                                            <Label Text="Burst mode" Style="{StaticResource SectionLabel}"/>
-
-                                            <Label Text="Automated chunked messages with natural delays" Style="{StaticResource DataLabel}" LineBreakMode="WordWrap"/>
-
-                                        </VerticalStackLayout>
-
-                                    </Grid>
-
-
-
-                                    <Grid ColumnDefinitions="*, *" ColumnSpacing="16" Margin="0,4,0,8">
-
-                                        <VerticalStackLayout Grid.Column="0" Spacing="4">
-
-                                            <Label Text="Last burst:" Style="{StaticResource DataLabel}"/>
-
-                                            <Label x:Name="BurstLastRunLabel" Text="Never" Style="{StaticResource ValueLabel}"/>
-
-                                        </VerticalStackLayout>
-
-                                    </Grid>
-
-
-
-                                    <Label Text="Burst message pattern" Style="{StaticResource DataLabel}"/>
-
-                                    <Border Stroke="{AppThemeBinding Light={StaticResource BorderColorLight}, Dark={StaticResource BorderColorDark}}"
-
-                                            StrokeThickness="1"
-
-                                            StrokeShape="RoundRectangle 8">
-
-                                        <Editor x:Name="BurstMessageEditor"
-
-                                                Placeholder="Enter your burst message..."
-
-                                                HeightRequest="80"
-
-                                                Margin="8"
-
-                                                TextChanged="OnBurstMessageChanged"/>
-
-                                    </Border>
-
-
-
-                                    <Label Text="Burst frequency" Style="{StaticResource SectionLabel}" Margin="0,4,0,0"/>
-
-                                    <Grid ColumnDefinitions="*, Auto, Auto" ColumnSpacing="10">
-
-                                        <Label Text="Messages per friend" Style="{StaticResource DataLabel}" VerticalOptions="Center"/>
-
-                                        <Stepper x:Name="BurstCountStepper" Grid.Column="1" Minimum="2" Maximum="5" Increment="1" ValueChanged="OnBurstCountStepperChanged"/>
-
-                                        <Label x:Name="BurstCountValueLabel" Grid.Column="2" VerticalOptions="Center" Style="{StaticResource ValueLabel}" MinimumWidthRequest="28"/>
-
-                                    </Grid>
-
-                                    <Label Text="Random delay between each burst message (seconds)" Style="{StaticResource DataLabel}" LineBreakMode="WordWrap"/>
-
-                                    <Grid ColumnDefinitions="Auto, *, Auto" ColumnSpacing="10">
-
-                                        <Label Text="Min" VerticalOptions="Center" Style="{StaticResource DataLabel}"/>
-
-                                        <Stepper x:Name="BurstMinSecStepper" Grid.Column="1" Minimum="1" Maximum="120" Increment="1" ValueChanged="OnBurstDelaySecChanged"/>
-
-                                        <Label x:Name="BurstMinSecValueLabel" Grid.Column="2" VerticalOptions="Center" Style="{StaticResource ValueLabel}" MinimumWidthRequest="36"/>
-
-                                    </Grid>
-
-                                    <Grid ColumnDefinitions="Auto, *, Auto" ColumnSpacing="10">
-
-                                        <Label Text="Max" VerticalOptions="Center" Style="{StaticResource DataLabel}"/>
-
-                                        <Stepper x:Name="BurstMaxSecStepper" Grid.Column="1" Minimum="2" Maximum="180" Increment="1" ValueChanged="OnBurstDelaySecChanged"/>
-
-                                        <Label x:Name="BurstMaxSecValueLabel" Grid.Column="2" VerticalOptions="Center" Style="{StaticResource ValueLabel}" MinimumWidthRequest="36"/>
-
-                                    </Grid>
-
-                                </VerticalStackLayout>
-
+                                <Label Text="Regular streak message" Style="{StaticResource SectionLabel}"/>
+                                <Border Stroke="{AppThemeBinding Light={StaticResource BorderColorLight}, Dark={StaticResource BorderColorDark}}"
+                                        StrokeThickness="1" StrokeShape="RoundRectangle 8">
+                                    <Editor x:Name="MessageEditor" Placeholder="Enter your streak message..."
+                                            HeightRequest="80" Margin="8" TextChanged="OnMessageChanged"/>
+                                </Border>
                             </VerticalStackLayout>
-
                         </Border>
-
-
 
                         <!-- Friends List -->
 
@@ -548,7 +417,36 @@
 
                         </Border>
 
+                        </VerticalStackLayout>
 
+                        <VerticalStackLayout x:Name="BurstModeContainer" IsVisible="False" Spacing="16">
+                            <Border Style="{StaticResource SectionCard}">
+                                <VerticalStackLayout Spacing="12">
+                                    <Label Text="Burst target" Style="{StaticResource SectionLabel}"/>
+                                    <Label Text="Single user to send burst messages to continuously until you tap Stop." Style="{StaticResource DataLabel}" LineBreakMode="WordWrap"/>
+                                    <Border Stroke="{AppThemeBinding Light={StaticResource BorderColorLight}, Dark={StaticResource BorderColorDark}}"
+                                            StrokeThickness="1" StrokeShape="RoundRectangle 8">
+                                        <Entry x:Name="BurstTargetUserEntry" Placeholder="Username (without @)" Margin="8,4"
+                                               TextChanged="OnBurstSettingsChanged"/>
+                                    </Border>
+                                </VerticalStackLayout>
+                            </Border>
+                            <Border Style="{StaticResource SectionCard}">
+                                <VerticalStackLayout Spacing="12">
+                                    <Label Text="Burst messages" Style="{StaticResource SectionLabel}"/>
+                                    <Label Text="The app picks one at random each send (varies if you add more than one)." Style="{StaticResource DataLabel}"/>
+                                    <VerticalStackLayout x:Name="BurstMessagesStack" Spacing="8"/>
+                                    <Button x:Name="AddBurstMessageButton" Text="+ Add message" Style="{StaticResource TextButton}"
+                                            HorizontalOptions="Start" Clicked="OnAddBurstMessageClicked"/>
+                                    <Grid ColumnDefinitions="*, *" ColumnSpacing="16" Margin="0,8,0,0">
+                                        <VerticalStackLayout Spacing="4">
+                                            <Label Text="Last burst" Style="{StaticResource DataLabel}"/>
+                                            <Label x:Name="BurstLastRunLabel" Text="Never" Style="{StaticResource ValueLabel}"/>
+                                        </VerticalStackLayout>
+                                    </Grid>
+                                </VerticalStackLayout>
+                            </Border>
+                        </VerticalStackLayout>
 
                         <!-- Run History -->
 
@@ -750,37 +648,7 @@
 
 
 
-                            <VerticalStackLayout Spacing="8">
-
-                                <Grid ColumnDefinitions="*, Auto" ColumnSpacing="12">
-
-                                    <VerticalStackLayout VerticalOptions="Center" Spacing="4">
-
-                                        <Label Text="Burst chat mode" Style="{StaticResource SectionLabel}"/>
-
-                                        <Label x:Name="BurstModeDescription"
-
-                                               Text="Send multiple short messages per friend to simulate active chatting"
-
-                                               Style="{StaticResource DataLabel}"
-
-                                               LineBreakMode="WordWrap"/>
-
-                                    </VerticalStackLayout>
-
-                                    <Switch x:Name="BurstChatSwitch"
-
-                                            Grid.Column="1"
-
-                                            VerticalOptions="Start"
-
-                                            Toggled="OnBurstChatToggled"/>
-
-                                </Grid>
-
-                            </VerticalStackLayout>
-
-
+                            <Label Text="Switch between Regular streak and Burst mode using the control at the top of the main screen." Style="{StaticResource DataLabel}" LineBreakMode="WordWrap"/>
 
                             <Button Text="Done"
 
@@ -870,13 +738,11 @@
 
 
 
-                <Grid ColumnDefinitions="*, *" ColumnSpacing="12" x:Name="RunButtonsContainer">
+                <Grid x:Name="RunButtonsContainer">
 
-                    <Button x:Name="RunNowButton"
+                    <Button x:Name="MasterRunButton"
 
-                            Grid.Column="0"
-
-                            Text="Regular Run"
+                            Text="START REGULAR STREAK"
 
                             BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
 
@@ -888,27 +754,7 @@
 
                             HeightRequest="56"
 
-                            Clicked="OnRunNowClicked"/>
-
-
-
-                    <Button x:Name="RunBurstNowButton"
-
-                            Grid.Column="1"
-
-                            Text="Burst Run"
-
-                            BackgroundColor="{AppThemeBinding Light=#8B5CF6, Dark=#7C3AED}"
-
-                            TextColor="White"
-
-                            FontFamily="InterSemiBold"
-
-                            CornerRadius="12"
-
-                            HeightRequest="56"
-
-                            Clicked="OnRunBurstNowClicked"/>
+                            Clicked="OnMasterRunClicked"/>
 
                 </Grid>
 

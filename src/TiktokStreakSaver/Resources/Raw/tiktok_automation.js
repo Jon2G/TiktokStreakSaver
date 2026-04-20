@@ -26,8 +26,8 @@
 
         // Fallback selectors — TikTok periodically renames data-e2e values
         var fallbacks = [
-            "[data-e2e*='chat-item']",
-            "[data-e2e*='conversation']"
+            "[data-e2e*='dm-new-conversation-item']",
+            "[data-e2e*='chat-item']"
         ];
         for (var i = 0; i < fallbacks.length; i++) {
             try {
@@ -297,14 +297,62 @@
         log('=== PAGE DIAGNOSTICS ===');
         log('URL: ' + window.location.href);
         log('Title: ' + document.title);
-        log('Body length: ' + (document.body ? document.body.innerHTML.length : 0));
+        
         var allE2e = document.querySelectorAll('[data-e2e]');
-        log('Total data-e2e elements: ' + allE2e.length);
-        var vals = [];
-        for (var i = 0; i < Math.min(allE2e.length, 30); i++) {
-            vals.push(allE2e[i].getAttribute('data-e2e'));
+        var uniqueVals = {};
+        for (var i = 0; i < allE2e.length; i++) {
+            var val = allE2e[i].getAttribute('data-e2e');
+            if (val) uniqueVals[val] = true;
         }
-        if (vals.length > 0) log('data-e2e values: ' + vals.join(', '));
+        var keys = Object.keys(uniqueVals);
+        log('Total data-e2e elements: ' + allE2e.length + ', Unique attributes: ' + keys.length);
+        
+        // Log all unique e2e values in chunks to avoid single long lines
+        var chunk = [];
+        for (var j = 0; j < keys.length; j++) {
+            chunk.push(keys[j]);
+            if (chunk.length >= 15 || j === keys.length - 1) {
+                log('data-e2e snippet: ' + chunk.join(', '));
+                chunk = [];
+            }
+        }
+
+        // Smart Search: Find where the target username is actually rendering!
+        log('Hunting for element containing: ' + userName);
+        var xpath = "//*[contains(text(), '" + userName + "')]";
+        var result = document.evaluate(xpath, document, null, XPathResult.ANY_TYPE, null);
+        var node = result.iterateNext();
+        var foundNodes = 0;
+        
+        while (node && foundNodes < 5) {
+            foundNodes++;
+            var current = node;
+            var path = [];
+            var foundE2e = null;
+            
+            // Walk up to 8 levels to find a data-e2e container
+            for (var k = 0; k < 8 && current && current !== document.body; k++) {
+                path.unshift(current.tagName);
+                if (current.hasAttribute && current.hasAttribute('data-e2e')) {
+                    foundE2e = current.getAttribute('data-e2e');
+                    break;
+                }
+                current = current.parentNode;
+            }
+            
+            if (foundE2e) {
+                log('Found target username inside data-e2e: ' + foundE2e + ' (tags: ' + path.join('>') + ')');
+            } else {
+                log('Found username text, but no data-e2e parent within 8 levels. Tags: ' + path.join('>'));
+            }
+            
+            node = result.iterateNext();
+        }
+        
+        if (foundNodes === 0) {
+            log('Username "' + userName + '" text was NOT found anywhere in the DOM.');
+        }
+
         log('=== END DIAGNOSTICS ===');
     };
 
