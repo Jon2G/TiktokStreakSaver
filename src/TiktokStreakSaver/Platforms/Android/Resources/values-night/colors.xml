@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+  <!-- Theme-aware splash: dark mode (UiMode night) -->
+  <color name="maui_splash_color">#121212</color>
+  <!-- Adaptive launcher icon background in dark mode (pairs with @mipmap-night-anydpi-v26/appicon*.xml) -->
+  <color name="appicon_adaptive_background">#121212</color>
+</resources>

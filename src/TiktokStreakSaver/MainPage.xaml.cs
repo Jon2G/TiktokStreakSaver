@@ -8,26 +8,232 @@ public partial class MainPage : ContentPage
 {
     private readonly SettingsService _settingsService;
     private readonly SessionService _sessionService;
+    private readonly UpdateService _updateService;
+    private readonly BurstChatService _burstChatService;
     private bool _isCheckingSession = false;
     private bool _sessionCheckCompleted = false;
+    private bool _isCheckingForUpdates = false;
+    private bool _isAppInForeground = false;
+    private IDispatcherTimer? _statusTimer;
+    private bool _suppressIntervalChanged;
+    private bool _suppressBurstTimingChanged;
+    private bool _suppressSettingsToggles;
+    private bool _burstMessageTabSelected;
+    private const string InitialScheduleArmedKey = "initial_background_schedule_armed";
 
     public MainPage()
     {
         InitializeComponent();
         _settingsService = new SettingsService();
         _sessionService = new SessionService();
+        _updateService = new UpdateService();
+        _burstChatService = new BurstChatService();
     }
 
-    protected override void OnAppearing()
+    private Color GetThemeColor(string key, string fallbackHex = "#92979E")
+    {
+        if (Application.Current != null && Application.Current.Resources.TryGetValue(key, out var resource) && resource is Color color)
+        {
+            return color;
+        }
+        return Color.FromArgb(fallbackHex);
+    }
+
+    protected override async void OnAppearing()
     {
         base.OnAppearing();
+        _isAppInForeground = true;
         LoadSettings();
+        UpdateMessageTabVisualState(_burstMessageTabSelected);
         LoadFriendsList();
         LoadHistory();
         UpdateStatus();
         
+        await EvaluatePermissionsAsync();
+        
+#if ANDROID
+        TryArmInitialScheduleIfNeeded();
+#endif
+        
+        // Start status timer for tracking service
+        if (_statusTimer == null)
+        {
+            _statusTimer = Dispatcher.CreateTimer();
+            _statusTimer.Interval = TimeSpan.FromSeconds(1);
+            _statusTimer.Tick += OnStatusTimerTick;
+        }
+        _statusTimer.Start();
+
         // Check session status
         CheckSessionStatus();
+
+        // Check for updates or first-launch popup (non-blocking)
+        _ = CheckStartupPopupAsync();
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        _isAppInForeground = false;
+        _statusTimer?.Stop();
+    }
+
+    private void OnStatusTimerTick(object? sender, EventArgs e)
+    {
+        bool isRunning = false;
+#if ANDROID
+        isRunning = TiktokStreakSaver.Platforms.Android.Services.StreakService.IsRunning;
+#endif
+
+        if (isRunning)
+        {
+            RunButtonsContainer.IsVisible = false;
+            StopServiceButton.IsVisible = true;
+        }
+        else
+        {
+            RunButtonsContainer.IsVisible = true;
+            StopServiceButton.IsVisible = false;
+            
+            // Refresh labels if run just ended
+            UpdateStatus();
+        }
+    }
+
+    // ─── Normalizes "v1.6.0" → "1.6.0" to ensure consistent Preferences storage ─────
+    private static string NormalizeVersion(string raw)
+        => raw.StartsWith("v", StringComparison.OrdinalIgnoreCase) ? raw.Substring(1) : raw;
+
+    // ─── Full startup flow: Welcome check THEN update check ─────────────────────────
+    private async Task CheckStartupPopupAsync()
+    {
+        if (_isCheckingForUpdates) return;
+        _isCheckingForUpdates = true;
+
+        try
+        {
+            if (!_isAppInForeground) return;
+            if (Navigation.ModalStack.Any(p => p is AboutPopupPage)) return;
+
+            string currentVersion = NormalizeVersion(AppInfo.Current.VersionString);
+
+            // ── Guard: if user just completed an in-app update install, skip Welcome ──
+            bool updateJustInstalled = Preferences.Default.Get("UpdateJustInstalled", false);
+            if (updateJustInstalled)
+            {
+                Preferences.Default.Remove("UpdateJustInstalled");
+                Preferences.Default.Set("LastAppVersionSeen", currentVersion);
+                // Release flag so CheckUpdateOnlyAsync's own guard can pass
+                _isCheckingForUpdates = false;
+                await CheckUpdateOnlyAsync();
+                return;
+            }
+
+            string lastAppSeen = NormalizeVersion(Preferences.Default.Get("LastAppVersionSeen", string.Empty));
+
+            // ── Step 1: First-launch / new-install onboarding ──────────────────────
+            if (string.IsNullOrEmpty(lastAppSeen) || lastAppSeen != currentVersion)
+            {
+                await MainThread.InvokeOnMainThreadAsync(async () =>
+                    await Navigation.PushModalAsync(new AboutPopupPage(
+                        "Welcome to Streak Saver",
+                        currentVersion,
+                        string.Empty,   // changelog not shown on welcome screen
+                        false)));
+                // Popup's OnCloseClicked saves LastAppVersionSeen; do not run update check yet.
+                return;
+            }
+
+            // ── Step 2: Silent update check ────────────────────────────────────────
+            _isCheckingForUpdates = false;
+            await CheckUpdateOnlyAsync();
+        }
+        catch
+        {
+            // Swallow safely — do not block UI
+        }
+        finally
+        {
+            _isCheckingForUpdates = false;
+        }
+    }
+
+    // ─── Update-only check (used by pull-to-refresh, never shows Welcome) ────────────
+    private async Task CheckUpdateOnlyAsync()
+    {
+        if (_isCheckingForUpdates) return;
+        _isCheckingForUpdates = true;
+
+        try
+        {
+            if (!_isAppInForeground) return;
+            if (Navigation.ModalStack.Any(p => p is AboutPopupPage)) return;
+
+            string currentVersion  = NormalizeVersion(AppInfo.Current.VersionString);
+            string lastRemoteSeen  = NormalizeVersion(Preferences.Default.Get("LastRemoteVersionSeen", string.Empty));
+
+            var updateCheck = await _updateService.CheckForUpdatesAsync();
+            if (updateCheck == null || !updateCheck.HasUpdate) return;
+
+            string remoteVersion = NormalizeVersion(updateCheck.LatestVersion);
+
+            // Show only if this exact remote version hasn't been dismissed already
+            if (remoteVersion == lastRemoteSeen || remoteVersion == currentVersion) return;
+
+            // Final guard: re-check modal stack after async HTTP call completes
+            if (Navigation.ModalStack.Any(p => p is AboutPopupPage)) return;
+
+            await MainThread.InvokeOnMainThreadAsync(async () =>
+                await Navigation.PushModalAsync(new AboutPopupPage(
+                    "Update Available!",
+                    remoteVersion,
+                    updateCheck.Changelog,
+                    true,
+                    updateCheck.ApkDownloadUrl)));
+        }
+        catch
+        {
+            // Silent failure — network unavailable, etc.
+        }
+        finally
+        {
+            _isCheckingForUpdates = false;
+        }
+    }
+
+    private async void OnCheckUpdatesClicked(object? sender, EventArgs e)
+    {
+        if (_isCheckingForUpdates) return;
+        _isCheckingForUpdates = true;
+
+        try
+        {
+            if (Navigation.ModalStack.Any(p => p is AboutPopupPage)) return;
+
+            var updateCheck = await _updateService.CheckForUpdatesAsync();
+            if (updateCheck != null && updateCheck.HasUpdate)
+            {
+                string remoteVersion = NormalizeVersion(updateCheck.LatestVersion);
+                await Navigation.PushModalAsync(new AboutPopupPage(
+                    "Update Available!",
+                    remoteVersion,
+                    updateCheck.Changelog,
+                    true,
+                    updateCheck.ApkDownloadUrl));
+            }
+            else
+            {
+                await DisplayAlert("Up to Date", "You are running the latest version of Streak Saver.", "OK");
+            }
+        }
+        catch
+        {
+            await DisplayAlert("Network Error", "Could not check for updates. Please check your connection.", "OK");
+        }
+        finally
+        {
+            _isCheckingForUpdates = false;
+        }
     }
 
     private void CheckSessionStatus()
@@ -62,6 +268,13 @@ public partial class MainPage : ContentPage
         // Load messages page to check if we're logged in
         SessionCheckWebView.Source = TikTokWebViewHelper.MessagesUrl;
         
+        // Stop previous timer if still running (prevents stale fire)
+        if (_sessionCheckTimeout != null)
+        {
+            _sessionCheckTimeout.Stop();
+            _sessionCheckTimeout.Tick -= OnSessionCheckTimeout;
+        }
+
         // Set a timeout - if no redirect after 10 seconds, check current state
         _sessionCheckTimeout = Dispatcher.CreateTimer();
         _sessionCheckTimeout.Interval = TimeSpan.FromSeconds(10);
@@ -156,8 +369,8 @@ public partial class MainPage : ContentPage
     {
         if (isChecking)
         {
-            LoginButton.Text = "Checking session...";
-            LoginButton.BackgroundColor = Color.FromArgb("#888888");
+            LoginButton.Text = string.Empty;
+            LoginButton.BackgroundColor = GetThemeColor("Gray400");
             LoginButton.IsEnabled = false;
             SessionCheckingIndicator.IsVisible = true;
             RunNowButton.IsEnabled = false;
@@ -165,31 +378,283 @@ public partial class MainPage : ContentPage
         }
         else if (isSessionValid)
         {
-            LoginButton.Text = "✓  Session OK";
-            LoginButton.BackgroundColor = Color.FromArgb("#4CAF50"); // Green
+            LoginButton.Text = "Session OK";
+            LoginButton.BackgroundColor = GetThemeColor("Success", "#22946E");
             LoginButton.IsEnabled = false;
             SessionCheckingIndicator.IsVisible = false;
             RunNowButton.IsEnabled = true;
             RunNowButton.Opacity = 1.0;
+            RunBurstNowButton.IsEnabled = true;
+            RunBurstNowButton.Opacity = 1.0;
         }
         else
         {
-            LoginButton.Text = "🔐  Login to TikTok";
-            LoginButton.BackgroundColor = Color.FromArgb("#FE2C55"); // Primary red
+            LoginButton.Text = "Login to TikTok";
+            LoginButton.BackgroundColor = GetThemeColor("Primary", "#FE2C55");
             LoginButton.IsEnabled = true;
             SessionCheckingIndicator.IsVisible = false;
             RunNowButton.IsEnabled = false;
             RunNowButton.Opacity = 0.5;
+            RunBurstNowButton.IsEnabled = false;
+            RunBurstNowButton.Opacity = 0.5;
         }
     }
 
     private void LoadSettings()
     {
-        // Load message
+        // Load messages
         MessageEditor.Text = _settingsService.GetMessageText();
+        BurstMessageEditor.Text = _settingsService.GetBurstMessageText();
 
-        // Load schedule state
-        ScheduleSwitch.IsToggled = _settingsService.IsScheduled();
+        _suppressSettingsToggles = true;
+        try
+        {
+            ScheduleSwitch.IsToggled = _settingsService.IsScheduled();
+            SkipUnreachableSwitch.IsToggled = _settingsService.GetSkipUnreachableUsers();
+            BurstChatSwitch.IsToggled = _burstChatService.IsEnabled();
+        }
+        finally
+        {
+            _suppressSettingsToggles = false;
+        }
+        UpdateBurstModeDescription(_burstChatService.IsEnabled());
+
+        _suppressIntervalChanged = true;
+        try
+        {
+            var totalMin = _settingsService.GetIntervalMinutes();
+            IntervalHoursStepper.Value = totalMin / 60;
+            IntervalMinutesStepper.Value = totalMin % 60;
+            UpdateIntervalSummaryLabel();
+            UpdateIntervalStepperLabels();
+        }
+        finally
+        {
+            _suppressIntervalChanged = false;
+        }
+
+        _suppressBurstTimingChanged = true;
+        try
+        {
+            BurstCountStepper.Value = _burstChatService.GetBurstCount();
+            BurstCountValueLabel.Text = ((int)BurstCountStepper.Value).ToString();
+
+            var minS = Math.Max(1, _burstChatService.GetMinDelayMs() / 1000);
+            var maxS = Math.Max(minS, _burstChatService.GetMaxDelayMs() / 1000);
+            BurstMinSecStepper.Value = Math.Min(120, minS);
+            BurstMaxSecStepper.Value = Math.Min(180, Math.Max((int)BurstMinSecStepper.Value, maxS));
+            BurstMinSecValueLabel.Text = ((int)BurstMinSecStepper.Value).ToString();
+            BurstMaxSecValueLabel.Text = ((int)BurstMaxSecStepper.Value).ToString();
+        }
+        finally
+        {
+            _suppressBurstTimingChanged = false;
+        }
+
+        if (!_burstChatService.IsEnabled())
+            _burstMessageTabSelected = false;
+    }
+
+#if ANDROID
+    private void TryArmInitialScheduleIfNeeded()
+    {
+        if (!_settingsService.IsScheduled()) return;
+        if (Preferences.Default.Get(InitialScheduleArmedKey, false)) return;
+
+        var ctx = Platform.CurrentActivity ?? Android.App.Application.Context;
+        TiktokStreakSaver.Platforms.Android.StreakScheduler.ScheduleNextRun(ctx);
+        Preferences.Default.Set(InitialScheduleArmedKey, true);
+    }
+#endif
+
+    private async void OnOpenSettingsClicked(object? sender, EventArgs e)
+    {
+        BottomRunPanel.IsVisible = false;
+        SettingsOverlay.IsVisible = true;
+        SettingsDrawer.TranslationX = -320;
+        await SettingsDrawer.TranslateTo(0, 0, 220, Easing.CubicOut);
+    }
+
+    private async void OnCloseSettingsClicked(object? sender, EventArgs e) => await CloseSettingsDrawerAsync();
+
+    private async void OnSettingsScrimTapped(object? sender, TappedEventArgs e) => await CloseSettingsDrawerAsync();
+
+    private async Task CloseSettingsDrawerAsync()
+    {
+        if (!SettingsOverlay.IsVisible) return;
+        await SettingsDrawer.TranslateTo(-320, 0, 200, Easing.CubicIn);
+        SettingsOverlay.IsVisible = false;
+        BottomRunPanel.IsVisible = true;
+    }
+
+    private void OnMessageTabNormalClicked(object? sender, EventArgs e)
+    {
+        _burstMessageTabSelected = false;
+        _suppressSettingsToggles = true;
+        try
+        {
+            BurstChatSwitch.IsToggled = false;
+        }
+        finally
+        {
+            _suppressSettingsToggles = false;
+        }
+        _burstChatService.SetEnabled(false);
+        UpdateBurstModeDescription(false);
+        UpdateMessageTabVisualState(false);
+    }
+
+    private void OnMessageTabBurstClicked(object? sender, EventArgs e)
+    {
+        _burstMessageTabSelected = true;
+        _suppressSettingsToggles = true;
+        try
+        {
+            BurstChatSwitch.IsToggled = true;
+        }
+        finally
+        {
+            _suppressSettingsToggles = false;
+        }
+        _burstChatService.SetEnabled(true);
+        UpdateBurstModeDescription(true);
+        UpdateMessageTabVisualState(true);
+    }
+
+    private void UpdateMessageTabVisualState(bool burstSelected)
+    {
+        NormalMessageTabContent.IsVisible = !burstSelected;
+        BurstMessageTabContent.IsVisible = burstSelected;
+
+        var primary = GetThemeColor("Primary", "#FE2C55");
+        var primaryText = GetThemeColor("White", "#FFFFFF");
+        var idleBg = GetThemeColor("Gray100", "#282828");
+        var idleText = GetThemeColor("Gray900", "#F0F0F0");
+
+        if (burstSelected)
+        {
+            MessageTabBurstButton.BackgroundColor = primary;
+            MessageTabBurstButton.TextColor = primaryText;
+            MessageTabNormalButton.BackgroundColor = idleBg;
+            MessageTabNormalButton.TextColor = idleText;
+        }
+        else
+        {
+            MessageTabNormalButton.BackgroundColor = primary;
+            MessageTabNormalButton.TextColor = primaryText;
+            MessageTabBurstButton.BackgroundColor = idleBg;
+            MessageTabBurstButton.TextColor = idleText;
+        }
+    }
+
+    private void UpdateIntervalStepperLabels()
+    {
+        IntervalHoursValueLabel.Text = ((int)IntervalHoursStepper.Value).ToString();
+        IntervalMinutesValueLabel.Text = ((int)IntervalMinutesStepper.Value).ToString();
+    }
+
+    private void UpdateIntervalSummaryLabel()
+    {
+        var t = _settingsService.GetIntervalMinutes();
+        var days = t / (24 * 60);
+        var rem = t % (24 * 60);
+        var h = rem / 60;
+        var m = rem % 60;
+
+        if (days > 0)
+            IntervalSummaryLabel.Text = $"Every {days}d {h}h {m}m between automatic runs ({t:N0} min total).";
+        else if (h > 0)
+            IntervalSummaryLabel.Text = $"Every {h}h {m}m between automatic runs ({t:N0} min total).";
+        else
+            IntervalSummaryLabel.Text = $"Every {m} minutes between automatic runs.";
+    }
+
+    private void OnIntervalHoursChanged(object? sender, ValueChangedEventArgs e)
+    {
+        if (_suppressIntervalChanged) return;
+        UpdateIntervalStepperLabels();
+        ApplyIntervalFromSteppers();
+    }
+
+    private void OnIntervalMinutesChanged(object? sender, ValueChangedEventArgs e)
+    {
+        if (_suppressIntervalChanged) return;
+        UpdateIntervalStepperLabels();
+        ApplyIntervalFromSteppers();
+    }
+
+    private void ApplyIntervalFromSteppers()
+    {
+        var h = (int)IntervalHoursStepper.Value;
+        var m = (int)IntervalMinutesStepper.Value;
+        var total = h * 60 + m;
+        var clamped = Math.Clamp(total, SettingsService.MinIntervalMinutes, SettingsService.MaxIntervalMinutes);
+        if (clamped != total)
+        {
+            _suppressIntervalChanged = true;
+            try
+            {
+                IntervalHoursStepper.Value = clamped / 60;
+                IntervalMinutesStepper.Value = clamped % 60;
+            }
+            finally
+            {
+                _suppressIntervalChanged = false;
+            }
+        }
+
+        _settingsService.SetIntervalMinutes(clamped);
+        UpdateIntervalSummaryLabel();
+        UpdateIntervalStepperLabels();
+
+#if ANDROID
+        if (_settingsService.IsScheduled())
+        {
+            var ctx = Platform.CurrentActivity ?? Android.App.Application.Context;
+            TiktokStreakSaver.Platforms.Android.StreakScheduler.ScheduleNextRun(ctx);
+        }
+#endif
+        UpdateStatus();
+    }
+
+    private void OnBurstCountStepperChanged(object? sender, ValueChangedEventArgs e)
+    {
+        if (_suppressBurstTimingChanged) return;
+        var c = (int)BurstCountStepper.Value;
+        _burstChatService.SetBurstCount(c);
+        BurstCountValueLabel.Text = c.ToString();
+        UpdateBurstModeDescription(_burstChatService.IsEnabled());
+    }
+
+    private void OnBurstDelaySecChanged(object? sender, ValueChangedEventArgs e)
+    {
+        if (_suppressBurstTimingChanged) return;
+
+        var minSec = (int)BurstMinSecStepper.Value;
+        var maxSec = (int)BurstMaxSecStepper.Value;
+        if (maxSec < minSec)
+        {
+            _suppressBurstTimingChanged = true;
+            try
+            {
+                if (sender == BurstMinSecStepper)
+                    BurstMaxSecStepper.Value = minSec;
+                else
+                    BurstMinSecStepper.Value = maxSec;
+                minSec = (int)BurstMinSecStepper.Value;
+                maxSec = (int)BurstMaxSecStepper.Value;
+            }
+            finally
+            {
+                _suppressBurstTimingChanged = false;
+            }
+        }
+
+        _burstChatService.SetMinDelayMs(minSec * 1000);
+        _burstChatService.SetMaxDelayMs(maxSec * 1000);
+        BurstMinSecValueLabel.Text = minSec.ToString();
+        BurstMaxSecValueLabel.Text = maxSec.ToString();
+        UpdateBurstModeDescription(_burstChatService.IsEnabled());
     }
 
     private void UpdateStatus()
@@ -202,17 +667,17 @@ public partial class MainPage : ContentPage
         if (isScheduled && friendsCount > 0)
         {
             StatusLabel.Text = $"Active • {friendsCount} friend{(friendsCount != 1 ? "s" : "")}";
-            StatusLabel.TextColor = Color.FromArgb("#4CAF50");
+            StatusLabel.TextColor = GetThemeColor("Success", "#22946E");
         }
         else if (friendsCount == 0)
         {
             StatusLabel.Text = "Add friends to get started";
-            StatusLabel.TextColor = Color.FromArgb("#FFC107");
+            StatusLabel.TextColor = GetThemeColor("Gray500", "#666666");
         }
         else
         {
             StatusLabel.Text = "Scheduler disabled";
-            StatusLabel.TextColor = Color.FromArgb("#888888");
+            StatusLabel.TextColor = GetThemeColor("Gray400", "#92979E");
         }
 
         // Update last run
@@ -229,6 +694,23 @@ public partial class MainPage : ContentPage
         else
         {
             LastRunLabel.Text = "Never";
+        }
+
+        // Update Burst Last run
+        var burstLastRun = _settingsService.GetBurstLastRunTime();
+        if (burstLastRun.HasValue)
+        {
+            var timeSinceBurst = DateTime.Now - burstLastRun.Value;
+            if (timeSinceBurst.TotalMinutes < 60)
+                BurstLastRunLabel.Text = $"{(int)timeSinceBurst.TotalMinutes} minutes ago";
+            else if (timeSinceBurst.TotalHours < 24)
+                BurstLastRunLabel.Text = $"{(int)timeSinceBurst.TotalHours} hours ago";
+            else
+                BurstLastRunLabel.Text = burstLastRun.Value.ToString("MMM dd, HH:mm");
+        }
+        else
+        {
+            BurstLastRunLabel.Text = "Never";
         }
 
         // Update next run
@@ -251,7 +733,20 @@ public partial class MainPage : ContentPage
 
     private void LoadFriendsList()
     {
-        var friends = _settingsService.GetFriendsList();
+        var allFriends = _settingsService.GetFriendsList();
+
+        SearchAndBulkRow.IsVisible = allFriends.Count > 0;
+        
+        var searchText = SearchFriendEntry.Text?.Trim() ?? string.Empty;
+        var displayFriends = allFriends;
+
+        if (!string.IsNullOrEmpty(searchText))
+        {
+            displayFriends = allFriends.Where(f => 
+                (f.Username != null && f.Username.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
+                (f.DisplayName != null && f.DisplayName.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+            ).ToList();
+        }
 
         // Clear existing friend items (except NoFriendsLabel)
         var itemsToRemove = FriendsListContainer.Children
@@ -263,9 +758,22 @@ public partial class MainPage : ContentPage
             FriendsListContainer.Children.Remove(item);
         }
 
-        NoFriendsLabel.IsVisible = friends.Count == 0;
+        if (allFriends.Count == 0)
+        {
+            NoFriendsLabel.Text = "No friends added. Tap 'Add' to begin.";
+            NoFriendsLabel.IsVisible = true;
+        }
+        else if (displayFriends.Count == 0 && !string.IsNullOrEmpty(searchText))
+        {
+            NoFriendsLabel.Text = $"No friends found matching '{searchText}'";
+            NoFriendsLabel.IsVisible = true;
+        }
+        else
+        {
+            NoFriendsLabel.IsVisible = false;
+        }
 
-        foreach (var friend in friends)
+        foreach (var friend in displayFriends)
         {
             var friendView = CreateFriendView(friend);
             FriendsListContainer.Children.Add(friendView);
@@ -276,19 +784,20 @@ public partial class MainPage : ContentPage
     {
         var border = new Border
         {
-            BackgroundColor = Application.Current?.RequestedTheme == AppTheme.Dark
-                ? Color.FromArgb("#2A2A2A")
-                : Color.FromArgb("#FFFFFF"),
             StrokeShape = new RoundRectangle { CornerRadius = 12 },
             Stroke = Colors.Transparent,
             Padding = new Thickness(12)
         };
+        border.SetAppThemeColor(Border.BackgroundColorProperty,
+            GetThemeColor("ListItemLight", "#F4F4F4"),
+            GetThemeColor("ListItemDark", "#282828"));
 
         var grid = new Grid
         {
             ColumnDefinitions = new ColumnDefinitionCollection
             {
                 new ColumnDefinition { Width = GridLength.Star },
+                new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto }
             },
@@ -302,6 +811,7 @@ public partial class MainPage : ContentPage
         {
             Text = displayName,
             FontSize = 14,
+            FontFamily = "InterSemiBold",
             FontAttributes = FontAttributes.Bold
         });
         
@@ -309,47 +819,56 @@ public partial class MainPage : ContentPage
         {
             Text = $"@{friend.Username}",
             FontSize = 12,
-            TextColor = Color.FromArgb("#888888")
+            TextColor = GetThemeColor("Gray500", "#666666")
         });
 
         if (friend.LastMessageSent.HasValue)
         {
-            var successIcon = friend.SuccessCount > 0 ? "✓" : "";
             infoStack.Children.Add(new Label
             {
-                Text = $"{successIcon} Last: {friend.LastMessageSent.Value:MMM dd}",
+                Text = $"Last sent: {friend.LastMessageSent.Value:MMM dd}",
                 FontSize = 11,
-                TextColor = Color.FromArgb("#4CAF50")
+                TextColor = GetThemeColor("Gray500", "#666666")
             });
         }
 
         grid.Children.Add(infoStack);
 
-        var toggleSwitch = new Switch
+        var editButton = new Button
         {
-            IsToggled = friend.IsEnabled,
+            Text = "Edit",
+            BackgroundColor = Colors.Transparent,
+            FontSize = 12,
+            Padding = new Thickness(8),
+            HeightRequest = 44,
             VerticalOptions = LayoutOptions.Center
         };
-        toggleSwitch.Toggled += (s, e) =>
+        editButton.SetAppThemeColor(Button.TextColorProperty,
+            GetThemeColor("Gray500", "#666666"),
+            GetThemeColor("Gray400", "#92979E"));
+        editButton.Clicked += async (s, e) =>
         {
-            friend.IsEnabled = e.Value;
-            _settingsService.UpdateFriend(friend);
-            UpdateStatus();
+            var newName = await DisplayPromptAsync("Edit Friend", "Enter new display name:", initialValue: friend.DisplayName ?? friend.Username);
+            if (newName != null)
+            {
+                friend.DisplayName = newName;
+                _settingsService.UpdateFriend(friend);
+                LoadFriendsList();
+            }
         };
-        Grid.SetColumn(toggleSwitch, 1);
-        grid.Children.Add(toggleSwitch);
+        Grid.SetColumn(editButton, 1);
+        grid.Children.Add(editButton);
 
         var deleteButton = new Button
         {
-            Text = "🗑️",
+            Text = "Delete",
             BackgroundColor = Colors.Transparent,
-            TextColor = Color.FromArgb("#F44336"),
-            FontSize = 18,
+            FontSize = 12,
             Padding = new Thickness(8),
             HeightRequest = 44,
-            WidthRequest = 44,
             VerticalOptions = LayoutOptions.Center
         };
+        deleteButton.TextColor = GetThemeColor("DeleteColor", "#EE1D52");
         deleteButton.Clicked += async (s, e) =>
         {
             var confirm = await DisplayAlert("Remove Friend", 
@@ -363,6 +882,26 @@ public partial class MainPage : ContentPage
         };
         Grid.SetColumn(deleteButton, 2);
         grid.Children.Add(deleteButton);
+        
+        var toggleSwitch = new Switch
+        {
+            IsToggled = friend.IsEnabled,
+            VerticalOptions = LayoutOptions.Center
+        };
+        toggleSwitch.SetAppThemeColor(Switch.ThumbColorProperty,
+            GetThemeColor("White", "#FFFFFF"),
+            GetThemeColor("White", "#FFFFFF"));
+        toggleSwitch.SetAppThemeColor(Switch.OnColorProperty,
+            GetThemeColor("Primary", "#FE2C55"),
+            GetThemeColor("Primary", "#FE2C55"));
+        toggleSwitch.Toggled += (s, e) =>
+        {
+            friend.IsEnabled = e.Value;
+            _settingsService.UpdateFriend(friend);
+            UpdateStatus();
+        };
+        Grid.SetColumn(toggleSwitch, 3);
+        grid.Children.Add(toggleSwitch);
 
         border.Content = grid;
         return border;
@@ -395,8 +934,8 @@ public partial class MainPage : ContentPage
     {
         var successCount = run.FriendResults.Count(r => r.Success);
         var totalCount = run.FriendResults.Count;
-        var statusIcon = run.Success ? "✓" : "✗";
-        var statusColor = run.Success ? Color.FromArgb("#4CAF50") : Color.FromArgb("#F44336");
+        var statusIcon = run.Success ? "OK" : "ERR";
+        var statusColor = run.Success ? GetThemeColor("Success", "#22946E") : GetThemeColor("Error", "#9C2121");
 
         var grid = new Grid
         {
@@ -427,12 +966,18 @@ public partial class MainPage : ContentPage
         
         if (totalCount > 0)
         {
-            infoStack.Children.Add(new Label
+            var skippedCount = totalCount - successCount;
+            var infoLabel = new Label
             {
-                Text = $"{successCount}/{totalCount} messages sent",
-                FontSize = 12,
-                TextColor = Color.FromArgb("#888888")
-            });
+                Text = skippedCount > 0
+                    ? $"{successCount}/{totalCount} sent, {skippedCount} skipped"
+                    : $"{successCount}/{totalCount} messages sent",
+                FontSize = 12
+            };
+            infoLabel.SetAppThemeColor(Label.TextColorProperty,
+                GetThemeColor("Gray500", "#666666"),
+                GetThemeColor("Gray400", "#92979E"));
+            infoStack.Children.Add(infoLabel);
         }
         else if (!string.IsNullOrEmpty(run.ErrorMessage))
         {
@@ -453,21 +998,48 @@ public partial class MainPage : ContentPage
 
     private void OnScheduleToggled(object? sender, ToggledEventArgs e)
     {
+        if (_suppressSettingsToggles) return;
 #if ANDROID
+        var context = Platform.CurrentActivity ?? Android.App.Application.Context;
         if (e.Value)
-        {
-            // Enable scheduling
-            var context = Platform.CurrentActivity ?? Android.App.Application.Context;
             TiktokStreakSaver.Platforms.Android.StreakScheduler.ScheduleNextRun(context);
+        else
+            TiktokStreakSaver.Platforms.Android.StreakScheduler.CancelSchedule(context);
+#endif
+        UpdateStatus();
+    }
+
+    private void OnSkipUnreachableToggled(object? sender, ToggledEventArgs e)
+    {
+        if (_suppressSettingsToggles) return;
+        _settingsService.SetSkipUnreachableUsers(e.Value);
+    }
+
+    private void OnBurstChatToggled(object? sender, ToggledEventArgs e)
+    {
+        if (_suppressSettingsToggles) return;
+        _burstChatService.SetEnabled(e.Value);
+        UpdateBurstModeDescription(e.Value);
+        if (!e.Value && _burstMessageTabSelected)
+        {
+            _burstMessageTabSelected = false;
+            UpdateMessageTabVisualState(false);
+        }
+    }
+
+    private void UpdateBurstModeDescription(bool isEnabled)
+    {
+        if (isEnabled)
+        {
+            var count = _burstChatService.GetBurstCount();
+            BurstModeDescription.Text = $"Active — sending {count} messages per friend with randomized delays";
+            BurstModeDescription.TextColor = GetThemeColor("Success", "#22946E");
         }
         else
         {
-            // Disable scheduling
-            var context = Platform.CurrentActivity ?? Android.App.Application.Context;
-            TiktokStreakSaver.Platforms.Android.StreakScheduler.CancelSchedule(context);
+            BurstModeDescription.Text = "Send multiple short messages per friend to simulate active chatting";
+            BurstModeDescription.TextColor = GetThemeColor("Gray500", "#666666");
         }
-#endif
-        UpdateStatus();
     }
 
     private void OnMessageChanged(object? sender, TextChangedEventArgs e)
@@ -476,6 +1048,19 @@ public partial class MainPage : ContentPage
         {
             _settingsService.SetMessageText(e.NewTextValue);
         }
+    }
+
+    private void OnBurstMessageChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (!string.IsNullOrEmpty(e.NewTextValue))
+        {
+            _settingsService.SetBurstMessageText(e.NewTextValue);
+        }
+    }
+
+    private void OnSearchFriendTextChanged(object? sender, TextChangedEventArgs e)
+    {
+        LoadFriendsList();
     }
 
     private async void OnLoginClicked(object? sender, EventArgs e)
@@ -530,35 +1115,51 @@ public partial class MainPage : ContentPage
         UpdateStatus();
     }
 
-    private async void OnPermissionsClicked(object? sender, EventArgs e)
+    private async Task EvaluatePermissionsAsync()
     {
 #if ANDROID
         var context = Platform.CurrentActivity ?? Android.App.Application.Context;
         
-        var actions = new List<string>
+        bool exactAlarmGranted = TiktokStreakSaver.Platforms.Android.StreakScheduler.CanScheduleExactAlarms(context);
+        bool batteryOptGranted = TiktokStreakSaver.Platforms.Android.StreakScheduler.IsIgnoringBatteryOptimizations(context);
+        
+        bool notificationGranted = true;
+        if (Android.OS.Build.VERSION.SdkInt >= Android.OS.BuildVersionCodes.Tiramisu)
         {
-            "Request Battery Optimization Exemption",
-            "Request Exact Alarm Permission",
-            "Request Notification Permission"
-        };
-
-        var action = await DisplayActionSheet("Permissions", "Cancel", null, actions.ToArray());
-
-        switch (action)
-        {
-            case "Request Battery Optimization Exemption":
-                TiktokStreakSaver.Platforms.Android.StreakScheduler.RequestBatteryOptimizationExemption(context);
-                break;
-            case "Request Exact Alarm Permission":
-                TiktokStreakSaver.Platforms.Android.StreakScheduler.RequestExactAlarmPermission(context);
-                break;
-            case "Request Notification Permission":
-                await RequestNotificationPermission();
-                break;
+            var status = await Permissions.CheckStatusAsync<Permissions.PostNotifications>();
+            notificationGranted = (status == PermissionStatus.Granted);
         }
+
+        BtnExactAlarm.IsVisible = !exactAlarmGranted;
+        BtnBatteryOpt.IsVisible = !batteryOptGranted;
+        BtnNotification.IsVisible = !notificationGranted;
+
+        PermissionsPanel.IsVisible = !exactAlarmGranted || !batteryOptGranted || !notificationGranted;
 #else
-        await DisplayAlert("Info", "Permissions are only required on Android", "OK");
+        PermissionsPanel.IsVisible = false;
 #endif
+    }
+
+    private void OnRequestExactAlarmClicked(object? sender, EventArgs e)
+    {
+#if ANDROID
+        var context = Platform.CurrentActivity ?? Android.App.Application.Context;
+        TiktokStreakSaver.Platforms.Android.StreakScheduler.RequestExactAlarmPermission(context);
+#endif
+    }
+
+    private void OnRequestBatteryOptimizationClicked(object? sender, EventArgs e)
+    {
+#if ANDROID
+        var context = Platform.CurrentActivity ?? Android.App.Application.Context;
+        TiktokStreakSaver.Platforms.Android.StreakScheduler.RequestBatteryOptimizationExemption(context);
+#endif
+    }
+
+    private async void OnRequestNotificationClicked(object? sender, EventArgs e)
+    {
+        await RequestNotificationPermission();
+        await EvaluatePermissionsAsync();
     }
 
     private async Task RequestNotificationPermission()
@@ -596,11 +1197,318 @@ public partial class MainPage : ContentPage
         await RequestNotificationPermission();
 
         var context = Platform.CurrentActivity ?? Android.App.Application.Context;
-        TiktokStreakSaver.Platforms.Android.StreakScheduler.RunNow(context);
+        bool started = TiktokStreakSaver.Platforms.Android.StreakScheduler.RunNow(context);
         
-        await DisplayAlert("Started", "Streak service started. Check the notification for progress.", "OK");
+        if (started)
+        {
+            await DisplayAlert("Started", "Regular streak run started. Check the notification for progress.", "OK");
+            UpdateStatus(); // refresh next-run display after alarm reschedule
+        }
+        else
+        {
+            await DisplayAlert("Already Running", "A process is already running. Please wait for it to finish.", "OK");
+        }
 #else
         await DisplayAlert("Info", "This feature is only available on Android", "OK");
 #endif
+    }
+
+    private async void OnRunBurstNowClicked(object? sender, EventArgs e)
+    {
+        var friends = _settingsService.GetEnabledFriends();
+        if (friends.Count == 0)
+        {
+            await DisplayAlert("No Friends", "Please add at least one friend before running.", "OK");
+            return;
+        }
+
+        var bc = _burstChatService.GetBurstCount();
+        var confirm = await DisplayAlert("Burst Mode", 
+            $"This will send {bc} message chunk{(bc != 1 ? "s" : "")} per friend to {friends.Count} friend{(friends.Count != 1 ? "s" : "")}, with delays between chunks. Continue?", 
+            "Run Burst", "Cancel");
+
+        if (!confirm) return;
+
+#if ANDROID
+        await RequestNotificationPermission();
+
+        var context = Platform.CurrentActivity ?? Android.App.Application.Context;
+        bool started = TiktokStreakSaver.Platforms.Android.StreakScheduler.RunNow(context, isBurstMode: true);
+        
+        if (started)
+        {
+            await DisplayAlert("Burst Started", "Burst Mode started. Check the notification for progress.", "OK");
+            UpdateStatus();
+        }
+        else
+        {
+            await DisplayAlert("Already Running", "A process is already running.", "OK");
+        }
+#else
+        await DisplayAlert("Info", "This feature is only available on Android", "OK");
+#endif
+    }
+
+    private void OnStopServiceClicked(object? sender, EventArgs e)
+    {
+#if ANDROID
+        var context = Platform.CurrentActivity ?? Android.App.Application.Context;
+        TiktokStreakSaver.Platforms.Android.StreakScheduler.StopService(context);
+#endif
+    }
+
+    private async void OnImportFriendsClicked(object? sender, EventArgs e)
+    {
+        try
+        {
+            var result = await FilePicker.Default.PickAsync(new PickOptions
+            {
+                PickerTitle = "Select friend list JSON file",
+                FileTypes = new FilePickerFileType(new Dictionary<DevicePlatform, IEnumerable<string>>
+                {
+                    { DevicePlatform.Android, new[] { "application/json", "*/*" } },
+                    { DevicePlatform.iOS,     new[] { "public.json" } },
+                    { DevicePlatform.WinUI,   new[] { ".json" } },
+                    { DevicePlatform.macOS,   new[] { "json" } },
+                })
+            });
+
+            if (result == null) return; // user cancelled
+
+            string json;
+            using (var stream = await result.OpenReadAsync())
+            using (var reader = new System.IO.StreamReader(stream))
+            {
+                json = await reader.ReadToEndAsync();
+            }
+
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                await DisplayAlert("Import Failed", "The selected file is empty.", "OK");
+                return;
+            }
+
+            List<FriendConfig>? imported;
+            try
+            {
+                var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                imported = System.Text.Json.JsonSerializer.Deserialize<List<FriendConfig>>(json, options);
+            }
+            catch
+            {
+                await DisplayAlert("Import Failed", "The file is not a valid friend list. Check the format and try again.", "OK");
+                return;
+            }
+
+            if (imported == null || imported.Count == 0)
+            {
+                await DisplayAlert("Import", "The file contains no friend entries.", "OK");
+                return;
+            }
+
+            var existing = _settingsService.GetFriendsList();
+            int added = 0, updated = 0, skipped = 0;
+            var seenInBatch = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var entry in imported)
+            {
+                // Validate required fields
+                if (string.IsNullOrWhiteSpace(entry.Username) || entry.Username.Trim().TrimStart('@').Length < 2)
+                {
+                    skipped++;
+                    continue;
+                }
+
+                // Normalize username
+                entry.Username = entry.Username.Trim().TrimStart('@');
+                entry.DisplayName = entry.DisplayName?.Trim() ?? string.Empty;
+
+                // Skip duplicates within the same import file (first occurrence wins)
+                if (!seenInBatch.Add(entry.Username))
+                {
+                    skipped++;
+                    continue;
+                }
+
+                var match = existing.FirstOrDefault(f =>
+                    f.Username.Equals(entry.Username, StringComparison.OrdinalIgnoreCase));
+
+                if (match != null)
+                {
+                    // Overwrite existing entry (preserve Id so history links remain intact)
+                    entry.Id = match.Id;
+                    var idx = existing.IndexOf(match);
+                    existing[idx] = entry;
+                    updated++;
+                }
+                else
+                {
+                    // Ensure a fresh Id if none present
+                    if (string.IsNullOrEmpty(entry.Id))
+                        entry.Id = Guid.NewGuid().ToString();
+                    existing.Add(entry);
+                    added++;
+                }
+            }
+
+            _settingsService.SaveFriendsList(existing);
+            LoadFriendsList();
+            UpdateStatus();
+
+            var summary = $"Import complete.\n\nAdded: {added}  |  Updated: {updated}  |  Skipped: {skipped}";
+            await DisplayAlert("Import Complete", summary, "OK");
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Import Failed", $"Unexpected error: {ex.Message}", "OK");
+        }
+    }
+
+    private async void OnExportFriendsClicked(object? sender, EventArgs e)
+    {
+        try
+        {
+            var friends = _settingsService.GetFriendsList();
+
+            if (friends.Count == 0)
+            {
+                await DisplayAlert("Export", "Your friend list is empty. Nothing to export.", "OK");
+                return;
+            }
+
+            var options = new System.Text.Json.JsonSerializerOptions { WriteIndented = true };
+            var json = System.Text.Json.JsonSerializer.Serialize(friends, options);
+
+            // Write to app-accessible cache directory, then share
+            var fileName = $"streak_friends_{DateTime.Now:yyyyMMdd_HHmm}.json";
+            var filePath = System.IO.Path.Combine(FileSystem.CacheDirectory, fileName);
+            await System.IO.File.WriteAllTextAsync(filePath, json);
+
+            await Share.Default.RequestAsync(new ShareFileRequest
+            {
+                Title = "Export Friend List",
+                File = new ShareFile(filePath, "application/json")
+            });
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Export Failed", $"Could not export: {ex.Message}", "OK");
+        }
+    }
+
+    private bool _isExportingLogs = false;
+
+    private async void OnExportLogsClicked(object? sender, EventArgs e)
+    {
+        if (_isExportingLogs) return;
+        _isExportingLogs = true;
+
+        try
+        {
+#if ANDROID
+            var logs = TiktokStreakSaver.Platforms.Android.Services.StreakService.GetLogs();
+#else
+            var logs = new List<string>();
+#endif
+
+            if (logs == null || logs.Count == 0)
+            {
+                await DisplayAlert("Export Logs", "No logs to export", "OK");
+                return;
+            }
+
+            var textContent = string.Join(Environment.NewLine, logs);
+
+            var fileName = $"streak_logs_{DateTime.Now:yyyyMMdd_HHmm}.txt";
+            var filePath = System.IO.Path.Combine(FileSystem.CacheDirectory, fileName);
+            await System.IO.File.WriteAllTextAsync(filePath, textContent);
+
+            await Share.Default.RequestAsync(new ShareFileRequest
+            {
+                Title = "Export System Logs",
+                File = new ShareFile(filePath, "text/plain")
+            });
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Export Failed", $"Could not export logs: {ex.Message}", "OK");
+        }
+        finally
+        {
+            _isExportingLogs = false;
+        }
+    }
+
+    private async void OnRefreshing(object? sender, EventArgs e)
+    {
+        LoadSettings();
+        UpdateMessageTabVisualState(_burstMessageTabSelected);
+        LoadFriendsList();
+        LoadHistory();
+        UpdateStatus();
+        
+        await EvaluatePermissionsAsync();
+        
+        // Passively check for updates only (never shows Welcome on refresh)
+        // CheckUpdateOnlyAsync owns the _isCheckingForUpdates guard — safe to call directly
+        await CheckUpdateOnlyAsync();
+        
+        MainRefreshView.IsRefreshing = false;
+    }
+
+    private void OnEnableAllClicked(object? sender, EventArgs e)
+    {
+        var friends = _settingsService.GetFriendsList();
+        if (friends.Count == 0) return;
+
+        foreach (var friend in friends)
+            friend.IsEnabled = true;
+
+        _settingsService.SaveFriendsList(friends);
+        LoadFriendsList();
+        UpdateStatus();
+    }
+
+    private void OnDisableAllClicked(object? sender, EventArgs e)
+    {
+        var friends = _settingsService.GetFriendsList();
+        if (friends.Count == 0) return;
+
+        foreach (var friend in friends)
+            friend.IsEnabled = false;
+
+        _settingsService.SaveFriendsList(friends);
+        LoadFriendsList();
+        UpdateStatus();
+    }
+
+    private async void OnDeleteAllFriendsClicked(object? sender, EventArgs e)
+    {
+        var friends = _settingsService.GetFriendsList();
+        if (friends.Count == 0) return;
+
+        bool confirm = await DisplayAlert("Clear All Friends", "Are you sure you want to remove all friends? This cannot be undone.", "Clear All", "Cancel");
+        if (confirm)
+        {
+            foreach (var friend in friends)
+            {
+                _settingsService.RemoveFriend(friend.Id);
+            }
+            LoadFriendsList();
+            UpdateStatus();
+        }
+    }
+
+    private async void OnClearHistoryClicked(object? sender, EventArgs e)
+    {
+        var history = _settingsService.GetRunHistory();
+        if (history.Count == 0) return;
+
+        bool confirm = await DisplayAlert("Clear History", "Are you sure you want to clear your run history?", "Clear", "Cancel");
+        if (confirm)
+        {
+            _settingsService.ClearRunHistory();
+            LoadHistory();
+        }
     }
 }

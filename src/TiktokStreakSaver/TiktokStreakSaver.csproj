@@ -53,11 +53,11 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<!-- App Icon - TikTok-inspired flame icon -->
-		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#FE2C55" />
+		<!-- App icon: Android adaptive (background layer + foreground). ForegroundScale keeps the flame inside the safe zone. -->
+		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#FE2C55" ForegroundScale="0.65" />
 
-		<!-- Splash Screen - TikTok red background with flame -->
-		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#FE2C55" BaseSize="128,128" />
+		<!-- Splash image (background color is theme-aware via Platforms/Android/Resources/values*/colors.xml maui_splash_color). -->
+		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#FE2C55" BaseSize="256,256" />
 
 		<!-- Images -->
 		<MauiImage Include="Resources\Images\*" />

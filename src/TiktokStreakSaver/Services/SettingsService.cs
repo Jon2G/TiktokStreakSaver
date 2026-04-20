@@ -15,6 +15,10 @@ public class SettingsService
     private const string IsScheduledKey = "is_scheduled";
     private const string RunHistoryKey = "run_history";
     private const string IntervalHoursKey = "interval_hours";
+    private const string IntervalMinutesKey = "interval_minutes";
+    private const string SkipUnreachableUsersKey = "skip_unreachable_users";
+    private const string BurstMessageTextKey = "burst_message_text";
+    private const string BurstLastRunKey = "burst_last_run";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -25,18 +29,26 @@ public class SettingsService
     /// <summary>
     /// Default message to send
     /// </summary>
-    public const string DefaultMessage = "Hey! Keeping our streak alive! 🔥";
+    public const string DefaultMessage = "Hey! Keeping our streak alive! \uD83D\uDD25";
 
     /// <summary>
-    /// Default interval in hours
+    /// Default interval in hours (legacy; <see cref="DefaultIntervalMinutes"/> is authoritative).
     /// </summary>
     public const int DefaultIntervalHours = 23;
 
+    /// <summary>
+    /// Default time between automatic streak runs (23 hours).
+    /// </summary>
+    public const int DefaultIntervalMinutes = DefaultIntervalHours * 60;
+
+    /// <summary>Minimum gap between scheduled runs (15 minutes).</summary>
+    public const int MinIntervalMinutes = 15;
+
+    /// <summary>Maximum gap between scheduled runs (23h 59m — strictly under 24 hours).</summary>
+    public const int MaxIntervalMinutes = 24 * 60 - 1;
+
     #region Friends List
 
-    /// <summary>
-    /// Get the list of configured friends
-    /// </summary>
     public List<FriendConfig> GetFriendsList()
     {
         try
@@ -53,18 +65,12 @@ public class SettingsService
         }
     }
 
-    /// <summary>
-    /// Save the friends list
-    /// </summary>
     public void SaveFriendsList(List<FriendConfig> friends)
     {
         var json = JsonSerializer.Serialize(friends, JsonOptions);
         Preferences.Set(FriendsListKey, json);
     }
 
-    /// <summary>
-    /// Add a new friend to the list
-    /// </summary>
     public void AddFriend(FriendConfig friend)
     {
         var friends = GetFriendsList();
@@ -72,9 +78,6 @@ public class SettingsService
         SaveFriendsList(friends);
     }
 
-    /// <summary>
-    /// Remove a friend from the list
-    /// </summary>
     public void RemoveFriend(string friendId)
     {
         var friends = GetFriendsList();
@@ -82,9 +85,6 @@ public class SettingsService
         SaveFriendsList(friends);
     }
 
-    /// <summary>
-    /// Update a friend's configuration
-    /// </summary>
     public void UpdateFriend(FriendConfig friend)
     {
         var friends = GetFriendsList();
@@ -96,9 +96,6 @@ public class SettingsService
         }
     }
 
-    /// <summary>
-    /// Get enabled friends only
-    /// </summary>
     public List<FriendConfig> GetEnabledFriends()
     {
         return GetFriendsList().Where(f => f.IsEnabled).ToList();
@@ -108,20 +105,24 @@ public class SettingsService
 
     #region Message Configuration
 
-    /// <summary>
-    /// Get the message text to send
-    /// </summary>
     public string GetMessageText()
     {
         return Preferences.Get(MessageTextKey, DefaultMessage);
     }
 
-    /// <summary>
-    /// Set the message text to send
-    /// </summary>
     public void SetMessageText(string message)
     {
         Preferences.Set(MessageTextKey, message);
+    }
+
+    public string GetBurstMessageText()
+    {
+        return Preferences.Get(BurstMessageTextKey, "Burst Message");
+    }
+
+    public void SetBurstMessageText(string message)
+    {
+        Preferences.Set(BurstMessageTextKey, message);
     }
 
     #endregion
@@ -129,68 +130,78 @@ public class SettingsService
     #region Scheduling
 
     /// <summary>
-    /// Get the interval in hours
+    /// Interval between automatic runs, in minutes. Migrates legacy <c>interval_hours</c> on first read.
     /// </summary>
-    public int GetIntervalHours()
+    public int GetIntervalMinutes()
     {
-        return Preferences.Get(IntervalHoursKey, DefaultIntervalHours);
+        if (Preferences.ContainsKey(IntervalMinutesKey))
+        {
+            var v = Preferences.Get(IntervalMinutesKey, DefaultIntervalMinutes);
+            return Math.Clamp(v, MinIntervalMinutes, MaxIntervalMinutes);
+        }
+
+        var legacyHours = Preferences.Get(IntervalHoursKey, DefaultIntervalHours);
+        var migrated = Math.Clamp(legacyHours * 60, MinIntervalMinutes, MaxIntervalMinutes);
+        SetIntervalMinutes(migrated);
+        return migrated;
     }
 
-    /// <summary>
-    /// Set the interval in hours
-    /// </summary>
-    public void SetIntervalHours(int hours)
+    public void SetIntervalMinutes(int minutes)
     {
-        Preferences.Set(IntervalHoursKey, hours);
+        var v = Math.Clamp(minutes, MinIntervalMinutes, MaxIntervalMinutes);
+        Preferences.Set(IntervalMinutesKey, v);
     }
 
-    /// <summary>
-    /// Get the last run timestamp
-    /// </summary>
     public DateTime? GetLastRunTime()
     {
         var ticks = Preferences.Get(LastRunKey, 0L);
         return ticks > 0 ? new DateTime(ticks) : null;
     }
 
-    /// <summary>
-    /// Set the last run timestamp
-    /// </summary>
     public void SetLastRunTime(DateTime time)
     {
         Preferences.Set(LastRunKey, time.Ticks);
     }
 
-    /// <summary>
-    /// Get whether the scheduler is enabled
-    /// </summary>
-    public bool IsScheduled()
+    public DateTime? GetBurstLastRunTime()
     {
-        return Preferences.Get(IsScheduledKey, false);
+        var ticks = Preferences.Get(BurstLastRunKey, 0L);
+        return ticks > 0 ? new DateTime(ticks) : null;
     }
 
-    /// <summary>
-    /// Set whether the scheduler is enabled
-    /// </summary>
+    public void SetBurstLastRunTime(DateTime time)
+    {
+        Preferences.Set(BurstLastRunKey, time.Ticks);
+    }
+
+    public bool IsScheduled()
+    {
+        return Preferences.Get(IsScheduledKey, true);
+    }
+
     public void SetScheduled(bool scheduled)
     {
         Preferences.Set(IsScheduledKey, scheduled);
     }
 
-    /// <summary>
-    /// Calculate the next run time based on last run and interval
-    /// </summary>
+    public bool GetSkipUnreachableUsers()
+    {
+        return Preferences.Get(SkipUnreachableUsersKey, true);
+    }
+
+    public void SetSkipUnreachableUsers(bool skip)
+    {
+        Preferences.Set(SkipUnreachableUsersKey, skip);
+    }
+
     public DateTime GetNextRunTime()
     {
         var lastRun = GetLastRunTime();
-        var intervalHours = GetIntervalHours();
+        var intervalMinutes = GetIntervalMinutes();
 
         if (lastRun.HasValue)
-        {
-            return lastRun.Value.AddHours(intervalHours);
-        }
+            return lastRun.Value.AddMinutes(intervalMinutes);
 
-        // If never run, schedule for now
         return DateTime.Now;
     }
 
@@ -198,9 +209,6 @@ public class SettingsService
 
     #region Run History
 
-    /// <summary>
-    /// Get the run history (last 50 runs)
-    /// </summary>
     public List<StreakRunResult> GetRunHistory()
     {
         try
@@ -217,19 +225,13 @@ public class SettingsService
         }
     }
 
-    /// <summary>
-    /// Add a run result to history
-    /// </summary>
     public void AddRunResult(StreakRunResult result)
     {
         var history = GetRunHistory();
         history.Insert(0, result);
 
-        // Keep only last 50 runs
         if (history.Count > 50)
-        {
             history = history.Take(50).ToList();
-        }
 
         var json = JsonSerializer.Serialize(history, JsonOptions);
         Preferences.Set(RunHistoryKey, json);
@@ -239,9 +241,11 @@ public class SettingsService
 
     #region Clear Data
 
-    /// <summary>
-    /// Clear all settings
-    /// </summary>
+    public void ClearRunHistory()
+    {
+        Preferences.Remove(RunHistoryKey);
+    }
+
     public void ClearAll()
     {
         Preferences.Clear();
@@ -249,12 +253,3 @@ public class SettingsService
 
     #endregion
 }
-
-
-
-
-
-
-
-
-

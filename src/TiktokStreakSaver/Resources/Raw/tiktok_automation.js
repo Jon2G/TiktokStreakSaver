@@ -17,6 +17,29 @@
     };
 
     var findChatItems = function () {
+        // Primary selector (v1.8.0 original)
+        var items = document.querySelectorAll("[data-e2e*='chat-list-item']");
+        if (items.length > 0) {
+            log('Found ' + items.length + ' items via primary: chat-list-item');
+            return items;
+        }
+
+        // Fallback selectors — TikTok periodically renames data-e2e values
+        var fallbacks = [
+            "[data-e2e*='chat-item']",
+            "[data-e2e*='conversation']"
+        ];
+        for (var i = 0; i < fallbacks.length; i++) {
+            try {
+                items = document.querySelectorAll(fallbacks[i]);
+                if (items.length > 0) {
+                    log('Found ' + items.length + ' items via fallback: ' + fallbacks[i]);
+                    return items;
+                }
+            } catch (e) { }
+        }
+
+        // Nothing found
         return document.querySelectorAll("[data-e2e*='chat-list-item']");
     };
 
@@ -159,7 +182,6 @@
     };
 
     var sendMessage = function (messageInput) {
-        debugger;
         // Try to find and click send button first
         var sendBtn = document.querySelector('[data-e2e*="send"]') ||
                       document.querySelector('[data-e2e*="Send"]') ||
@@ -271,6 +293,21 @@
         }, 1500);
     };
 
+    var dumpPageDiagnostics = function () {
+        log('=== PAGE DIAGNOSTICS ===');
+        log('URL: ' + window.location.href);
+        log('Title: ' + document.title);
+        log('Body length: ' + (document.body ? document.body.innerHTML.length : 0));
+        var allE2e = document.querySelectorAll('[data-e2e]');
+        log('Total data-e2e elements: ' + allE2e.length);
+        var vals = [];
+        for (var i = 0; i < Math.min(allE2e.length, 30); i++) {
+            vals.push(allE2e[i].getAttribute('data-e2e'));
+        }
+        if (vals.length > 0) log('data-e2e values: ' + vals.join(', '));
+        log('=== END DIAGNOSTICS ===');
+    };
+
     var init = function () {
         try {
             if (userName.startsWith('@')) {
@@ -282,7 +319,19 @@
             log('Found ' + chatItems.length + ' chat items');
 
             if (chatItems.length === 0) {
-                reportError('No chat items found');
+                dumpPageDiagnostics();
+                // Retry once after 5 more seconds (page might still be loading)
+                log('Retrying in 5 seconds...');
+                setTimeout(function () {
+                    chatItems = findChatItems();
+                    log('Retry: Found ' + chatItems.length + ' chat items');
+                    if (chatItems.length === 0) {
+                        dumpPageDiagnostics();
+                        reportError('No chat items found');
+                        return;
+                    }
+                    checkNextChat();
+                }, 5000);
                 return;
             }
 

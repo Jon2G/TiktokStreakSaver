@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  PROJECT_PATH: src/TiktokStreakSaver/TiktokStreakSaver.csproj
+
+jobs:
+  build:
+    name: Build (Android + Windows)
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'microsoft'
+          java-version: '17'
+
+      - name: Install MAUI workloads
+        run: dotnet workload install maui-android maui-windows
+
+      - name: Restore
+        run: dotnet restore ${{ env.PROJECT_PATH }}
+
+      - name: Build Android (Debug)
+        run: dotnet build ${{ env.PROJECT_PATH }} -f net9.0-android -c Debug --no-restore
+
+      - name: Build Windows (Debug)
+        run: dotnet build ${{ env.PROJECT_PATH }} -f net9.0-windows10.0.19041.0 -c Debug --no-restore

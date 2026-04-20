@@ -1,10 +1,12 @@
 using Android.App;
 using Android.Content;
+using TiktokStreakSaver;
 using TiktokStreakSaver.Services;
+using TiktokStreakSaver.Platforms.Android;
 
 namespace TiktokStreakSaver.Platforms.Android.Receivers;
 
-[BroadcastReceiver(Name = "com.jon2g.tiktokstreaksaver.Receivers.BootReceiver", Enabled = true, Exported = true)]
+[BroadcastReceiver(Name = AppConstants.PackageName + ".Receivers.BootReceiver", Enabled = true, Exported = true)]
 [IntentFilter(new[] { Intent.ActionBootCompleted, "android.intent.action.QUICKBOOT_POWERON" })]
 public class BootReceiver : BroadcastReceiver
 {

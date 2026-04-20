@@ -19,7 +19,7 @@ jobs:
   build-android:
     permissions: write-all
     runs-on: windows-latest
-    
+
     steps:
 
     - name: Checkout repository
@@ -31,6 +31,26 @@ jobs:
         [IO.File]::WriteAllBytes("src/TiktokStreakSaver/streaksaver.keystore", $keystoreBytes)
         Write-Host "Keystore file created successfully"
       shell: pwsh
+
+    - name: Validate signing configuration
+      run: |
+        if (-not (Test-Path "src/TiktokStreakSaver/streaksaver.keystore")) {
+          Write-Error "streaksaver.keystore was not created. Check ANDROID_KEYSTORE_BASE64 secret."
+          exit 1
+        }
+        $size = (Get-Item "src/TiktokStreakSaver/streaksaver.keystore").Length
+        if ($size -lt 100) {
+          Write-Error "streaksaver.keystore is too small ($size bytes). Secret may be empty or corrupt."
+          exit 1
+        }
+        if ([string]::IsNullOrEmpty("$env:SIGNING_PASSWORD_CHECK")) {
+          Write-Error "ANDROID_SIGNING_PASSWORD is not set. Cannot sign the APK."
+          exit 1
+        }
+        Write-Host "Signing configuration validated: keystore=$size bytes, password=set"
+      shell: pwsh
+      env:
+        SIGNING_PASSWORD_CHECK: ${{ secrets.ANDROID_SIGNING_PASSWORD }}
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
@@ -49,12 +69,6 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore ${{ env.PROJECT_PATH }}
 
-    - name: Build Android Release
-      run: |
-        dotnet publish ${{ env.PROJECT_PATH }} -f net9.0-android -c Release -o ./artifacts
-      env:
-        ANDROID_SIGNING_PASSWORD: ${{ secrets.ANDROID_SIGNING_PASSWORD }}
-
     - name: Get version from tag
       id: get_version
       run: |
@@ -66,17 +80,83 @@ jobs:
         }
       shell: pwsh
 
+    - name: Build Android Release
+      run: |
+        $ver = "${{ steps.get_version.outputs.VERSION }}"
+        $parts = $ver -split '\.'
+        $vc = [int]$parts[0] * 10000 + [int]$parts[1] * 100 + [int]$parts[2]
+        Write-Host "Building with ApplicationVersion=$vc ApplicationDisplayVersion=$ver"
+        dotnet publish ${{ env.PROJECT_PATH }} -f net9.0-android -c Release -o ./artifacts -p:ApplicationVersion=$vc -p:ApplicationDisplayVersion=$ver
+      shell: pwsh
+      env:
+        ANDROID_SIGNING_PASSWORD: ${{ secrets.ANDROID_SIGNING_PASSWORD }}
+
     - name: Rename APK
       run: |
-        $apk = Get-ChildItem -Path ./artifacts -Filter "*.apk" | Select-Object -First 1
+        $newName = "StreakSaver-v${{ steps.get_version.outputs.VERSION }}.apk"
+        $apk = Get-ChildItem -Path ./artifacts -Filter "*-Signed.apk" | Select-Object -First 1
+        if (-not $apk) {
+          $apk = Get-ChildItem -Path ./artifacts -Filter "*.apk" | Select-Object -First 1
+        }
         if ($apk) {
-          $newName = "StreakSaver-v${{ steps.get_version.outputs.VERSION }}.apk"
           Rename-Item -Path $apk.FullName -NewName $newName
           echo "APK_NAME=$newName" >> $env:GITHUB_OUTPUT
           echo "APK_PATH=./artifacts/$newName" >> $env:GITHUB_OUTPUT
+          Get-ChildItem -Path ./artifacts -Filter "*.apk" |
+            Where-Object { $_.Name -ne $newName } |
+            Remove-Item -Force
+          Write-Host "Published APK: $newName"
         }
       shell: pwsh
       id: rename_apk
+
+    - name: APK Identity Report
+      run: |
+        $ErrorActionPreference = 'SilentlyContinue'
+        $apk = Get-ChildItem -Path ./artifacts -Filter "*.apk" | Select-Object -First 1
+        if (-not $apk) { Write-Host "No APK found in ./artifacts"; exit 0 }
+        $apkPath = $apk.FullName
+
+        $sdkRoot = "$env:ANDROID_SDK_ROOT"
+        $aapt = Get-ChildItem "$sdkRoot\build-tools" -Recurse -Filter "aapt.exe" |
+                Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
+
+        Write-Host "========================================"
+        Write-Host "  APK IDENTITY REPORT"
+        Write-Host "========================================"
+
+        if ($aapt) {
+          $badging = & $aapt dump badging $apkPath 2>&1
+          $packageLine = ($badging | Where-Object { $_ -match "^package:" }) | Select-Object -First 1
+          if ($packageLine) {
+            $pkgName = if ($packageLine -match "name='([^']+)'")  { $Matches[1] } else { "?" }
+            $verCode = if ($packageLine -match "versionCode='([^']+)'") { $Matches[1] } else { "?" }
+            $verName = if ($packageLine -match "versionName='([^']+)'") { $Matches[1] } else { "?" }
+            Write-Host "PackageName  = $pkgName"
+            Write-Host "VersionName  = $verName"
+            Write-Host "VersionCode  = $verCode"
+          }
+        } else {
+          Write-Host "aapt not found — skipping badging dump"
+        }
+
+        $apkSigner = Get-ChildItem "$sdkRoot\build-tools" -Recurse -Filter "apksigner.bat" |
+                     Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
+        if ($apkSigner) {
+          $sigInfo = & $apkSigner verify --print-certs $apkPath 2>&1
+          $sha256Line = ($sigInfo | Where-Object { $_ -match "SHA-256" }) | Select-Object -First 1
+          Write-Host "Signature SHA-256 = $sha256Line"
+        } else {
+          Write-Host "apksigner not found — skipping cert fingerprint"
+        }
+
+        Write-Host "----------------------------------------"
+        Write-Host "Project ApplicationId  = com.jon2g.tiktokstreaksaver"
+        Write-Host "Tag Version = ${{ steps.get_version.outputs.VERSION }}"
+        Write-Host "========================================"
+      shell: pwsh
+      id: apk_identity
+      continue-on-error: true
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
@@ -91,24 +171,9 @@ jobs:
       with:
         tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', github.event.inputs.version) || github.ref_name }}
         name: Streak Saver v${{ steps.get_version.outputs.VERSION }}
-        body: |
-          ## Streak Saver v${{ steps.get_version.outputs.VERSION }}
-          
-          ### Installation
-          1. Download the APK file below
-          2. Enable "Install from unknown sources" on your Android device
-          3. Install the APK
-          
-          ### Features
-          - Automatic TikTok streak messages every 23 hours
-          - Configurable friend list
-          - Background service with reliable scheduling
-          
-          ### Requirements
-          - Android 7.0 (API 24) or higher
+        generate_release_notes: true
         files: ./artifacts/*.apk
         draft: false
         prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-

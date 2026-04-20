@@ -2,7 +2,9 @@ using Android.App;
 using Android.Content;
 using Android.OS;
 using Android.Provider;
+using TiktokStreakSaver;
 using TiktokStreakSaver.Platforms.Android.Receivers;
+using TiktokStreakSaver.Platforms.Android.Services;
 using TiktokStreakSaver.Services;
 
 namespace TiktokStreakSaver.Platforms.Android;
@@ -21,13 +23,13 @@ public static class StreakScheduler
     public static void ScheduleNextRun(Context context)
     {
         var settingsService = new SettingsService();
-        var intervalHours = settingsService.GetIntervalHours();
+        var intervalMinutes = settingsService.GetIntervalMinutes();
         var lastRun = settingsService.GetLastRunTime();
 
         DateTime nextRunTime;
         if (lastRun.HasValue)
         {
-            nextRunTime = lastRun.Value.AddHours(intervalHours);
+            nextRunTime = lastRun.Value.AddMinutes(intervalMinutes);
             // If the calculated time is in the past, schedule for now + small delay
             if (nextRunTime < DateTime.Now)
             {
@@ -37,7 +39,7 @@ public static class StreakScheduler
         else
         {
             // First run - schedule for interval from now
-            nextRunTime = DateTime.Now.AddHours(intervalHours);
+            nextRunTime = DateTime.Now.AddMinutes(intervalMinutes);
         }
 
         ScheduleAt(context, nextRunTime);
@@ -136,20 +138,43 @@ public static class StreakScheduler
     }
 
     /// <summary>
-    /// Run the service immediately (for manual trigger)
+    /// Run the service immediately. Returns false if automation is already running.
     /// </summary>
-    public static void RunNow(Context context)
+    public static bool RunNow(Context context, bool isBurstMode = false)
     {
-        var serviceIntent = new Intent(context, typeof(Services.StreakService));
+        if (StreakService.IsRunning)
+            return false;
+
+        var settingsService = new SettingsService();
+        if (settingsService.IsScheduled())
+        {
+            CancelSchedule(context);
+            settingsService.SetScheduled(true);
+        }
+
+        var serviceIntent = new Intent(context, typeof(StreakService));
+        serviceIntent.PutExtra("IsBurstMode", isBurstMode);
 
         if (Build.VERSION.SdkInt >= BuildVersionCodes.O)
-        {
             context.StartForegroundService(serviceIntent);
-        }
         else
-        {
             context.StartService(serviceIntent);
-        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Request the running StreakService to stop gracefully.
+    /// </summary>
+    public static void StopService(Context context)
+    {
+        var serviceIntent = new Intent(context, typeof(StreakService));
+        serviceIntent.SetAction("STOP_SERVICE");
+
+        if (Build.VERSION.SdkInt >= BuildVersionCodes.O)
+            context.StartForegroundService(serviceIntent);
+        else
+            context.StartService(serviceIntent);
     }
 
     /// <summary>
@@ -174,6 +199,9 @@ public static class StreakScheduler
         if (Build.VERSION.SdkInt >= BuildVersionCodes.S)
         {
             var intent = new Intent(Settings.ActionRequestScheduleExactAlarm);
+            var packageName = context.PackageName;
+            if (!string.IsNullOrEmpty(packageName))
+                intent.SetData(global::Android.Net.Uri.Parse($"package:{packageName}"));
             intent.SetFlags(ActivityFlags.NewTask);
             context.StartActivity(intent);
         }

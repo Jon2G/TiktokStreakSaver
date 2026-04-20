@@ -5,18 +5,23 @@
 Streak Saver is an open-source Android app that runs in the background and automatically sends messages to your TikTok friends every 23 hours, ensuring you never lose your streaks.
 
 <p align="center">
-  <img src="docs/imgs/main_screen.jpeg" alt="Streak Saver Main Screen" width="300"/>
+  <img src="docs/imgs/main_screen.png" alt="Streak Saver Main Screen" width="300"/>
 </p>
 
 ## ✨ Features
 
-- **🕐 Automatic Scheduling** - Sends messages every 23 hours automatically
+- **🕐 Automatic Scheduling** - Sends messages on your **Schedule interval** (default 23 hours; configurable between 15 minutes and 23h 59m)
 - **👥 Multiple Friends** - Configure multiple friends to maintain streaks with
 - **📱 Background Service** - Works even when the app is closed
 - **🔔 Smart Notifications** - Shows progress only while sending, then disappears
 - **🔄 Boot Persistence** - Automatically reschedules after device restart
 - **🔐 Session Management** - Login once, stays logged in
 - **⚡ Battery Optimized** - Requests battery optimization exemption for reliability
+- **⚙️ Settings Drawer** - **Background automation**, **Skip unreachable users**, and **Burst chat mode** live under **Settings**; the bottom run bar hides while the drawer is open
+- **💬 Regular & Burst Messages** - One **Messages** card with **Regular** and **Burst** tabs: edit the regular streak message or burst pattern, timing, and chunk count; choosing **Regular** turns burst mode off, choosing **Burst** turns it on
+- **🧭 Skip Unreachable** - Optional behavior (on by default for new installs) to continue with other friends when a chat cannot be opened
+- **📦 In-App Updates** - Check for updates from the app; downloaded APKs install via the system installer (FileProvider on Android)
+- **🔄 Up-to-Date Automation** - TikTok WebView automation script maintained for current inbox behavior
 
 ## 📋 Requirements
 
@@ -37,7 +42,7 @@ Streak Saver is an open-source Android app that runs in the background and autom
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/TiktokStreakSaver.git
+git clone https://github.com/Jon2G/TiktokStreakSaver.git
 cd TiktokStreakSaver
 
 # Build for Android
@@ -47,15 +52,18 @@ dotnet build -f net9.0-android -c Release
 
 ## 🚀 Getting Started
 
-1. **Open the app** and tap "Login to TikTok"
+1. **Open the app** and tap **Login to TikTok**
 2. **Sign in** to your TikTok account in the WebView
-3. **Add friends** by tapping "+ Add" and entering their TikTok username
-4. **Set your message** in the "Message to Send" field
-5. **Enable scheduling** by toggling the switch
-6. **Grant permissions** by tapping "Permissions" and allowing:
-   - Battery optimization exemption
-   - Exact alarm permission
-   - Notification permission
+3. **Add friends** via **Add** on the Streaks card (TikTok username; optional display name)
+4. **Compose messages** in **Messages**: use the **Regular** tab for your normal streak text, or **Burst** for multi-chunk messages with delays (burst mode turns on when you select the Burst tab, and off when you select Regular)
+5. **Automation & options** — tap **Settings** to open the side drawer:
+   - **Background automation** — on by default for new installs; arms the next background run after first launch on Android when enabled
+   - **Skip unreachable users** — on by default for new installs
+   - **Burst chat mode** — off by default; must be on for **Burst Run** behavior during automation
+6. **Schedule interval** — scroll to the card **above** “Check for updates”; set hours/minutes between successful automatic runs
+7. **Grant permissions** from the bottom bar when prompted (exact alarms, battery, notifications)
+
+Use **Regular Run** / **Burst Run** for an immediate send, or rely on background automation when scheduled.
 
 ## ⚙️ How It Works
 
@@ -101,19 +109,27 @@ TiktokStreakSaver/
 │   ├── Resources/                 # MAUI resources (icons, fonts)
 │   ├── MainPage.xaml              # Main UI
 │   └── LoginPage.xaml             # TikTok login WebView
-├── .github/workflows/             # CI/CD pipelines
+├── .github/workflows/             # CI/CD pipelines (see below)
+├── .github/dependabot.yml         # Dependency update PRs (Actions + NuGet)
 └── docs/                          # Documentation & screenshots
 ```
 
+### Continuous integration
+
+| Workflow | When it runs | What it does |
+|----------|----------------|----------------|
+| [`ci.yml`](.github/workflows/ci.yml) | Push to `main` / `master`, all pull requests, manual | `dotnet build` for **Android** and **Windows** (Debug, no signing) |
+| [`android-release.yml`](.github/workflows/android-release.yml) | Git tag `v*`, manual dispatch | Signed Release APK, artifact upload, GitHub Release |
+
 ## 🔧 Configuration
 
-### Changing the Interval
+### Changing the interval
 
-The default interval is 23 hours. To modify, update the `DefaultIntervalHours` constant in `Services/SettingsService.cs`:
+On the main screen, **Schedule interval** is the last main section **before** the footer (“Check for updates”). Use hours and minutes to set how long to wait after each successful run before the next automatic background run. Allowed range is **15 minutes** up to **23 hours 59 minutes** (always less than 24 hours). The default matches the classic **23 hours**.
 
-```csharp
-public const int DefaultIntervalHours = 23;
-```
+### Burst messaging
+
+On the **Messages** card, open the **Burst** tab to edit the burst pattern, **messages per friend** (2–5), and **min/max delay** (seconds) between chunks. Burst mode for runs and automation is controlled by **Burst chat mode** in **Settings**.
 
 ### Custom Message
 

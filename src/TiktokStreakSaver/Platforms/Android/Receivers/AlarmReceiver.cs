@@ -1,14 +1,15 @@
 using Android.App;
 using Android.Content;
 using Android.OS;
+using TiktokStreakSaver;
 using TiktokStreakSaver.Platforms.Android.Services;
 
 namespace TiktokStreakSaver.Platforms.Android.Receivers;
 
-[BroadcastReceiver(Name = "com.jon2g.tiktokstreaksaver.Receivers.AlarmReceiver", Enabled = true, Exported = false)]
+[BroadcastReceiver(Name = AppConstants.PackageName + ".Receivers.AlarmReceiver", Enabled = true, Exported = false)]
 public class AlarmReceiver : BroadcastReceiver
 {
-    public const string ActionStreakAlarm = "com.jon2g.tiktokstreaksaver.ACTION_STREAK_ALARM";
+    public const string ActionStreakAlarm = AppConstants.ActionStreakAlarm;
 
     public override void OnReceive(Context? context, Intent? intent)
     {
@@ -16,20 +17,12 @@ public class AlarmReceiver : BroadcastReceiver
 
         if (intent.Action == ActionStreakAlarm)
         {
-            // Start the foreground service
             var serviceIntent = new Intent(context, typeof(StreakService));
-            
+
             if (Build.VERSION.SdkInt >= BuildVersionCodes.O)
-            {
                 context.StartForegroundService(serviceIntent);
-            }
             else
-            {
                 context.StartService(serviceIntent);
-            }
         }
     }
 }
-
-
-

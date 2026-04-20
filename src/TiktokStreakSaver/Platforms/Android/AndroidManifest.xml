@@ -6,7 +6,16 @@
 		android:roundIcon="@mipmap/appicon_round" 
 		android:supportsRtl="true"
 		android:usesCleartextTraffic="true">
-		
+
+		<provider
+			android:name="androidx.core.content.FileProvider"
+			android:authorities="com.jon2g.tiktokstreaksaver.fileProvider"
+			android:exported="false"
+			android:grantUriPermissions="true">
+			<meta-data
+				android:name="android.support.FILE_PROVIDER_PATHS"
+				android:resource="@xml/file_paths" />
+		</provider>
 
 	</application>
 	
@@ -33,4 +42,7 @@
 	
 	<!-- Notification permission for Android 13+ -->
 	<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+	<!-- Required for in-app APK install (PackageInstaller) -->
+	<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 </manifest>

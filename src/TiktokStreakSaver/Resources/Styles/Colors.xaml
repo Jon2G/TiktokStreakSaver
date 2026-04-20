@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8" ?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <?xaml-comp compile="true" ?>
 <ResourceDictionary 
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
@@ -6,9 +6,9 @@
 
     <!-- Note: For Android please see also Platforms\Android\Resources\values\colors.xml -->
 
-    <!-- TikTok-inspired color scheme -->
+    <!-- TikTok Brand Palette -->
     <Color x:Key="Primary">#FE2C55</Color>
-    <Color x:Key="PrimaryDark">#FF6B8A</Color>
+    <Color x:Key="PrimaryDark">#FE2C55</Color>
     <Color x:Key="PrimaryDarkText">#FFFFFF</Color>
     <Color x:Key="Secondary">#25F4EE</Color>
     <Color x:Key="SecondaryDarkText">#25F4EE</Color>
@@ -18,21 +18,32 @@
     <Color x:Key="Black">Black</Color>
     <Color x:Key="Magenta">#FE2C55</Color>
     <Color x:Key="MidnightBlue">#161823</Color>
-    <Color x:Key="OffBlack">#121212</Color>
+    <Color x:Key="OffBlack">#000000</Color>
 
-    <!-- Success/Warning colors -->
-    <Color x:Key="Success">#4CAF50</Color>
-    <Color x:Key="Warning">#FFC107</Color>
-    <Color x:Key="Error">#F44336</Color>
+    <!-- Semi Design Semantic Colors (light-mode values; dark handled via AppThemeBinding) -->
+    <Color x:Key="Success">#22946E</Color>
+    <Color x:Key="SuccessDark">#47D5A6</Color>
+    <Color x:Key="Warning">#A87A2A</Color>
+    <Color x:Key="WarningDark">#D7AC61</Color>
+    <Color x:Key="Error">#9C2121</Color>
+    <Color x:Key="ErrorDark">#D94A4A</Color>
+    <Color x:Key="Info">#21498A</Color>
+    <Color x:Key="InfoDark">#4077D1</Color>
 
-    <Color x:Key="Gray100">#E8E8E8</Color>
-    <Color x:Key="Gray200">#CCCCCC</Color>
+    <!-- Neutral Surface Scale (aligned to DOCX) -->
+    <Color x:Key="Gray100">#F2F2F2</Color>
+    <Color x:Key="Gray200">#E1E8ED</Color>
     <Color x:Key="Gray300">#AAAAAA</Color>
-    <Color x:Key="Gray400">#888888</Color>
+    <Color x:Key="Gray400">#92979E</Color>
     <Color x:Key="Gray500">#666666</Color>
-    <Color x:Key="Gray600">#444444</Color>
-    <Color x:Key="Gray900">#222222</Color>
+    <Color x:Key="Gray600">#3F3F3F</Color>
+    <Color x:Key="Gray700">#333333</Color>
+    <Color x:Key="Gray800">#282828</Color>
+    <Color x:Key="Gray900">#121212</Color>
     <Color x:Key="Gray950">#161823</Color>
+
+    <Color x:Key="OverlayLight">#CCFFFFFF</Color>
+    <Color x:Key="OverlayDark">#CC000000</Color>
 
     <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource Primary}"/>
     <SolidColorBrush x:Key="SecondaryBrush" Color="{StaticResource Secondary}"/>
@@ -48,4 +59,20 @@
     <SolidColorBrush x:Key="Gray600Brush" Color="{StaticResource Gray600}"/>
     <SolidColorBrush x:Key="Gray900Brush" Color="{StaticResource Gray900}"/>
     <SolidColorBrush x:Key="Gray950Brush" Color="{StaticResource Gray950}"/>
+    
+    <!-- Light Theme Surfaces (DOCX) -->
+    <Color x:Key="CardBackgroundLight">#FFFFFF</Color>
+    <Color x:Key="CardBackgroundDark">#282828</Color>
+    <Color x:Key="BorderColorLight">#E1E8ED</Color>
+    <Color x:Key="BorderColorDark">#3F3F3F</Color>
+    <Color x:Key="DeleteColor">#EE1D52</Color>
+    
+    <Color x:Key="ListItemLight">#F4F4F4</Color>
+    <Color x:Key="ListItemDark">#282828</Color>
+    <Color x:Key="ListItemBorderLight">#E1E8ED</Color>
+    <Color x:Key="ListItemBorderDark">#3F3F3F</Color>
+
+    <!-- Explicit Brushes for AppThemeBindings on Strokes -->
+    <SolidColorBrush x:Key="BorderColorLightBrush" Color="{StaticResource BorderColorLight}"/>
+    <SolidColorBrush x:Key="BorderColorDarkBrush" Color="{StaticResource BorderColorDark}"/>
 </ResourceDictionary>
