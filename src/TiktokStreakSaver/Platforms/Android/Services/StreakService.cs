@@ -26,6 +26,9 @@ public class StreakService : Service
 {
     private const string ChannelId = "streak_service_channel";
     private const string ChannelName = "Streak Service";
+    /// <summary>Ongoing foreground + completion / offline alerts that should be visible (not Low importance).</summary>
+    private const string StatusChannelId = "streak_status_channel";
+    private const string StatusChannelName = "Streak status";
     private const int NotificationId = 1001;
 
     private WebView? _webView;
@@ -85,6 +88,7 @@ public class StreakService : Service
 
         // Create notification channel FIRST before anything else
         CreateNotificationChannel();
+        CreateStatusNotificationChannel();
 
         _mainHandler = new Handler(Looper.MainLooper!);
         _settingsService = new SettingsService();
@@ -110,14 +114,13 @@ public class StreakService : Service
         // Ensure we're in foreground mode (in case OnCreate didn't complete it)
         StartForegroundServiceImmediate();
 
-        // ── Run-level mutex: reject if another automation session is already active ──
+        // ── Run-level mutex: ignore duplicate starts while a session is active ──
+        // IMPORTANT: Do not StopSelf() here — a second start (e.g. alarm + Run now) would kill the in-flight run.
         lock (_runLock)
         {
             if (_isRunning)
             {
-                AppLog("SYSTEM", "-", "OnStartCommand rejected — automation already running");
-                StopForeground(StopForegroundFlags.Remove);
-                StopSelf();
+                AppLog("SYSTEM", "-", "OnStartCommand ignored — automation already running");
                 return StartCommandResult.NotSticky;
             }
             _isRunning = true;
@@ -126,7 +129,7 @@ public class StreakService : Service
         // Start the WebView automation on main thread
         _mainHandler?.Post(StartWebViewAutomation);
 
-        return StartCommandResult.NotSticky;
+        return StartCommandResult.Sticky;
     }
 
     private void StartForegroundServiceImmediate()
@@ -193,6 +196,23 @@ public class StreakService : Service
             channel.SetShowBadge(false);
 
             notificationManager?.CreateNotificationChannel(channel);
+        }
+    }
+
+    private void CreateStatusNotificationChannel()
+    {
+        if (Build.VERSION.SdkInt >= BuildVersionCodes.O)
+        {
+            var notificationManager = (NotificationManager?)GetSystemService(NotificationService);
+            if (notificationManager == null) return;
+
+            if (notificationManager.GetNotificationChannel(StatusChannelId) != null) return;
+
+            var channel = new NotificationChannel(StatusChannelId, StatusChannelName, NotificationImportance.Default)
+            {
+                Description = "Run results and connection issues"
+            };
+            notificationManager.CreateNotificationChannel(channel);
         }
     }
 
@@ -306,7 +326,7 @@ public class StreakService : Service
                 }
             }
 
-            if (!NetworkConnectivity.HasWifiOrCellularValidatedInternet(this))
+            if (!NetworkConnectivity.HasWifiOrCellularInternet(this))
             {
                 CompleteSkippedNoNetwork();
                 return;
@@ -579,25 +599,35 @@ public class StreakService : Service
             _mainHandler?.PostDelayed(ProcessNextFriend, 1000);
     }
 
+    private PendingIntent CreateMainActivityPendingIntent()
+    {
+        var intent = new Intent(this, typeof(MainActivity));
+        intent.SetFlags(ActivityFlags.NewTask | ActivityFlags.ClearTop);
+        return PendingIntent.GetActivity(this, 1, intent, PendingIntentFlags.Immutable | PendingIntentFlags.UpdateCurrent)!;
+    }
+
     private void CompleteSkippedNoNetwork()
     {
         try
         {
-            UpdateNotification("No connection - retry in 1 hour");
+            UpdateNotification("No Wi‑Fi or mobile data — skipped (retry in 1 hour)");
 
             if (_runResult != null && _settingsService != null)
             {
                 _runResult.Success = false;
-                _runResult.ErrorMessage = "Skipped: no network";
+                _runResult.ErrorMessage = "Skipped: no Wi‑Fi or mobile data";
                 _settingsService.AddRunResult(_runResult);
             }
 
             StreakScheduler.ScheduleRetryInOneHour(this);
 
-            var finalNotification = new NotificationCompat.Builder(this, ChannelId)
-                .SetContentTitle("TikTok Streak Saver")
-                .SetContentText("No Wi-Fi or cellular data. Will retry in 1 hour.")
+            const string body = "No Wi‑Fi or mobile data connection. Streak run was skipped; will retry in 1 hour.";
+            var finalNotification = new NotificationCompat.Builder(this, StatusChannelId)
+                .SetContentTitle("TikTok Streak Saver — offline")
+                .SetContentText(body)
+                .SetStyle(new NotificationCompat.BigTextStyle().BigText(body))
                 .SetSmallIcon(Resource.Drawable.ic_notification)
+                .SetContentIntent(CreateMainActivityPendingIntent())
                 .SetAutoCancel(true)
                 .SetPriority(NotificationCompat.PriorityDefault)
                 .Build()!;
@@ -671,10 +701,12 @@ public class StreakService : Service
                     finalText = $"Stopped : {message}";
             }
 
-            var finalNotification = new NotificationCompat.Builder(this, ChannelId)
+            var finalNotification = new NotificationCompat.Builder(this, StatusChannelId)
                 .SetContentTitle("TikTok Streak Saver")
                 .SetContentText(finalText)
+                .SetStyle(new NotificationCompat.BigTextStyle().BigText(finalText))
                 .SetSmallIcon(Resource.Drawable.ic_notification)
+                .SetContentIntent(CreateMainActivityPendingIntent())
                 .SetAutoCancel(true)
                 .SetPriority(NotificationCompat.PriorityDefault)
                 .Build()!;
