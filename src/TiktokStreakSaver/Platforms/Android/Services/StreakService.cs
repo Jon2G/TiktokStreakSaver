@@ -661,11 +661,25 @@ public class StreakService : Service
 
                 if (_isBurstMode)
                 {
-                    _settingsService.SetBurstLastRunTime(DateTime.Now);
+                    if (_settingsService.IsScheduled())
+                    {
+                        _settingsService.SetBurstLastRunTime(DateTime.Now);
+                    }
+                    else if (_settingsService.IsFixedScheduled())
+                    {
+                        _settingsService.SetBurstLastRunFixedTime(DateTime.Now);
+                    }
                 }
                 else
                 {
-                    _settingsService.SetLastRunTime(DateTime.Now);
+                    if (_settingsService.IsScheduled())
+                    {
+                        _settingsService.SetLastRunTime(DateTime.Now);
+                    }
+                    else if (_settingsService.IsFixedScheduled())
+                    {
+                        _settingsService.SetLastRunFixedTime(DateTime.Now);
+                    }
                 }
             }
 
@@ -716,7 +730,13 @@ public class StreakService : Service
 
             // Only re-arm the scheduler if scheduling is enabled
             if (_settingsService?.IsScheduled() == true)
-                StreakScheduler.ScheduleNextRun(this);
+            {
+                StreakScheduler.ScheduleNextRun(this, false);
+            }
+            if (_settingsService?.IsFixedScheduled() == true) 
+            {
+                StreakScheduler.ScheduleNextRun(this, true);
+            }
             AppLog("SYSTEM", "-", $"Run complete: {(success ? "Success" : message)}");
         }
         finally

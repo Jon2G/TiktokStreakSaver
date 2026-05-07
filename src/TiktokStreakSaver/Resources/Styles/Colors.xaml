@@ -41,6 +41,10 @@
     <Color x:Key="Gray800">#282828</Color>
     <Color x:Key="Gray900">#121212</Color>
     <Color x:Key="Gray950">#161823</Color>
+    <Color x:Key="Purple">#C892C3</Color>
+    <Color x:Key="Blue200">#748DB9</Color>
+    <Color x:Key="Blue400">#374B6D</Color>
+    <Color x:Key="ButtonBlack">#1E293B</Color>
 
     <Color x:Key="OverlayLight">#CCFFFFFF</Color>
     <Color x:Key="OverlayDark">#CC000000</Color>
@@ -59,14 +63,14 @@
     <SolidColorBrush x:Key="Gray600Brush" Color="{StaticResource Gray600}"/>
     <SolidColorBrush x:Key="Gray900Brush" Color="{StaticResource Gray900}"/>
     <SolidColorBrush x:Key="Gray950Brush" Color="{StaticResource Gray950}"/>
-    
+
     <!-- Light Theme Surfaces (DOCX) -->
     <Color x:Key="CardBackgroundLight">#FFFFFF</Color>
     <Color x:Key="CardBackgroundDark">#282828</Color>
     <Color x:Key="BorderColorLight">#E1E8ED</Color>
     <Color x:Key="BorderColorDark">#3F3F3F</Color>
     <Color x:Key="DeleteColor">#EE1D52</Color>
-    
+
     <Color x:Key="ListItemLight">#F4F4F4</Color>
     <Color x:Key="ListItemDark">#282828</Color>
     <Color x:Key="ListItemBorderLight">#E1E8ED</Color>

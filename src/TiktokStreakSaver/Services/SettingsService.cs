@@ -1,6 +1,5 @@
 using System.Text.Json;
 using TiktokStreakSaver.Models;
-
 namespace TiktokStreakSaver.Services;
 
 /// <summary>
@@ -12,14 +11,19 @@ public class SettingsService
     private const string FriendsListKey = "friends_list";
     private const string MessageTextKey = "message_text";
     private const string LastRunKey = "last_run";
+    private const string LastRunFixedKey = "last_run_fixed";
     private const string IsScheduledKey = "is_scheduled";
+    private const string IsFixedScheduledKey = "is_fixed_scheduled";
     private const string RunHistoryKey = "run_history";
     private const string IntervalHoursKey = "interval_hours";
     private const string IntervalMinutesKey = "interval_minutes";
+    private const string FixedMinutesHoursKey = "fixed_minutes_hours";
+    private const string FixedMinutesKey = "fixed_minutes";
     private const string SkipUnreachableUsersKey = "skip_unreachable_users";
     private const string BurstMessageTextKey = "burst_message_text"; // Legacy single line
     private const string BurstMessagesKey = "burst_messages_list";
     private const string BurstLastRunKey = "burst_last_run";
+    private const string BurstLastFixedRunKey = "burst_last_fixed_run";
     private const string IsBurstModeActiveKey = "is_burst_mode_active";
     private const string BurstTargetUsernameKey = "burst_target_username";
 
@@ -203,6 +207,24 @@ public class SettingsService
         var v = Math.Clamp(minutes, MinIntervalMinutes, MaxIntervalMinutes);
         Preferences.Set(IntervalMinutesKey, v);
     }
+    public int GetFixedMinutes()
+    {
+        if (Preferences.ContainsKey(FixedMinutesKey))
+        {
+            var v = Preferences.Get(FixedMinutesKey, DefaultIntervalMinutes);
+            return Math.Clamp(v, MinIntervalMinutes, MaxIntervalMinutes);
+        }
+
+        var legacyHours = Preferences.Get(FixedMinutesHoursKey, DefaultIntervalHours);
+        var migrated = Math.Clamp(legacyHours * 60, MinIntervalMinutes, MaxIntervalMinutes);
+        SetFixedMinutes(migrated);
+        return migrated;
+    }
+    public void SetFixedMinutes(int minutes)
+    {
+        var v = Math.Clamp(minutes, MinIntervalMinutes, MaxIntervalMinutes);
+        Preferences.Set(FixedMinutesKey, v);
+    }
 
     public DateTime? GetLastRunTime()
     {
@@ -213,6 +235,16 @@ public class SettingsService
     public void SetLastRunTime(DateTime time)
     {
         Preferences.Set(LastRunKey, time.Ticks);
+    }
+    public DateTime? GetLastRunFixedTime()
+    {
+        var ticks = Preferences.Get(LastRunFixedKey, 0L);
+        return ticks > 0 ? new DateTime(ticks) : null;
+    }
+
+    public void SetLastRunFixedTime(DateTime time)
+    {
+        Preferences.Set(LastRunFixedKey, time.Ticks);
     }
 
     public DateTime? GetBurstLastRunTime()
@@ -225,6 +257,16 @@ public class SettingsService
     {
         Preferences.Set(BurstLastRunKey, time.Ticks);
     }
+    public DateTime? GetBurstLastRunFixedTime()
+    {
+        var ticks = Preferences.Get(BurstLastFixedRunKey, 0L);
+        return ticks > 0 ? new DateTime(ticks) : null;
+    }
+
+    public void SetBurstLastRunFixedTime(DateTime time)
+    {
+        Preferences.Set(BurstLastFixedRunKey, time.Ticks);
+    }
 
     public bool IsScheduled()
     {
@@ -234,6 +276,15 @@ public class SettingsService
     public void SetScheduled(bool scheduled)
     {
         Preferences.Set(IsScheduledKey, scheduled);
+    }
+    public bool IsFixedScheduled()
+    {
+        return Preferences.Get(IsFixedScheduledKey, true);
+    }
+
+    public void SetFixedScheduled(bool scheduled)
+    {
+        Preferences.Set(IsFixedScheduledKey, scheduled);
     }
 
     public bool GetSkipUnreachableUsers()
@@ -245,15 +296,28 @@ public class SettingsService
     {
         Preferences.Set(SkipUnreachableUsersKey, skip);
     }
-
-    public DateTime GetNextRunTime()
+    public static DateTime GetNextDailyFixedRun(int minutesFromMidnight)
     {
+        var now = DateTime.Now;
+        var nextDate = now.Date.AddMinutes(minutesFromMidnight);
+        if (nextDate < now) 
+            nextDate = nextDate.AddDays(1);
+        return nextDate;
+    }
+
+    public DateTime GetNextRunTime(bool isFixed)
+    {
+        if (isFixed)
+        {
+            return GetNextDailyFixedRun(GetFixedMinutes());
+        }
         var lastRun = GetLastRunTime();
         var intervalMinutes = GetIntervalMinutes();
-
         if (lastRun.HasValue)
+        {
             return lastRun.Value.AddMinutes(intervalMinutes);
-
+        }
+           
         return DateTime.Now;
     }
 

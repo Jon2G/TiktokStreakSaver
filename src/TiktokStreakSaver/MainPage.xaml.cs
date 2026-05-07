@@ -3,6 +3,7 @@ using TiktokStreakSaver.Models;
 using TiktokStreakSaver.Services;
 
 namespace TiktokStreakSaver;
+
 [Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
 public partial class MainPage : ContentPage
 {
@@ -43,13 +44,13 @@ public partial class MainPage : ContentPage
         LoadFriendsList();
         LoadHistory();
         UpdateStatus();
-        
+
         await EvaluatePermissionsAsync();
-        
+
 #if ANDROID
         TryArmInitialScheduleIfNeeded();
 #endif
-        
+
         // Start status timer for tracking service
         if (_statusTimer == null)
         {
@@ -89,7 +90,7 @@ public partial class MainPage : ContentPage
         {
             RunButtonsContainer.IsVisible = true;
             StopServiceButton.IsVisible = false;
-            
+
             // Refresh labels if run just ended
             UpdateStatus();
         }
@@ -164,8 +165,8 @@ public partial class MainPage : ContentPage
             if (!_isAppInForeground) return;
             if (Navigation.ModalStack.Any(p => p is AboutPopupPage)) return;
 
-            string currentVersion  = NormalizeVersion(AppInfo.Current.VersionString);
-            string lastRemoteSeen  = NormalizeVersion(Preferences.Default.Get("LastRemoteVersionSeen", string.Empty));
+            string currentVersion = NormalizeVersion(AppInfo.Current.VersionString);
+            string lastRemoteSeen = NormalizeVersion(Preferences.Default.Get("LastRemoteVersionSeen", string.Empty));
 
             var updateCheck = await _updateService.CheckForUpdatesAsync();
             if (updateCheck == null || !updateCheck.HasUpdate) return;
@@ -259,10 +260,10 @@ public partial class MainPage : ContentPage
 #if ANDROID
         // Configure WebView for session check using helper
         TikTokWebViewHelper.ConfigureWebView(SessionCheckWebView);
-        
+
         // Load messages page to check if we're logged in
         SessionCheckWebView.Source = TikTokWebViewHelper.MessagesUrl;
-        
+
         // Stop previous timer if still running (prevents stale fire)
         if (_sessionCheckTimeout != null)
         {
@@ -291,14 +292,14 @@ public partial class MainPage : ContentPage
     private void OnSessionCheckTimeout(object? sender, EventArgs e)
     {
         _sessionCheckTimeout?.Stop();
-        
+
         if (_isCheckingSession)
         {
             // Timeout reached - assume not logged in for safety
             _isCheckingSession = false;
             _sessionCheckCompleted = true;
             _sessionService.SetSessionValid(false);
-            
+
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 UpdateLoginButtonState(false);
@@ -310,12 +311,12 @@ public partial class MainPage : ContentPage
     private void OnSessionCheckNavigated(object? sender, WebNavigatedEventArgs e)
     {
         if (!_isCheckingSession) return;
-        
+
         _navigationCount++;
-        
+
         // Use helper to check login status
         var result = TikTokWebViewHelper.CheckLoginStatus(e.Url);
-        
+
         // If redirected to login, we're definitely not logged in
         if (result.IsValidUrl && e.Url?.ToLower().Contains("/login") == true)
         {
@@ -324,16 +325,16 @@ public partial class MainPage : ContentPage
 #endif
             _isCheckingSession = false;
             _sessionCheckCompleted = true;
-            
+
             TikTokWebViewHelper.UpdateSessionStatus(_sessionService, false);
-            
+
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 UpdateLoginButtonState(false);
             });
             return;
         }
-        
+
         // If we're on messages page and this is at least the 2nd navigation (after potential redirect)
         // then we're likely logged in
         if (result.IsLoggedIn && _navigationCount >= 1)
@@ -348,9 +349,9 @@ public partial class MainPage : ContentPage
 #endif
                     _isCheckingSession = false;
                     _sessionCheckCompleted = true;
-                    
+
                     TikTokWebViewHelper.UpdateSessionStatus(_sessionService, true);
-                    
+
                     MainThread.BeginInvokeOnMainThread(() =>
                     {
                         UpdateLoginButtonState(true);
@@ -398,7 +399,18 @@ public partial class MainPage : ContentPage
         _suppressSettingsToggles = true;
         try
         {
-            ScheduleSwitch.IsToggled = _settingsService.IsScheduled();
+            if (_settingsService.IsScheduled())
+            {
+                ScheduleSwitch.IsToggled = _settingsService.IsScheduled();
+                _settingsService.SetFixedScheduled(false); // Clear fixed schedule if user re-enables regular schedule
+                ScheduleSwitchFixed.IsToggled = false;
+            }
+            else if (_settingsService.IsFixedScheduled())
+            {
+                ScheduleSwitch.IsToggled = false;
+                _settingsService.SetScheduled(false); // Clear regular schedule if user re-enables fixed schedule
+                ScheduleSwitchFixed.IsToggled = _settingsService.IsFixedScheduled();
+            }
             SkipUnreachableSwitch.IsToggled = _settingsService.GetSkipUnreachableUsers();
         }
         finally
@@ -443,10 +455,12 @@ public partial class MainPage : ContentPage
 
     private void SetNormalModeUI()
     {
+
         NormalModeTabBorder.BackgroundColor = GetThemeColor("Primary", "#FE2C55");
         NormalModeTabLabel.TextColor = GetThemeColor("White", "#FFFFFF");
         BurstModeTabBorder.BackgroundColor = Colors.Transparent;
-        BurstModeTabLabel.TextColor = GetThemeColor("Gray600", "#4B5563");
+        BurstModeTabLabel.TextColor = GetThemeColor("White", "#F0F2F4");
+
 
         NormalModeContainer.IsVisible = true;
         BurstModeContainer.IsVisible = false;
@@ -461,7 +475,7 @@ public partial class MainPage : ContentPage
         BurstModeTabBorder.BackgroundColor = Color.FromArgb("#8B5CF6");
         BurstModeTabLabel.TextColor = Colors.White;
         NormalModeTabBorder.BackgroundColor = Colors.Transparent;
-        NormalModeTabLabel.TextColor = GetThemeColor("Gray600", "#4B5563");
+        NormalModeTabLabel.TextColor = GetThemeColor("White", "#F0F2F4");
 
         NormalModeContainer.IsVisible = false;
         BurstModeContainer.IsVisible = true;
@@ -469,6 +483,26 @@ public partial class MainPage : ContentPage
         MasterRunButton.Text = "START INFINITE BURST";
         MasterRunButton.BackgroundColor = Color.FromArgb("#8B5CF6");
         MasterRunButton.TextColor = Colors.White;
+    }
+
+    private void OnIntervalMode(object? sender, TappedEventArgs e)
+    {
+        IntervalBorder.BackgroundColor = GetThemeColor("Primary", "#FE2C55");
+        IntervalLabel.TextColor = GetThemeColor("White", "#FFFFFF");
+        StaticBorder.BackgroundColor = Colors.Transparent;
+        StaticLabel.TextColor = GetThemeColor("White", "#F0F2F4");
+        IntervalCard.IsVisible = true;
+        FixedTimeCard.IsVisible = false;
+    }
+
+    private void OnFixedMode(object? sender, TappedEventArgs e)
+    {
+        StaticBorder.BackgroundColor = Color.FromArgb("#8B5CF6");
+        StaticLabel.TextColor = Colors.White;
+        IntervalBorder.BackgroundColor = Colors.Transparent;
+        IntervalLabel.TextColor = GetThemeColor("White", "#F0F2F4");
+        FixedTimeCard.IsVisible = true;
+        IntervalCard.IsVisible = false;
     }
 
     private void LoadBurstMessages()
@@ -592,7 +626,7 @@ public partial class MainPage : ContentPage
         if (Preferences.Default.Get(InitialScheduleArmedKey, false)) return;
 
         var ctx = Platform.CurrentActivity ?? Android.App.Application.Context;
-        TiktokStreakSaver.Platforms.Android.StreakScheduler.ScheduleNextRun(ctx);
+        TiktokStreakSaver.Platforms.Android.StreakScheduler.ScheduleNextRun(ctx, _settingsService.IsFixedScheduled());
         Preferences.Default.Set(InitialScheduleArmedKey, true);
     }
 #endif
@@ -638,7 +672,6 @@ public partial class MainPage : ContentPage
         else
             IntervalSummaryLabel.Text = $"Every {m} minutes between automatic runs.";
     }
-
     private void OnIntervalHoursChanged(object? sender, ValueChangedEventArgs e)
     {
         if (_suppressIntervalChanged) return;
@@ -681,7 +714,7 @@ public partial class MainPage : ContentPage
         if (_settingsService.IsScheduled())
         {
             var ctx = Platform.CurrentActivity ?? Android.App.Application.Context;
-            TiktokStreakSaver.Platforms.Android.StreakScheduler.ScheduleNextRun(ctx);
+            TiktokStreakSaver.Platforms.Android.StreakScheduler.ScheduleNextRun(ctx, false);
         }
 #endif
         UpdateStatus();
@@ -690,11 +723,17 @@ public partial class MainPage : ContentPage
     private void UpdateStatus()
     {
         var isScheduled = _settingsService.IsScheduled();
-        var lastRun = _settingsService.GetLastRunTime();
+        var isScheduledFixed = _settingsService.IsFixedScheduled();
+        var lastRun = isScheduledFixed ? _settingsService.GetLastRunFixedTime() : _settingsService.GetLastRunTime();
         var friendsCount = _settingsService.GetEnabledFriends().Count;
 
         // Update status label
         if (isScheduled && friendsCount > 0)
+        {
+            StatusLabel.Text = $"Active • {friendsCount} friend{(friendsCount != 1 ? "s" : "")}";
+            StatusLabel.TextColor = GetThemeColor("Success", "#22946E");
+        }
+        else if (isScheduledFixed && friendsCount > 0)
         {
             StatusLabel.Text = $"Active • {friendsCount} friend{(friendsCount != 1 ? "s" : "")}";
             StatusLabel.TextColor = GetThemeColor("Success", "#22946E");
@@ -714,30 +753,46 @@ public partial class MainPage : ContentPage
         if (lastRun.HasValue)
         {
             var timeSince = DateTime.Now - lastRun.Value;
-            if (timeSince.TotalMinutes < 60)
-                LastRunLabel.Text = $"{(int)timeSince.TotalMinutes} minutes ago";
-            else if (timeSince.TotalHours < 24)
-                LastRunLabel.Text = $"{(int)timeSince.TotalHours} hours ago";
+            if (!isScheduledFixed)
+            {
+                if (timeSince.TotalMinutes < 60)
+                    LastRunLabel.Text = $"{(int)timeSince.TotalMinutes} minutes ago";
+                else if (timeSince.TotalHours < 24)
+                    LastRunLabel.Text = $"{(int)timeSince.TotalHours} hours ago";
+                else
+                    LastRunLabel.Text = lastRun.Value.ToString("MMM dd, HH:mm");
+            }
             else
-                LastRunLabel.Text = lastRun.Value.ToString("MMM dd, HH:mm");
+            {
+                var dayLabel = lastRun.Value.Date == DateTime.Now.Date ? "Today" : "Yesterday";
+                LastRunLabel.Text = $"{dayLabel} at {lastRun.Value:HH:mm}";
+            }
         }
         else
         {
             LastRunLabel.Text = "Never";
-        }
+        } 
 
         // Update Burst Last run
-        var burstLastRun = _settingsService.GetBurstLastRunTime();
+        var burstLastRun = isScheduledFixed? _settingsService.GetBurstLastRunFixedTime() : _settingsService.GetBurstLastRunTime();
         if (burstLastRun.HasValue)
         {
             var timeSinceBurst = DateTime.Now - burstLastRun.Value;
-            if (timeSinceBurst.TotalMinutes < 60)
+            if (!isScheduledFixed)
+            {
+                if (timeSinceBurst.TotalMinutes < 60)
                 BurstLastRunLabel.Text = $"{(int)timeSinceBurst.TotalMinutes} minutes ago";
             else if (timeSinceBurst.TotalHours < 24)
                 BurstLastRunLabel.Text = $"{(int)timeSinceBurst.TotalHours} hours ago";
             else
                 BurstLastRunLabel.Text = burstLastRun.Value.ToString("MMM dd, HH:mm");
-        }
+            }
+            else
+            {
+                var dayLabel = burstLastRun.Value.Date == DateTime.Now.Date ? "Today" : "Yesterday";
+                BurstLastRunLabel.Text = $"{dayLabel} at {burstLastRun.Value:HH:mm}";
+            }
+    }
         else
         {
             BurstLastRunLabel.Text = "Never";
@@ -746,7 +801,7 @@ public partial class MainPage : ContentPage
         // Update next run
         if (isScheduled)
         {
-            var nextRun = _settingsService.GetNextRunTime();
+            var nextRun = _settingsService.GetNextRunTime(false);
             var timeUntil = nextRun - DateTime.Now;
             if (timeUntil.TotalMinutes < 60)
                 NextRunLabel.Text = $"In {(int)timeUntil.TotalMinutes} minutes";
@@ -754,6 +809,13 @@ public partial class MainPage : ContentPage
                 NextRunLabel.Text = $"In {(int)timeUntil.TotalHours} hours";
             else
                 NextRunLabel.Text = nextRun.ToString("MMM dd, HH:mm");
+
+        }
+        else if (isScheduledFixed)
+        {
+            var nextRun = _settingsService.GetNextRunTime(true);
+            var dayLabel = nextRun.Date == DateTime.Now.Date ? "Today" : "Tomorrow";
+            NextRunLabel.Text = $"{dayLabel} at {nextRun:HH:mm}";
         }
         else
         {
@@ -766,13 +828,13 @@ public partial class MainPage : ContentPage
         var allFriends = _settingsService.GetFriendsList();
 
         SearchAndBulkRow.IsVisible = allFriends.Count > 0;
-        
+
         var searchText = SearchFriendEntry.Text?.Trim() ?? string.Empty;
         var displayFriends = allFriends;
 
         if (!string.IsNullOrEmpty(searchText))
         {
-            displayFriends = allFriends.Where(f => 
+            displayFriends = allFriends.Where(f =>
                 (f.Username != null && f.Username.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
                 (f.DisplayName != null && f.DisplayName.Contains(searchText, StringComparison.OrdinalIgnoreCase))
             ).ToList();
@@ -835,7 +897,7 @@ public partial class MainPage : ContentPage
         };
 
         var infoStack = new VerticalStackLayout { Spacing = 2 };
-        
+
         var displayName = string.IsNullOrEmpty(friend.DisplayName) ? friend.Username : friend.DisplayName;
         infoStack.Children.Add(new Label
         {
@@ -844,7 +906,7 @@ public partial class MainPage : ContentPage
             FontFamily = "InterSemiBold",
             FontAttributes = FontAttributes.Bold
         });
-        
+
         infoStack.Children.Add(new Label
         {
             Text = $"@{friend.Username}",
@@ -901,7 +963,7 @@ public partial class MainPage : ContentPage
         deleteButton.TextColor = GetThemeColor("DeleteColor", "#EE1D52");
         deleteButton.Clicked += async (s, e) =>
         {
-            var confirm = await DisplayAlert("Remove Friend", 
+            var confirm = await DisplayAlert("Remove Friend",
                 $"Remove {displayName} from the list?", "Remove", "Cancel");
             if (confirm)
             {
@@ -912,7 +974,7 @@ public partial class MainPage : ContentPage
         };
         Grid.SetColumn(deleteButton, 2);
         grid.Children.Add(deleteButton);
-        
+
         var toggleSwitch = new Switch
         {
             IsToggled = friend.IsEnabled,
@@ -928,7 +990,7 @@ public partial class MainPage : ContentPage
         {
             friend.IsEnabled = e.Value;
             _settingsService.UpdateFriend(friend);
-            UpdateStatus();
+            UpdateStatus();//Temporal
         };
         Grid.SetColumn(toggleSwitch, 3);
         grid.Children.Add(toggleSwitch);
@@ -993,7 +1055,7 @@ public partial class MainPage : ContentPage
             Text = run.RunTime.ToString("MMM dd, HH:mm"),
             FontSize = 14
         });
-        
+
         if (totalCount > 0)
         {
             var skippedCount = totalCount - successCount;
@@ -1019,7 +1081,7 @@ public partial class MainPage : ContentPage
                 LineBreakMode = LineBreakMode.TailTruncation
             });
         }
-        
+
         Grid.SetColumn(infoStack, 1);
         grid.Children.Add(infoStack);
 
@@ -1032,9 +1094,22 @@ public partial class MainPage : ContentPage
 #if ANDROID
         var context = Platform.CurrentActivity ?? Android.App.Application.Context;
         if (e.Value)
-            TiktokStreakSaver.Platforms.Android.StreakScheduler.ScheduleNextRun(context);
+            TiktokStreakSaver.Platforms.Android.StreakScheduler.ScheduleNextRun(context, false);
         else
             TiktokStreakSaver.Platforms.Android.StreakScheduler.CancelSchedule(context);
+#endif
+        UpdateStatus();
+    }
+
+    private void OnScheduleFixedToggled(object? sender, ToggledEventArgs e)
+    {
+        if (_suppressSettingsToggles) return;
+#if ANDROID
+        var context = Platform.CurrentActivity ?? Android.App.Application.Context;
+        if (e.Value)
+            TiktokStreakSaver.Platforms.Android.StreakScheduler.ScheduleNextRun(context, true);
+        else
+            TiktokStreakSaver.Platforms.Android.StreakScheduler.CancelFixedSchedule(context);
 #endif
         UpdateStatus();
     }
@@ -1114,10 +1189,10 @@ public partial class MainPage : ContentPage
     {
 #if ANDROID
         var context = Platform.CurrentActivity ?? Android.App.Application.Context;
-        
+
         bool exactAlarmGranted = TiktokStreakSaver.Platforms.Android.StreakScheduler.CanScheduleExactAlarms(context);
         bool batteryOptGranted = TiktokStreakSaver.Platforms.Android.StreakScheduler.IsIgnoringBatteryOptimizations(context);
-        
+
         bool notificationGranted = true;
         if (Android.OS.Build.VERSION.SdkInt >= Android.OS.BuildVersionCodes.Tiramisu)
         {
@@ -1165,7 +1240,7 @@ public partial class MainPage : ContentPage
             var status = await Permissions.RequestAsync<Permissions.PostNotifications>();
             if (status != PermissionStatus.Granted)
             {
-                await DisplayAlert("Permission Required", 
+                await DisplayAlert("Permission Required",
                     "Notification permission is required to show status while sending streaks.", "OK");
             }
         }
@@ -1445,13 +1520,13 @@ public partial class MainPage : ContentPage
         LoadFriendsList();
         LoadHistory();
         UpdateStatus();
-        
+
         await EvaluatePermissionsAsync();
-        
+
         // Passively check for updates only (never shows Welcome on refresh)
         // CheckUpdateOnlyAsync owns the _isCheckingForUpdates guard — safe to call directly
         await CheckUpdateOnlyAsync();
-        
+
         MainRefreshView.IsRefreshing = false;
     }
 
@@ -1509,5 +1584,39 @@ public partial class MainPage : ContentPage
             _settingsService.ClearRunHistory();
             LoadHistory();
         }
+    }
+
+    private void timePicker_TimeSelected(object sender, TimeChangedEventArgs e)
+    {
+        TimeSpan hour = timePicker.Time;
+        UpdateFixedSummaryLabel();
+        ApplyTimeFromTimePicker(hour);
+
+    }
+    private void UpdateFixedSummaryLabel()
+    {
+        var t = _settingsService.GetFixedMinutes();
+        var rem = t % (24 * 60);
+        var h = rem / 60;
+        var m = rem % 60;
+        FixedTimeSummaryLabel.Text = $"Every day at {h}h {m}m it will run automatically.";
+    }
+    private void ApplyTimeFromTimePicker(TimeSpan time)
+    {
+        var h = time.Hours;
+        var m = time.Minutes;
+        var total = h * 60 + m;
+        var clamped = Math.Clamp(total, SettingsService.MinIntervalMinutes, SettingsService.MaxIntervalMinutes);
+        _settingsService.SetFixedMinutes(clamped);
+        UpdateFixedSummaryLabel();
+
+#if ANDROID
+        if (_settingsService.IsFixedScheduled())
+        {
+            var ctx = Platform.CurrentActivity ?? Android.App.Application.Context;
+            TiktokStreakSaver.Platforms.Android.StreakScheduler.ScheduleNextRun(ctx, true);
+        }
+#endif
+        UpdateStatus();
     }
 }

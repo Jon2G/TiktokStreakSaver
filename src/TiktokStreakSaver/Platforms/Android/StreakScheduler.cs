@@ -20,30 +20,38 @@ public static class StreakScheduler
     /// <summary>
     /// Schedule the next streak run based on settings
     /// </summary>
-    public static void ScheduleNextRun(Context context)
+    public static void ScheduleNextRun(Context context, bool isFixedSchedule)
     {
         var settingsService = new SettingsService();
         var intervalMinutes = settingsService.GetIntervalMinutes();
+        var fixedMinutes = settingsService.GetFixedMinutes();
         var lastRun = settingsService.GetLastRunTime();
-
         DateTime nextRunTime;
-        if (lastRun.HasValue)
+        if (isFixedSchedule)
+        {
+            Console.WriteLine("Scheduling next run at fixed time: " + fixedMinutes + " minutes from midnight");
+            nextRunTime = GetNextDailyRun(fixedMinutes);
+            settingsService.SetFixedScheduled(true);
+        }
+        else if (lastRun.HasValue)
         {
             nextRunTime = lastRun.Value.AddMinutes(intervalMinutes);
-            // If the calculated time is in the past, schedule for now + small delay
             if (nextRunTime < DateTime.Now)
-            {
                 nextRunTime = DateTime.Now.AddMinutes(1);
-            }
         }
         else
         {
-            // First run - schedule for interval from now
             nextRunTime = DateTime.Now.AddMinutes(intervalMinutes);
+            settingsService.SetScheduled(true);
         }
-
         ScheduleAt(context, nextRunTime);
-        settingsService.SetScheduled(true);
+    }
+    private static DateTime GetNextDailyRun(int minutesFromMidnight)
+    {
+        var nextDate = DateTime.Now.Date.AddMinutes(minutesFromMidnight);
+        if (nextDate <= DateTime.Now)
+            nextDate = nextDate.AddDays(1);
+        return nextDate;
     }
 
     /// <summary>
@@ -135,6 +143,31 @@ public static class StreakScheduler
         settingsService.SetScheduled(false);
 
         System.Diagnostics.Debug.WriteLine("StreakScheduler: Schedule cancelled");
+    }
+    public static void CancelFixedSchedule(Context context)
+    {
+        var alarmManager = (AlarmManager?)context.GetSystemService(Context.AlarmService);
+        if (alarmManager == null) return;
+
+        var intent = new Intent(context, typeof(AlarmReceiver));
+        intent.SetAction(AlarmReceiver.ActionStreakAlarm);
+
+        var pendingIntent = PendingIntent.GetBroadcast(
+            context,
+            AlarmRequestCode,
+            intent,
+            PendingIntentFlags.UpdateCurrent | PendingIntentFlags.Immutable
+        );
+
+        if (pendingIntent != null)
+        {
+            alarmManager.Cancel(pendingIntent);
+        }
+
+        var settingsService = new SettingsService();
+        settingsService.SetFixedScheduled(false);
+
+        System.Diagnostics.Debug.WriteLine("StreakScheduler: Fixed schedule cancelled");
     }
 
     /// <summary>

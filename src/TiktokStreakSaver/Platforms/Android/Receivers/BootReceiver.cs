@@ -15,15 +15,19 @@ public class BootReceiver : BroadcastReceiver
     {
         if (context == null || intent == null) return;
 
-        if (intent.Action == Intent.ActionBootCompleted || 
+        if (intent.Action == Intent.ActionBootCompleted ||
             intent.Action == "android.intent.action.QUICKBOOT_POWERON")
         {
             var settingsService = new SettingsService();
-            
+
             // Only reschedule if it was previously scheduled
             if (settingsService.IsScheduled())
             {
-                StreakScheduler.ScheduleNextRun(context);
+                StreakScheduler.ScheduleNextRun(context, false);
+            }
+            if (settingsService.IsFixedScheduled())
+            {
+                StreakScheduler.ScheduleNextRun(context, true);
             }
         }
     }
