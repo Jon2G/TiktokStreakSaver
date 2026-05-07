@@ -764,8 +764,10 @@ public partial class MainPage : ContentPage
             }
             else
             {
-                var dayLabel = lastRun.Value.Date == DateTime.Now.Date ? "Today" : "Yesterday";
-                LastRunLabel.Text = $"{dayLabel} at {lastRun.Value:HH:mm}";
+                var lastDate = lastRun.Value.Date;
+                var today = DateTime.Now.Date;
+                var yesterday = today.AddDays(-1);
+                LastRunLabel.Text = lastDate == today ? "Today" : lastDate == yesterday ? "Yesterday" : lastDate.ToString("d");
             }
         }
         else
@@ -789,8 +791,10 @@ public partial class MainPage : ContentPage
             }
             else
             {
-                var dayLabel = burstLastRun.Value.Date == DateTime.Now.Date ? "Today" : "Yesterday";
-                BurstLastRunLabel.Text = $"{dayLabel} at {burstLastRun.Value:HH:mm}";
+                var lastDate = burstLastRun.Value.Date;
+                var today = DateTime.Now.Date;
+                var yesterday = today.AddDays(-1);
+                BurstLastRunLabel.Text = lastDate == today ? "Today" : lastDate == yesterday ? "Yesterday" : lastDate.ToString("d");
             }
     }
         else
