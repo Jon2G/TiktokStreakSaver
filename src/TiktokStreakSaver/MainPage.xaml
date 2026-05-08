@@ -644,7 +644,7 @@
                                 </Border>
                                 <VerticalStackLayout Padding="20">
                                     <Label Text="Select an hour" />
-                                    <TimePicker x:Name="timePicker" TimeSelected="timePicker_TimeSelected"/>
+                                    <TimePicker x:Name="timePicker" TimeSelected="timePicker_TimeSelected" />
                                     <Label x:Name="labelTime"/>
                                 </VerticalStackLayout>
                             </VerticalStackLayout>

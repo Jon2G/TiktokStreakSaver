@@ -1,5 +1,6 @@
 ﻿using Microsoft.Maui.Controls.Shapes;
 using TiktokStreakSaver.Models;
+using TiktokStreakSaver.Platforms.Android;
 using TiktokStreakSaver.Services;
 
 namespace TiktokStreakSaver;
@@ -18,6 +19,7 @@ public partial class MainPage : ContentPage
     private bool _suppressIntervalChanged;
     private bool _suppressSettingsToggles;
     private const string InitialScheduleArmedKey = "initial_background_schedule_armed";
+    private const string InitialFixedScheduleArmedKey = "initial_background_fixed_schedule_armed";
 
     public MainPage()
     {
@@ -622,12 +624,20 @@ public partial class MainPage : ContentPage
 #if ANDROID
     private void TryArmInitialScheduleIfNeeded()
     {
-        if (!_settingsService.IsScheduled()) return;
-        if (Preferences.Default.Get(InitialScheduleArmedKey, false)) return;
-
         var ctx = Platform.CurrentActivity ?? Android.App.Application.Context;
-        TiktokStreakSaver.Platforms.Android.StreakScheduler.ScheduleNextRun(ctx, _settingsService.IsFixedScheduled());
-        Preferences.Default.Set(InitialScheduleArmedKey, true);
+        if (_settingsService.IsScheduled() &&
+            !Preferences.Default.Get(InitialScheduleArmedKey, false))
+        {
+            StreakScheduler.ScheduleNextRun(ctx, isFixedSchedule: false);
+            Preferences.Default.Set(InitialScheduleArmedKey, true);
+            Preferences.Default.Set(InitialFixedScheduleArmedKey, false);
+        }
+        else if (_settingsService.IsFixedScheduled() && !Preferences.Default.Get(InitialFixedScheduleArmedKey, false))
+        {
+            StreakScheduler.ScheduleNextRun(ctx, isFixedSchedule: true);
+            Preferences.Default.Set(InitialFixedScheduleArmedKey, true);
+            Preferences.Default.Set(InitialScheduleArmedKey, false);
+        }
     }
 #endif
 
@@ -1098,9 +1108,16 @@ public partial class MainPage : ContentPage
 #if ANDROID
         var context = Platform.CurrentActivity ?? Android.App.Application.Context;
         if (e.Value)
+        {
+            TiktokStreakSaver.Platforms.Android.StreakScheduler.CancelSchedule(context, true);
+            ScheduleSwitchFixed.IsToggled = false; // Ensure mutual exclusivity
             TiktokStreakSaver.Platforms.Android.StreakScheduler.ScheduleNextRun(context, false);
+            
+        }
         else
-            TiktokStreakSaver.Platforms.Android.StreakScheduler.CancelSchedule(context);
+        {
+            TiktokStreakSaver.Platforms.Android.StreakScheduler.CancelSchedule(context, false);
+        }
 #endif
         UpdateStatus();
     }
@@ -1111,9 +1128,16 @@ public partial class MainPage : ContentPage
 #if ANDROID
         var context = Platform.CurrentActivity ?? Android.App.Application.Context;
         if (e.Value)
+        {
+            TiktokStreakSaver.Platforms.Android.StreakScheduler.CancelSchedule(context, false);
+            ScheduleSwitch.IsToggled = false;
             TiktokStreakSaver.Platforms.Android.StreakScheduler.ScheduleNextRun(context, true);
+        }
         else
-            TiktokStreakSaver.Platforms.Android.StreakScheduler.CancelFixedSchedule(context);
+        {
+            TiktokStreakSaver.Platforms.Android.StreakScheduler.CancelSchedule(context, true);
+        }
+            
 #endif
         UpdateStatus();
     }

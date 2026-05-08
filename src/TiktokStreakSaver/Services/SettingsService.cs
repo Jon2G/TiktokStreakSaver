@@ -42,6 +42,7 @@ public class SettingsService
     /// Default interval in hours (legacy; <see cref="DefaultIntervalMinutes"/> is authoritative).
     /// </summary>
     public const int DefaultIntervalHours = 23;
+    public const int DefaultFixedMinutesHours = 9;
 
     /// <summary>
     /// Default time between automatic streak runs (23 hours).
@@ -50,6 +51,7 @@ public class SettingsService
 
     /// <summary>Minimum gap between scheduled runs (15 minutes).</summary>
     public const int MinIntervalMinutes = 15;
+    public const int MinFixedMinutes = 0;
 
     /// <summary>Maximum gap between scheduled runs (23h 59m — strictly under 24 hours).</summary>
     public const int MaxIntervalMinutes = 24 * 60 - 1;
@@ -211,18 +213,18 @@ public class SettingsService
     {
         if (Preferences.ContainsKey(FixedMinutesKey))
         {
-            var v = Preferences.Get(FixedMinutesKey, DefaultIntervalMinutes);
-            return Math.Clamp(v, MinIntervalMinutes, MaxIntervalMinutes);
+            var v = Preferences.Get(FixedMinutesKey, DefaultFixedMinutesHours);
+            return Math.Clamp(v, MinFixedMinutes, MaxIntervalMinutes);
         }
 
-        var legacyHours = Preferences.Get(FixedMinutesHoursKey, DefaultIntervalHours);
-        var migrated = Math.Clamp(legacyHours * 60, MinIntervalMinutes, MaxIntervalMinutes);
+        var legacyHours = Preferences.Get(FixedMinutesHoursKey, DefaultFixedMinutesHours);
+        var migrated = Math.Clamp(legacyHours * 60, MinFixedMinutes, MaxIntervalMinutes);
         SetFixedMinutes(migrated);
         return migrated;
     }
     public void SetFixedMinutes(int minutes)
     {
-        var v = Math.Clamp(minutes, MinIntervalMinutes, MaxIntervalMinutes);
+        var v = Math.Clamp(minutes, MinFixedMinutes, MaxIntervalMinutes);
         Preferences.Set(FixedMinutesKey, v);
     }
 
@@ -270,7 +272,7 @@ public class SettingsService
 
     public bool IsScheduled()
     {
-        return Preferences.Get(IsScheduledKey, true);
+        return Preferences.Get(IsScheduledKey, false);
     }
 
     public void SetScheduled(bool scheduled)
@@ -279,7 +281,7 @@ public class SettingsService
     }
     public bool IsFixedScheduled()
     {
-        return Preferences.Get(IsFixedScheduledKey, true);
+        return Preferences.Get(IsFixedScheduledKey, false);
     }
 
     public void SetFixedScheduled(bool scheduled)

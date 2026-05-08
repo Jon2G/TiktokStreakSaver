@@ -29,7 +29,6 @@ public static class StreakScheduler
         DateTime nextRunTime;
         if (isFixedSchedule)
         {
-            Console.WriteLine("Scheduling next run at fixed time: " + fixedMinutes + " minutes from midnight");
             nextRunTime = GetNextDailyRun(fixedMinutes);
             settingsService.SetFixedScheduled(true);
         }
@@ -119,7 +118,7 @@ public static class StreakScheduler
     /// <summary>
     /// Cancel any scheduled alarm
     /// </summary>
-    public static void CancelSchedule(Context context)
+    public static void CancelSchedule(Context context, bool clearFixed = false)
     {
         var alarmManager = (AlarmManager?)context.GetSystemService(Context.AlarmService);
         if (alarmManager == null) return;
@@ -140,34 +139,16 @@ public static class StreakScheduler
         }
 
         var settingsService = new SettingsService();
-        settingsService.SetScheduled(false);
+        if (clearFixed) 
+        {
+            settingsService.SetFixedScheduled(false);
+        }
+        else
+        {
+            settingsService.SetScheduled(false);
+        }
 
         System.Diagnostics.Debug.WriteLine("StreakScheduler: Schedule cancelled");
-    }
-    public static void CancelFixedSchedule(Context context)
-    {
-        var alarmManager = (AlarmManager?)context.GetSystemService(Context.AlarmService);
-        if (alarmManager == null) return;
-
-        var intent = new Intent(context, typeof(AlarmReceiver));
-        intent.SetAction(AlarmReceiver.ActionStreakAlarm);
-
-        var pendingIntent = PendingIntent.GetBroadcast(
-            context,
-            AlarmRequestCode,
-            intent,
-            PendingIntentFlags.UpdateCurrent | PendingIntentFlags.Immutable
-        );
-
-        if (pendingIntent != null)
-        {
-            alarmManager.Cancel(pendingIntent);
-        }
-
-        var settingsService = new SettingsService();
-        settingsService.SetFixedScheduled(false);
-
-        System.Diagnostics.Debug.WriteLine("StreakScheduler: Fixed schedule cancelled");
     }
 
     /// <summary>
