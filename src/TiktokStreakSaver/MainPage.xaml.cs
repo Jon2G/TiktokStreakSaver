@@ -1,6 +1,5 @@
 ﻿using Microsoft.Maui.Controls.Shapes;
 using TiktokStreakSaver.Models;
-using TiktokStreakSaver.Platforms.Android;
 using TiktokStreakSaver.Services;
 
 namespace TiktokStreakSaver;
@@ -628,13 +627,13 @@ public partial class MainPage : ContentPage
         if (_settingsService.IsScheduled() &&
             !Preferences.Default.Get(InitialScheduleArmedKey, false))
         {
-            StreakScheduler.ScheduleNextRun(ctx, isFixedSchedule: false);
+            TiktokStreakSaver.Platforms.Android.StreakScheduler.ScheduleNextRun(ctx, isFixedSchedule: false);
             Preferences.Default.Set(InitialScheduleArmedKey, true);
             Preferences.Default.Set(InitialFixedScheduleArmedKey, false);
         }
         else if (_settingsService.IsFixedScheduled() && !Preferences.Default.Get(InitialFixedScheduleArmedKey, false))
         {
-            StreakScheduler.ScheduleNextRun(ctx, isFixedSchedule: true);
+            TiktokStreakSaver.Platforms.Android.StreakScheduler.ScheduleNextRun(ctx, isFixedSchedule: true);
             Preferences.Default.Set(InitialFixedScheduleArmedKey, true);
             Preferences.Default.Set(InitialScheduleArmedKey, false);
         }
