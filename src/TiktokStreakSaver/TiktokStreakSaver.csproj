@@ -23,12 +23,22 @@
 		<!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
 		<WindowsPackageType>None</WindowsPackageType>
 
-		<!-- Android Minimum API Version -->
-		<SupportedOSPlatformVersion>24.0</SupportedOSPlatformVersion>
-
 		<!-- Suppress CA1416: all affected API calls are runtime-guarded with Build.VERSION.SdkInt checks -->
 		<!-- Suppress CS8602/CS8603: AndroidX NotificationCompat.Builder bindings over-annotate fluent Set*() returns as nullable -->
 		<NoWarn>$(NoWarn);CA1416;CS8602;CS8603</NoWarn>
+	</PropertyGroup>
+
+	<!--
+		SupportedOSPlatformVersion must be conditioned per-TFM. MAUI's SingleProject
+		evaluation can reach into platforms that are NOT in TargetFrameworks (e.g.
+		from the IDE), and "24.0" applied unconditionally is interpreted as a
+		Windows OS version which is higher than the Windows TargetPlatformVersion
+		(10.0.19041.0), causing MSB:
+		  "SupportedOSPlatformVersion X cannot be higher than TargetPlatformVersion Y".
+	-->
+	<PropertyGroup Condition="$(TargetFramework.Contains('-android'))">
+		<!-- Android Minimum API Version (API 24 = Android 7.0) -->
+		<SupportedOSPlatformVersion>24.0</SupportedOSPlatformVersion>
 	</PropertyGroup>
 
 	<!-- Android Release Signing Configuration -->
