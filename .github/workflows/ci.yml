@@ -19,9 +19,9 @@ env:
 
 jobs:
   build:
-    name: Build (Android + Windows)
-    runs-on: windows-latest
-    timeout-minutes: 45
+    name: Build (Android)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -39,13 +39,10 @@ jobs:
           java-version: '17'
 
       - name: Install MAUI workloads
-        run: dotnet workload install maui-android maui-windows
+        run: dotnet workload install maui-android
 
       - name: Restore
         run: dotnet restore ${{ env.PROJECT_PATH }}
 
       - name: Build Android (Debug)
         run: dotnet build ${{ env.PROJECT_PATH }} -f net9.0-android -c Debug --no-restore
-
-      - name: Build Windows (Debug)
-        run: dotnet build ${{ env.PROJECT_PATH }} -f net9.0-windows10.0.19041.0 -c Debug --no-restore
