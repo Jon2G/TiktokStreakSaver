@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:TiktokStreakSaver.Views"
+             x:Class="TiktokStreakSaver.Pages.FriendsPage"
+             Title="Friends"
+             Shell.NavBarIsVisible="False"
+             Shell.TabBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False"
+             BackgroundColor="{AppThemeBinding Light={StaticResource PageBackgroundLight}, Dark={StaticResource OffBlack}}">
+
+    <Grid>
+
+        <RefreshView x:Name="MainRefreshView" Refreshing="OnRefreshing">
+            <ScrollView>
+                <VerticalStackLayout Padding="20" Spacing="16">
+
+                    <VerticalStackLayout Spacing="2" Margin="0,8,0,0">
+                        <Label Text="Friends"
+                               Style="{StaticResource PageTitleLabel}"
+                               HorizontalOptions="Start"/>
+                        <Label Text="Manage your streak list"
+                               FontFamily="InterRegular"
+                               FontSize="13"
+                               TextColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray400}}"
+                               HorizontalOptions="Start"/>
+                    </VerticalStackLayout>
+
+                    <Border Style="{StaticResource SectionCard}">
+                        <VerticalStackLayout Spacing="12">
+
+                            <Grid x:Name="ActionButtonsGrid" ColumnDefinitions="*, Auto, Auto, Auto, Auto" ColumnSpacing="10">
+                                <Label Text="Streaks"
+                                       Style="{StaticResource SectionLabel}" VerticalOptions="Center"/>
+                                <Button Grid.Column="1"
+                                        Text="Import"
+                                        Style="{StaticResource TextButton}"
+                                        Clicked="OnImportFriendsClicked"/>
+                                <Button Grid.Column="2"
+                                        Text="Export"
+                                        Style="{StaticResource TextButton}"
+                                        Clicked="OnExportFriendsClicked"/>
+                                <Button Grid.Column="3"
+                                        Text="Add"
+                                        Style="{StaticResource TextButton}"
+                                        Clicked="OnAddFriendClicked"/>
+                                <Button Grid.Column="4"
+                                        Text="Clear"
+                                        Style="{StaticResource TextButton}"
+                                        TextColor="{AppThemeBinding Light={StaticResource DeleteColor}, Dark={StaticResource DeleteColor}}"
+                                        Clicked="OnDeleteAllFriendsClicked"/>
+                            </Grid>
+
+                            <Grid x:Name="SearchAndBulkRow" IsVisible="False"
+                                  ColumnDefinitions="*, Auto, Auto" ColumnSpacing="8" Margin="0,4,0,0">
+                                <Border Grid.Column="0"
+                                        StrokeThickness="0"
+                                        StrokeShape="RoundRectangle 16"
+                                        BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}">
+                                    <Entry x:Name="SearchFriendEntry"
+                                           Placeholder="Search friends..."
+                                           Margin="12,0"
+                                           VerticalOptions="Center"
+                                           ClearButtonVisibility="WhileEditing"
+                                           BackgroundColor="Transparent"
+                                           TextChanged="OnSearchFriendTextChanged"/>
+                                </Border>
+                            <Button Grid.Column="1"
+                                    Text="Enable All"
+                                    Style="{StaticResource TextButton}"
+                                    FontSize="12" Padding="8,0" HeightRequest="40"
+                                    Clicked="OnEnableAllClicked"/>
+                            <Button Grid.Column="2"
+                                    Text="Disable All"
+                                    Style="{StaticResource TextButton}"
+                                    FontSize="12" Padding="8,0" HeightRequest="40"
+                                    TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
+                                    Clicked="OnDisableAllClicked"/>
+                        </Grid>
+
+                        <VerticalStackLayout x:Name="AddFriendPanel" IsVisible="False" Spacing="8">
+                            <Border StrokeThickness="0"
+                                    StrokeShape="RoundRectangle 16"
+                                    BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}">
+                                <Entry x:Name="NewFriendUsernameEntry"
+                                       Placeholder="TikTok username (without @)"
+                                       Margin="12,4"
+                                       BackgroundColor="Transparent"/>
+                            </Border>
+                            <Border StrokeThickness="0"
+                                    StrokeShape="RoundRectangle 16"
+                                    BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}">
+                                <Entry x:Name="NewFriendDisplayNameEntry"
+                                       Placeholder="Display name (optional)"
+                                       Margin="12,4"
+                                       BackgroundColor="Transparent"/>
+                            </Border>
+                            <Grid ColumnDefinitions="*, *" ColumnSpacing="8">
+                                <Button Text="Cancel"
+                                        Style="{StaticResource TextButton}"
+                                        BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray800}}"
+                                        TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray300}}"
+                                        CornerRadius="14" HeightRequest="40"
+                                        Clicked="OnCancelAddFriend"/>
+                                <Button Grid.Column="1"
+                                        Text="Save"
+                                        BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                                        TextColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource PrimaryDarkText}}"
+                                        CornerRadius="14" HeightRequest="40"
+                                        Clicked="OnSaveFriend"/>
+                            </Grid>
+                        </VerticalStackLayout>
+
+                        <VerticalStackLayout x:Name="FriendsListContainer" Spacing="8">
+                            <Label x:Name="NoFriendsLabel"
+                                   Text="No friends added. Tap 'Add' to begin."
+                                   Style="{StaticResource DataLabel}"
+                                   HorizontalOptions="Center"
+                                   IsVisible="True"/>
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border x:Name="FriendsStatsCard" Style="{StaticResource SectionCard}" IsVisible="False">
+                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                        <VerticalStackLayout HorizontalOptions="Center" Spacing="2">
+                            <Label x:Name="TotalFriendsLabel" Text="0"
+                                   Style="{StaticResource ValueLabel}" HorizontalTextAlignment="Center"/>
+                            <Label Text="Total" Style="{StaticResource DataLabel}" HorizontalTextAlignment="Center"/>
+                        </VerticalStackLayout>
+                        <VerticalStackLayout Grid.Column="1" HorizontalOptions="Center" Spacing="2">
+                            <Label x:Name="EnabledFriendsLabel" Text="0"
+                                   Style="{StaticResource ValueLabel}" HorizontalTextAlignment="Center"/>
+                            <Label Text="Enabled" Style="{StaticResource DataLabel}" HorizontalTextAlignment="Center"/>
+                        </VerticalStackLayout>
+                        <VerticalStackLayout Grid.Column="2" HorizontalOptions="Center" Spacing="2">
+                            <Label x:Name="SentTodayLabel" Text="0"
+                                   Style="{StaticResource ValueLabel}" HorizontalTextAlignment="Center"/>
+                            <Label Text="Sent Today" Style="{StaticResource DataLabel}" HorizontalTextAlignment="Center"/>
+                        </VerticalStackLayout>
+                    </Grid>
+                </Border>
+
+                <BoxView HeightRequest="100" BackgroundColor="Transparent"/>
+
+            </VerticalStackLayout>
+        </ScrollView>
+        </RefreshView>
+
+        <views:FloatingNavBar CurrentTab="Friends" VerticalOptions="End"/>
+    </Grid>
+</ContentPage>

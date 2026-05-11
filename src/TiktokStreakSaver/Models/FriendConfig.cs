@@ -49,11 +49,12 @@ public class FriendConfig
 public class StreakRunResult
 {
     public DateTime RunTime { get; set; } = DateTime.Now;
+    public TimeSpan? Duration { get; set; }
     public bool Success { get; set; }
     public string? ErrorMessage { get; set; }
-    public string? FriendsErrorMessage => string.Join(',',FriendResults?.Where(x => x.Failed)?.Select(x => x.ErrorMessage)??[]);
+    public string? FriendsErrorMessage => string.Join(',', FriendResults?.Where(x => x.Failed)?.Select(x => x.ErrorMessage) ?? []);
     public List<FriendMessageResult> FriendResults { get; set; } = new();
-    public bool Failed=>!Success && (!string.IsNullOrEmpty(FriendsErrorMessage)||!string.IsNullOrEmpty(ErrorMessage));
+    public bool Failed => !Success && (!string.IsNullOrEmpty(FriendsErrorMessage) || !string.IsNullOrEmpty(ErrorMessage));
 }
 
 /// <summary>
@@ -65,16 +66,7 @@ public class FriendMessageResult
     public string FriendId { get; set; } = string.Empty;
     public string Username { get; set; } = string.Empty;
     public bool Success { get; set; }
-    public bool Failed=>!Success && !string.IsNullOrEmpty(ErrorMessage);
+    public bool Failed => !Success && !string.IsNullOrEmpty(ErrorMessage);
     public string? ErrorMessage { get; set; }
     public DateTime Timestamp { get; set; } = DateTime.Now;
 }
-
-
-
-
-
-
-
-
-

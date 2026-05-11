@@ -8,6 +8,9 @@ public class SessionService
 {
     private const string SessionValidKey = "session_valid";
     private const string SessionLastCheckKey = "session_last_check";
+    private const string DisplayNameKey = "session_display_name";
+    private const string LoginUserAgentKey = "session_login_ua";
+    private const string ProfileImagePathKey = "session_profile_photo";
 
     /// <summary>
     /// Get whether the session was valid on last check
@@ -36,18 +39,64 @@ public class SessionService
     }
 
     /// <summary>
-    /// Clear session data (logout)
+    /// Get the user's display name
+    /// </summary>
+    public string GetDisplayName()
+    {
+        return Preferences.Get(DisplayNameKey, "User");
+    }
+
+    /// <summary>
+    /// Set the user's display name
+    /// </summary>
+    public void SetDisplayName(string name)
+    {
+        Preferences.Set(DisplayNameKey, string.IsNullOrWhiteSpace(name) ? "User" : name.Trim());
+    }
+
+    /// <summary>
+    /// Get the user agent string used during the last login session
+    /// </summary>
+    public string? GetLoginUserAgent()
+    {
+        var ua = Preferences.Get(LoginUserAgentKey, string.Empty);
+        return string.IsNullOrEmpty(ua) ? null : ua;
+    }
+
+    /// <summary>
+    /// Store the user agent string used during login for session consistency
+    /// </summary>
+    public void SetLoginUserAgent(string userAgent)
+    {
+        Preferences.Set(LoginUserAgentKey, userAgent ?? string.Empty);
+    }
+
+    /// <summary>
+    /// Get the path to the user's local profile photo
+    /// </summary>
+    public string GetProfileImagePath()
+    {
+        return Preferences.Get(ProfileImagePathKey, string.Empty);
+    }
+
+    /// <summary>
+    /// Set the path to the user's local profile photo
+    /// </summary>
+    public void SetProfileImagePath(string path)
+    {
+        Preferences.Set(ProfileImagePathKey, path ?? string.Empty);
+    }
+
+    /// <summary>
+    /// Clear session data (logout). Also physically destroys WebView cookies
+    /// to guarantee a clean logout.
     /// </summary>
     public void ClearSession()
     {
         Preferences.Set(SessionValidKey, false);
         Preferences.Remove(SessionLastCheckKey);
+
+        // Physically destroy cookies to guarantee a clean logout
+        TikTokWebViewHelper.ClearAllCookies();
     }
 }
-
-
-
-
-
-
-

@@ -1,8 +1,8 @@
 using AsyncAwaitBestPractices;
-using RandomUserAgent;
 using TiktokStreakSaver.Services;
 
 namespace TiktokStreakSaver;
+
 [Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
 public partial class LoginPage : ContentPage
 {
@@ -24,10 +24,13 @@ public partial class LoginPage : ContentPage
     private void LoadTikTok()
     {
         LoadingOverlay.IsVisible = true;
-        
+
 #if ANDROID
-        // Configure WebView using helper with random user agent
-        TikTokWebViewHelper.ConfigureWebView(TikTokWebView, RandomUa.RandomUserAgent);
+        // Use a modern Chrome desktop UA. Older randomized UAs (e.g. Firefox 3.6)
+        // cause TikTok to serve degraded markup that breaks the chat header.
+        var desktopUa = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+        TikTokWebViewHelper.ConfigureWebView(TikTokWebView, desktopUa);
+        _sessionService.SetLoginUserAgent(desktopUa);
 #endif
 
         TikTokWebView.Source = TikTokWebViewHelper.LoginUrl;
@@ -35,22 +38,13 @@ public partial class LoginPage : ContentPage
 
     private void OnWebViewNavigated(object? sender, WebNavigatedEventArgs e)
     {
-        if (_isLoggedIn)
-        {
-            return;
-        }
+        if (_isLoggedIn) return;
         LoadingOverlay.IsVisible = false;
 
-        // Use helper to check login status
-        var result = TikTokWebViewHelper.CheckLoginStatus(e.Url);
-        
-        if (!result.IsValidUrl)
-        {
-            LoadTikTok();
-            return;
-        }
+        // Cookie-based check is authoritative; URL heuristics are unreliable on TikTok.
+        bool hasSession = TikTokWebViewHelper.HasValidSessionCookie();
 
-        if (result.IsLoggedIn)
+        if (hasSession)
         {
             _isLoggedIn = true;
             Done().SafeFireAndForget();
@@ -60,13 +54,9 @@ public partial class LoginPage : ContentPage
     private async void OnBackClicked(object? sender, EventArgs e)
     {
         if (TikTokWebView.CanGoBack)
-        {
             TikTokWebView.GoBack();
-        }
         else
-        {
             await Navigation.PopAsync();
-        }
     }
 
     private void OnRefreshClicked(object? sender, EventArgs e)
@@ -77,22 +67,18 @@ public partial class LoginPage : ContentPage
 
     private async Task Done()
     {
-        // Update session status using helper
         TikTokWebViewHelper.UpdateSessionStatus(_sessionService, _isLoggedIn);
-        
+
         if (_isLoggedIn)
         {
-            await DisplayAlert("Logged In", 
+            await DisplayAlert("Logged In",
                 "You're logged in to TikTok! The app will use this session for background messaging.", "OK");
             await Navigation.PopAsync();
         }
         else
         {
-            await DisplayAlert("Not Logged In", 
+            await DisplayAlert("Not Logged In",
                 "Please login to TikTok first before continuing.", "OK");
         }
     }
 }
-
-
-

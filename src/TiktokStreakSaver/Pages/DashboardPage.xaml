@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:TiktokStreakSaver.Views"
+             x:Class="TiktokStreakSaver.Pages.DashboardPage"
+             Title="Dashboard"
+             Shell.NavBarIsVisible="False"
+             Shell.TabBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False"
+             BackgroundColor="{AppThemeBinding Light={StaticResource PageBackgroundLight}, Dark={StaticResource OffBlack}}">
+
+    <Grid>
+
+        <RefreshView x:Name="MainRefreshView" Refreshing="OnRefreshing">
+            <ScrollView>
+            <VerticalStackLayout Padding="20" Spacing="16">
+
+                <!-- ─── Header ─── -->
+                <Grid ColumnDefinitions="*, Auto" Margin="0,8,0,0">
+                    <VerticalStackLayout Grid.Column="0" Spacing="2">
+                        <Label x:Name="GreetingLabel"
+                               Text="Hi, User"
+                               Style="{StaticResource PageTitleLabel}"
+                               HorizontalOptions="Start"/>
+                        <Label Text="TikTok Streak Automation"
+                               FontFamily="InterRegular"
+                               FontSize="13"
+                               TextColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray400}}"
+                               HorizontalOptions="Start"/>
+                    </VerticalStackLayout>
+
+                    <Grid Grid.Column="1" WidthRequest="44" HeightRequest="44" VerticalOptions="Center">
+                        <Border x:Name="ProfileAvatarBorder"
+                                WidthRequest="44" HeightRequest="44"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 22"
+                                BackgroundColor="{AppThemeBinding Light={StaticResource PrimarySubtle}, Dark={StaticResource Gray800}}"
+                                HorizontalOptions="Center" VerticalOptions="Center">
+                            <Image x:Name="ProfileAvatarImage"
+                                   IsVisible="False"
+                                   Aspect="AspectFill"
+                                   WidthRequest="44" HeightRequest="44"/>
+                        </Border>
+                        <Label x:Name="ProfileAvatarEmoji"
+                               Text="🎵" FontSize="20"
+                               HorizontalOptions="Center" VerticalOptions="Center"
+                               IsVisible="False"/>
+                    </Grid>
+                </Grid>
+
+                <!-- ═══ Run Overview ═══ -->
+                <VerticalStackLayout Spacing="16">
+
+                    <!-- Daily Automation Progress -->
+                    <Border Style="{StaticResource SectionCard}">
+                        <VerticalStackLayout Spacing="14">
+                            <Grid ColumnDefinitions="*, Auto">
+                                <Label Text="Daily Automation Progress" Style="{StaticResource SectionLabel}"/>
+                                <Border Grid.Column="1"
+                                        StrokeThickness="0"
+                                        StrokeShape="RoundRectangle 8"
+                                        BackgroundColor="{AppThemeBinding Light=#FFF0F2, Dark=#3D1C22}"
+                                        Padding="8,4">
+                                    <Label x:Name="OverviewProgressLabel"
+                                           Text="0/--"
+                                           FontFamily="InterSemiBold" FontSize="12"
+                                           TextColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"/>
+                                </Border>
+                            </Grid>
+
+                            <GraphicsView x:Name="OverviewProgressGraphicsView"
+                                          HeightRequest="12"
+                                          HorizontalOptions="Fill" />
+
+                            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+                                <VerticalStackLayout Spacing="4">
+                                    <Label Text="Sent Today" Style="{StaticResource DataLabel}"/>
+                                    <Label x:Name="OverviewSentLabel" Text="0" Style="{StaticResource ValueLabel}"/>
+                                </VerticalStackLayout>
+                                <VerticalStackLayout Grid.Column="1" Spacing="4">
+                                    <Label Text="Success" Style="{StaticResource DataLabel}"/>
+                                    <Label x:Name="OverviewSuccessLabel" Text="--" Style="{StaticResource ValueLabel}"/>
+                                </VerticalStackLayout>
+                                <VerticalStackLayout Grid.Column="2" Spacing="4">
+                                    <Label Text="Remaining" Style="{StaticResource DataLabel}"/>
+                                    <Label x:Name="OverviewRemainingLabel" Text="--" Style="{StaticResource ValueLabel}"/>
+                                </VerticalStackLayout>
+                            </Grid>
+
+                            <Grid ColumnDefinitions="*, Auto">
+                                <VerticalStackLayout Spacing="4" VerticalOptions="Center">
+                                    <Label Text="Next Scheduled Run" Style="{StaticResource DataLabel}"/>
+                                    <Label x:Name="NextRunLabel" Text="Not scheduled" FontFamily="InterSemiBold" FontSize="16" TextColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"/>
+                                </VerticalStackLayout>
+                                <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center" HorizontalOptions="End">
+                                    <Label Text="Last Run" Style="{StaticResource DataLabel}" HorizontalTextAlignment="End"/>
+                                    <Label x:Name="LastRunLabel" Text="Never" Style="{StaticResource ValueLabel}" HorizontalTextAlignment="End"/>
+                                </VerticalStackLayout>
+                            </Grid>
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Run Configuration Card -->
+                    <Border Style="{StaticResource SectionCard}">
+                        <VerticalStackLayout Spacing="12">
+                            <Label Text="Run Configuration" Style="{StaticResource SectionLabel}"/>
+                            <Label x:Name="MessageEditorHint" Text="Message sent to each friend during a streak run" Style="{StaticResource DataLabel}" LineBreakMode="WordWrap"/>
+                            <Border x:Name="MessageEditorBorder" StrokeThickness="0"
+                                    StrokeShape="RoundRectangle 16"
+                                    BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}">
+                                <Editor x:Name="MessageEditor"
+                                        Placeholder="Enter your streak message..."
+                                        HeightRequest="72"
+                                        Margin="12,8"
+                                        BackgroundColor="Transparent"
+                                        TextChanged="OnMessageChanged"/>
+                            </Border>
+                        </VerticalStackLayout>
+                    </Border>
+                </VerticalStackLayout>
+
+                <Label Text="Pull down to check for updates"
+                       FontFamily="InterRegular"
+                       FontSize="12"
+                       TextColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
+                       HorizontalOptions="Center"
+                       Margin="0,8,0,0"/>
+
+                <BoxView HeightRequest="200" BackgroundColor="Transparent"/>
+
+            </VerticalStackLayout>
+            </ScrollView>
+        </RefreshView>
+
+        <!-- ═══ Control Dock Overlay ═══ -->
+        <Border x:Name="ControlDockBorder"
+                VerticalOptions="End"
+                StrokeThickness="0"
+                StrokeShape="RoundRectangle 24"
+                Padding="20,16"
+                Margin="24,0,24,100"
+                BackgroundColor="{AppThemeBinding Light=#E6FFFFFF, Dark=#E61A1B1E}">
+            <Border.Shadow>
+                <Shadow Brush="{AppThemeBinding Light=#14000000, Dark=#00000000}" Offset="0,4" Radius="16" Opacity="1"/>
+            </Border.Shadow>
+
+            <VerticalStackLayout Spacing="12">
+                <VerticalStackLayout x:Name="PermissionsPanel" IsVisible="False" Spacing="8">
+                    <Label Text="To automate streaks reliably in the background, your device requires the following:"
+                           Style="{StaticResource DataLabel}"
+                           LineBreakMode="WordWrap"/>
+                    <Button x:Name="BtnExactAlarm"
+                            Text="Allow Exact Scheduling"
+                            BackgroundColor="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray800}}"
+                            TextColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource White}}"
+                            CornerRadius="12" HeightRequest="44"
+                            Clicked="OnRequestExactAlarmClicked"/>
+                    <Button x:Name="BtnBatteryOpt"
+                            Text="Disable Battery Restrictions"
+                            BackgroundColor="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray800}}"
+                            TextColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource White}}"
+                            CornerRadius="12" HeightRequest="44"
+                            Clicked="OnRequestBatteryOptimizationClicked"/>
+                    <Button x:Name="BtnNotification"
+                            Text="Allow Status Notifications"
+                            BackgroundColor="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray800}}"
+                            TextColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource White}}"
+                            CornerRadius="12" HeightRequest="44"
+                            Clicked="OnRequestNotificationClicked"/>
+                </VerticalStackLayout>
+
+                <Grid x:Name="RunButtonsContainer">
+                    <Button x:Name="MasterRunButton"
+                            Text="Run Now"
+                            BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                            TextColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource PrimaryDarkText}}"
+                            FontFamily="InterSemiBold"
+                            FontSize="16"
+                            CornerRadius="16"
+                            HeightRequest="54"
+                            Clicked="OnMasterRunClicked"/>
+                </Grid>
+
+                <Button x:Name="StopServiceButton"
+                        Text="Stop Processing"
+                        IsVisible="False"
+                        BackgroundColor="{AppThemeBinding Light={StaticResource DeleteColor}, Dark={StaticResource DeleteColor}}"
+                        TextColor="White"
+                        FontFamily="InterSemiBold"
+                        CornerRadius="16"
+                        HeightRequest="54"
+                        Clicked="OnStopServiceClicked"/>
+            </VerticalStackLayout>
+        </Border>
+
+        <!-- ═══ Floating Nav Bar ═══ -->
+        <views:FloatingNavBar CurrentTab="Dashboard" VerticalOptions="End"/>
+    </Grid>
+</ContentPage>

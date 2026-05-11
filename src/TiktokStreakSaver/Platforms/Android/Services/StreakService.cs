@@ -1,21 +1,14 @@
-using System.Diagnostics;
 using Android.App;
 using Android.Content;
 using Android.OS;
 using Android.Webkit;
 using Android.Runtime;
 using AndroidX.Core.App;
-using System.Text.Json;
 using Android.Content.PM;
 using Java.Interop;
-using Microsoft.Maui.Controls.Internals;
-using RandomUserAgent;
-using TiktokStreakSaver;
 using TiktokStreakSaver.Models;
 using TiktokStreakSaver.Services;
 using TiktokStreakSaver.Platforms.Android;
-using System.Threading.Tasks;
-using AsyncAwaitBestPractices;
 using WebView = Android.Webkit.WebView;
 
 namespace TiktokStreakSaver.Platforms.Android.Services;
@@ -42,11 +35,11 @@ public class StreakService : Service
     private readonly List<string> _disabledUsernames = new();
     private const string UserNotFoundError = "User not found in chat list";
 
-    // ── Burst Mode state (infinite continuous — Feener-style random message stack) ──
-    private bool _isBurstMode = false;
-    private List<string> _burstMessages = new();
-    private int _lastBurstMessageIndex = -1;
-    private int _burstTotalSent = 0;
+    // ── Randomized Normal Messages state ──
+    private List<string>? _shuffledNormalMessages;
+    private int _normalMessageIndex = 0;
+
+    private readonly Random _rng = new();
 
     // ── Service lifecycle flags ──
     private bool _isCancelRequested = false;
@@ -108,9 +101,6 @@ public class StreakService : Service
             return StartCommandResult.NotSticky;
         }
 
-        // Handle Burst Mode flag
-        _isBurstMode = intent?.GetBooleanExtra("IsBurstMode", false) ?? false;
-
         // Ensure we're in foreground mode (in case OnCreate didn't complete it)
         StartForegroundServiceImmediate();
 
@@ -129,6 +119,8 @@ public class StreakService : Service
         // Start the WebView automation on main thread
         _mainHandler?.Post(StartWebViewAutomation);
 
+        // Sticky: if Android kills the service mid-run, the system will recreate
+        // the service so the run can resume.
         return StartCommandResult.Sticky;
     }
 
@@ -158,6 +150,12 @@ public class StreakService : Service
 
     public override void OnDestroy()
     {
+        // Safety net: release the run-level mutex if the service is destroyed
+        // without CompleteService being called (e.g. system kill while WebView is loading).
+        lock (_runLock)
+        {
+            _isRunning = false;
+        }
         ReleaseWakeLock();
         CleanupWebView();
         base.OnDestroy();
@@ -167,7 +165,8 @@ public class StreakService : Service
     {
         var powerManager = (PowerManager?)GetSystemService(PowerService);
         _wakeLock = powerManager?.NewWakeLock(WakeLockFlags.Partial, "TiktokStreakSaver::StreakWakeLock");
-        _wakeLock?.Acquire(10 * 60 * 1000); // 10 minutes max
+        // 30 minute ceiling — generous upper bound for a normal run with a large friend list.
+        _wakeLock?.Acquire(30L * 60 * 1000);
     }
 
     private void ReleaseWakeLock()
@@ -273,57 +272,49 @@ public class StreakService : Service
             _runResult = new StreakRunResult();
             _cooldownSkippedCount = 0;
             _logs.Clear();
-            _lastBurstMessageIndex = -1;
-            _burstTotalSent = 0;
 
             _friendsToProcess = new List<FriendConfig>();
 
-            if (_isBurstMode)
+            var allEnabled = _settingsService?.GetEnabledFriends() ?? new List<FriendConfig>();
+            var today = DateTime.Now.Date;
+
+            foreach (var friend in allEnabled)
             {
-                var target = _settingsService?.GetBurstTargetUsername() ?? "";
-                if (string.IsNullOrWhiteSpace(target))
+                if (friend.LastMessageSent.HasValue && friend.LastMessageSent.Value.Date == today)
                 {
-                    AppLog("SYSTEM", "-", "Burst mode started without target username");
-                    CompleteService(false, "No target username set for burst mode.");
-                    return;
+                    _cooldownSkippedCount++;
+                    AppLog("SKIP", $"@{friend.Username}",
+                        $"Already messaged today at {friend.LastMessageSent.Value:HH:mm}");
                 }
+                else
+                {
+                    _friendsToProcess.Add(friend);
+                }
+            }
 
-                _friendsToProcess.Add(new FriendConfig { Username = target.Trim().TrimStart('@'), IsEnabled = true });
-                _burstMessages = _settingsService?.GetBurstMessages() ?? new List<string> { SettingsService.DefaultMessage };
-                if (_burstMessages.Count == 0) _burstMessages.Add(SettingsService.DefaultMessage);
-
-                AppLog("SYSTEM", "-", $"Starting infinite burst targeting @{target} with {_burstMessages.Count} message(s).");
+            // Initialize randomized message pool if user opted in.
+            if (_settingsService?.GetRandomizeNormalMessages() == true)
+            {
+                _shuffledNormalMessages = new List<string>(SettingsService.BuiltInStreakMessages);
+                ShuffleList(_shuffledNormalMessages);
+                _normalMessageIndex = 0;
+                AppLog("SYSTEM", "-", $"Randomized messages enabled: {_shuffledNormalMessages.Count} variants loaded");
             }
             else
             {
-                var allEnabled = _settingsService?.GetEnabledFriends() ?? new List<FriendConfig>();
-                var today = DateTime.Now.Date;
+                _shuffledNormalMessages = null;
+            }
 
-                foreach (var friend in allEnabled)
-                {
-                    if (friend.LastMessageSent.HasValue && friend.LastMessageSent.Value.Date == today)
-                    {
-                        _cooldownSkippedCount++;
-                        AppLog("SKIP", $"@{friend.Username}",
-                            $"Already messaged today at {friend.LastMessageSent.Value:HH:mm}");
-                    }
-                    else
-                    {
-                        _friendsToProcess.Add(friend);
-                    }
-                }
+            AppLog("SYSTEM", "-",
+                $"Starting automation: {_friendsToProcess.Count} to process, {_cooldownSkippedCount} skipped (already sent today)");
 
-                AppLog("SYSTEM", "-",
-                    $"Starting automation: {_friendsToProcess.Count} to process, {_cooldownSkippedCount} skipped (already sent today)");
-
-                if (_friendsToProcess.Count == 0)
-                {
-                    var msg = _cooldownSkippedCount > 0
-                        ? $"All {_cooldownSkippedCount} friends already messaged today"
-                        : "No friends configured";
-                    CompleteService(_cooldownSkippedCount > 0, msg);
-                    return;
-                }
+            if (_friendsToProcess.Count == 0)
+            {
+                var msg = _cooldownSkippedCount > 0
+                    ? $"All {_cooldownSkippedCount} friends already messaged today"
+                    : "No friends configured";
+                CompleteService(_cooldownSkippedCount > 0, msg);
+                return;
             }
 
             if (!NetworkConnectivity.HasWifiOrCellularInternet(this))
@@ -346,19 +337,21 @@ public class StreakService : Service
             _webView.Settings.DatabaseEnabled = true;
             _webView.Settings.CacheMode = CacheModes.Normal;
 
-            if (_isBurstMode)
-            {
-                _webView.Settings.UserAgentString =
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36";
-            }
-            else
-            {
-                _webView.Settings.UserAgentString =
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36";
-            }
+            // Reuse the UA captured at login time so cookies stay valid; fall back to a modern Chrome desktop UA.
+            var sessionService = new SessionService();
+            var loginUa = sessionService.GetLoginUserAgent()
+                ?? "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+            _webView.Settings.UserAgentString = loginUa;
 
             _webView.Settings.SetSupportZoom(true);
             _webView.Settings.BuiltInZoomControls = true;
+
+            // Give the headless WebView a real viewport so TikTok's virtualized chat list
+            // actually renders its children. Without dimensions the WebView is 0x0 and
+            // lazy-rendered conversation items never appear.
+            _webView.Settings.UseWideViewPort = true;
+            _webView.Settings.LoadWithOverviewMode = true;
+            _webView.Layout(0, 0, 1920, 1080);
 
             var cookieManager = CookieManager.Instance;
             cookieManager?.SetAcceptCookie(true);
@@ -447,8 +440,7 @@ public class StreakService : Service
 
         var friend = _friendsToProcess[_currentFriendIndex];
 
-        if (!_isBurstMode)
-            AppLog("PROCESS", $"@{friend.Username}", "Starting regular messaging");
+        AppLog("PROCESS", $"@{friend.Username}", "Starting regular messaging");
 
         SendCurrentFriendMessage();
     }
@@ -460,31 +452,36 @@ public class StreakService : Service
         var friend = _friendsToProcess![_currentFriendIndex];
         string message;
 
-        if (_isBurstMode)
+        if (_shuffledNormalMessages != null && _shuffledNormalMessages.Count > 0)
         {
-            int nextIdx = 0;
-            if (_burstMessages.Count > 1)
+            message = _shuffledNormalMessages[_normalMessageIndex % _shuffledNormalMessages.Count];
+            _normalMessageIndex++;
+            // Reshuffle when pool is exhausted so the same per-run sequence is not repeated.
+            if (_normalMessageIndex >= _shuffledNormalMessages.Count)
             {
-                var r = new Random();
-                do { nextIdx = r.Next(_burstMessages.Count); } while (nextIdx == _lastBurstMessageIndex);
+                ShuffleList(_shuffledNormalMessages);
+                _normalMessageIndex = 0;
             }
-
-            _lastBurstMessageIndex = nextIdx;
-            message = _burstMessages[nextIdx];
-
-            UpdateNotification($"Bursting @{friend.Username} (total: {_burstTotalSent})...");
-            AppLog("BURST", $"@{friend.Username}", $"Injecting message: {message}");
         }
         else
         {
             message = _settingsService?.GetMessageText() ?? SettingsService.DefaultMessage;
-            UpdateNotification($"{_currentFriendIndex + 1}/{_friendsToProcess.Count} \u2014 Processing: @{friend.Username}",
-                _currentFriendIndex, _friendsToProcess.Count);
         }
+        UpdateNotification($"{_currentFriendIndex + 1}/{_friendsToProcess.Count} \u2014 Processing: @{friend.Username}",
+            _currentFriendIndex, _friendsToProcess.Count);
 
         _allowSendRetries = true;
         var js = GetFriendMessageScript(friend.Username, message);
         _webView?.EvaluateJavascript(js, null);
+    }
+
+    private void ShuffleList<T>(List<T> list)
+    {
+        for (int i = list.Count - 1; i > 0; i--)
+        {
+            int j = _rng.Next(i + 1);
+            (list[i], list[j]) = (list[j], list[i]);
+        }
     }
 
     private string GetFriendMessageScript(string username, string message)
@@ -508,16 +505,30 @@ public class StreakService : Service
 
         if (friend == null)
         {
-            _failureAttemptsForCurrentFriend = 0;
-            _currentFriendIndex++;
-            _mainHandler?.PostDelayed(ProcessNextFriend, 3000);
+            // Username reported by JS doesn't match any friend in the list. This can happen
+            // when TikTok returns a different username casing/format. Retry the current friend
+            // a few times rather than silently advancing past it.
+            AppLog("WARN", $"@{username}",
+                "Username from JS callback did not match any friend in the list. Retrying current friend...");
+            _failureAttemptsForCurrentFriend++;
+            if (_failureAttemptsForCurrentFriend < MaxSendAttemptsPerFriend)
+            {
+                _mainHandler?.PostDelayed(SendCurrentFriendMessage, 3000);
+            }
+            else
+            {
+                AppLog("FAIL", $"@{username}", "Max retries exceeded for unmatched username");
+                _failureAttemptsForCurrentFriend = 0;
+                _currentFriendIndex++;
+                _mainHandler?.PostDelayed(ProcessNextFriend, 3000);
+            }
             return;
         }
 
         if (!success)
         {
             _failureAttemptsForCurrentFriend++;
-            if (!_isBurstMode && _allowSendRetries && _failureAttemptsForCurrentFriend < MaxSendAttemptsPerFriend)
+            if (_allowSendRetries && _failureAttemptsForCurrentFriend < MaxSendAttemptsPerFriend)
             {
                 AppLog("RETRY", $"@{username}",
                     $"Attempt {_failureAttemptsForCurrentFriend}/{MaxSendAttemptsPerFriend}: {error}");
@@ -547,20 +558,8 @@ public class StreakService : Service
 
             _failureAttemptsForCurrentFriend = 0;
             _currentFriendIndex++;
-            if (!_isBurstMode)
-                UpdateNotification($"{_currentFriendIndex}/{_friendsToProcess.Count} : Failed: @{username}", _currentFriendIndex, _friendsToProcess.Count);
+            UpdateNotification($"{_currentFriendIndex}/{_friendsToProcess.Count} : Failed: @{username}", _currentFriendIndex, _friendsToProcess.Count);
             _mainHandler?.PostDelayed(ProcessNextFriend, 3000);
-            return;
-        }
-
-        if (_isBurstMode)
-        {
-            _burstTotalSent++;
-            int delayMs = new Random().Next(3000, 10000);
-            AppLog("BURST", $"@{username}", $"Message {_burstTotalSent} sent. Next in {delayMs / 1000.0:F1}s");
-            _settingsService.SetBurstLastRunTime(DateTime.Now);
-            if (!_isCancelRequested)
-                _mainHandler?.PostDelayed(SendCurrentFriendMessage, delayMs);
             return;
         }
 
@@ -658,15 +657,7 @@ public class StreakService : Service
                 _runResult.Success = success;
                 _runResult.ErrorMessage = success ? null : message;
                 _settingsService.AddRunResult(_runResult);
-
-                if (_isBurstMode)
-                {
-                    _settingsService.SetBurstLastRunTime(DateTime.Now);
-                }
-                else
-                {
-                    _settingsService.SetLastRunTime(DateTime.Now);
-                }
+                _settingsService.SetLastRunTime(DateTime.Now);
             }
 
             // Show completion notification

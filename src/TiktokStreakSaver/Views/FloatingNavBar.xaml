@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="TiktokStreakSaver.Views.FloatingNavBar"
+             HorizontalOptions="Center"
+             VerticalOptions="End">
+
+    <Border x:Name="NavContainer"
+            Style="{StaticResource FloatingNavStyle}">
+        <Border.Shadow>
+            <Shadow Brush="{AppThemeBinding Light=#10000000, Dark=#50000000}"
+                    Offset="0,8"
+                    Radius="24"
+                    Opacity="1"/>
+        </Border.Shadow>
+
+        <Grid ColumnDefinitions="72,72,72,72" ColumnSpacing="4">
+
+            <!-- Dashboard Tab -->
+            <VerticalStackLayout Grid.Column="0" Spacing="3" HorizontalOptions="Center">
+                <Border x:Name="DashboardIndicator"
+                        WidthRequest="40" HeightRequest="32"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 12"
+                        BackgroundColor="Transparent"
+                        HorizontalOptions="Center">
+                    <Path x:Name="DashboardIcon"
+                          Data="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"
+                          Fill="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray500}}"
+                          Aspect="Uniform"
+                          WidthRequest="24" HeightRequest="24"
+                          HorizontalOptions="Center" VerticalOptions="Center"/>
+                </Border>
+                <Label x:Name="DashboardLabel" Text="Home"
+                       FontFamily="InterMedium" FontSize="10"
+                       HorizontalOptions="Center"
+                       TextColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray500}}"/>
+                <VerticalStackLayout.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnDashboardTapped"/>
+                </VerticalStackLayout.GestureRecognizers>
+            </VerticalStackLayout>
+
+            <!-- History Tab -->
+            <VerticalStackLayout Grid.Column="1" Spacing="3" HorizontalOptions="Center">
+                <Border x:Name="HistoryIndicator"
+                        WidthRequest="40" HeightRequest="32"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 12"
+                        BackgroundColor="Transparent"
+                        HorizontalOptions="Center">
+                    <Path x:Name="HistoryIcon"
+                          Data="M13.5,8H12V13L16.28,15.54L17,14.33L13.5,12.25V8M13,3A9,9 0 0,0 4,12H1L4.96,16.03L9,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3Z"
+                          Fill="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray500}}"
+                          Aspect="Uniform"
+                          WidthRequest="24" HeightRequest="24"
+                          HorizontalOptions="Center" VerticalOptions="Center"/>
+                </Border>
+                <Label x:Name="HistoryLabel" Text="History"
+                       FontFamily="InterMedium" FontSize="10"
+                       HorizontalOptions="Center"
+                       TextColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray500}}"/>
+                <VerticalStackLayout.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnHistoryTapped"/>
+                </VerticalStackLayout.GestureRecognizers>
+            </VerticalStackLayout>
+
+            <!-- Friends Tab -->
+            <VerticalStackLayout Grid.Column="2" Spacing="3" HorizontalOptions="Center">
+                <Border x:Name="FriendsIndicator"
+                        WidthRequest="40" HeightRequest="32"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 12"
+                        BackgroundColor="Transparent"
+                        HorizontalOptions="Center">
+                    <Path x:Name="FriendsIcon"
+                          Data="M16,11C17.66,11 18.99,9.66 18.99,8C18.99,6.34 17.66,5 16,5C14.34,5 13,6.34 13,8C13,9.66 14.34,11 16,11M8,11C9.66,11 10.99,9.66 10.99,8C10.99,6.34 9.66,5 8,5C6.34,5 5,6.34 5,8C5,9.66 6.34,11 8,11M8,13C5.67,13 1,14.17 1,16.5V19H15V16.5C15,14.17 10.33,13 8,13M16,13C15.71,13 15.38,13.02 15.03,13.05C16.19,13.89 17,15.02 17,16.5V19H23V16.5C23,14.17 18.33,13 16,13Z"
+                          Fill="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray500}}"
+                          Aspect="Uniform"
+                          WidthRequest="24" HeightRequest="24"
+                          HorizontalOptions="Center" VerticalOptions="Center"/>
+                </Border>
+                <Label x:Name="FriendsLabel" Text="Friends"
+                       FontFamily="InterMedium" FontSize="10"
+                       HorizontalOptions="Center"
+                       TextColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray500}}"/>
+                <VerticalStackLayout.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnFriendsTapped"/>
+                </VerticalStackLayout.GestureRecognizers>
+            </VerticalStackLayout>
+
+            <!-- Profile Tab -->
+            <VerticalStackLayout Grid.Column="3" Spacing="3" HorizontalOptions="Center">
+                <Border x:Name="ProfileIndicator"
+                        WidthRequest="40" HeightRequest="32"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 12"
+                        BackgroundColor="Transparent"
+                        HorizontalOptions="Center">
+                    <Path x:Name="ProfileIcon"
+                          Data="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z"
+                          Fill="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray500}}"
+                          Aspect="Uniform"
+                          WidthRequest="24" HeightRequest="24"
+                          HorizontalOptions="Center" VerticalOptions="Center"/>
+                </Border>
+                <Label x:Name="ProfileLabel" Text="Profile"
+                       FontFamily="InterMedium" FontSize="10"
+                       HorizontalOptions="Center"
+                       TextColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray500}}"/>
+                <VerticalStackLayout.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnProfileTapped"/>
+                </VerticalStackLayout.GestureRecognizers>
+            </VerticalStackLayout>
+
+        </Grid>
+    </Border>
+</ContentView>

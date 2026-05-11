@@ -14,10 +14,29 @@ public static class MauiProgram
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
-                fonts.AddFont("OpenSans-Regular.ttf", "InterRegular");
-                fonts.AddFont("OpenSans-Regular.ttf", "InterMedium");
-                fonts.AddFont("OpenSans-Semibold.ttf", "InterSemiBold");
-                fonts.AddFont("OpenSans-Semibold.ttf", "InterBold");
+                fonts.AddFont("Inter-Regular.ttf", "InterRegular");
+                fonts.AddFont("Inter-Medium.ttf", "InterMedium");
+                fonts.AddFont("Inter-SemiBold.ttf", "InterSemiBold");
+                fonts.AddFont("Inter-Bold.ttf", "InterBold");
+            })
+            .ConfigureMauiHandlers(handlers =>
+            {
+#if ANDROID
+                handlers.AddHandler<Entry, Microsoft.Maui.Handlers.EntryHandler>();
+                handlers.AddHandler<Editor, Microsoft.Maui.Handlers.EditorHandler>();
+
+                Microsoft.Maui.Handlers.EntryHandler.Mapper.AppendToMapping("NoUnderline", (handler, view) =>
+                {
+                    handler.PlatformView.BackgroundTintList =
+                        Android.Content.Res.ColorStateList.ValueOf(Android.Graphics.Color.Transparent);
+                });
+
+                Microsoft.Maui.Handlers.EditorHandler.Mapper.AppendToMapping("NoUnderline", (handler, view) =>
+                {
+                    handler.PlatformView.BackgroundTintList =
+                        Android.Content.Res.ColorStateList.ValueOf(Android.Graphics.Color.Transparent);
+                });
+#endif
             });
 
 #if DEBUG

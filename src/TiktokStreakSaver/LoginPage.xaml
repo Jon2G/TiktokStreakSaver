@@ -3,80 +3,65 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="TiktokStreakSaver.LoginPage"
              Title="Login to TikTok"
-             BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource OffBlack}}">
-    
+             Shell.NavBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False"
+             BackgroundColor="{AppThemeBinding Light={StaticResource PageBackgroundLight}, Dark={StaticResource OffBlack}}">
+
     <Grid RowDefinitions="Auto, *, Auto">
-        
-        <!-- Header -->
-        <Frame Grid.Row="0" 
-               BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
-               CornerRadius="0"
-               Padding="16"
-               HasShadow="False">
+
+        <Border Grid.Row="0"
+                BackgroundColor="{AppThemeBinding Light={StaticResource CardBackgroundLight}, Dark={StaticResource CardBackgroundDark}}"
+                Stroke="Transparent"
+                StrokeThickness="0"
+                StrokeShape="RoundRectangle 0,0,20,20"
+                Padding="20">
             <VerticalStackLayout Spacing="4">
-                <Label Text="Login to TikTok" 
-                       FontSize="18" 
-                       FontAttributes="Bold"
-                       TextColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource White}}"/>
+                <Label Text="Login to TikTok"
+                       TextColor="{AppThemeBinding Light={StaticResource Gray950}, Dark={StaticResource White}}"
+                       FontFamily="InterSemiBold"
+                       FontSize="20"/>
                 <Label Text="Login to your TikTok account. Your session will be saved for background messaging."
-                       FontSize="12"
-                       TextColor="{StaticResource Gray400}"
+                       TextColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray400}}"
+                       FontSize="13"
                        LineBreakMode="WordWrap"/>
             </VerticalStackLayout>
-        </Frame>
-        
-        <!-- WebView -->
+        </Border>
+
         <WebView x:Name="TikTokWebView"
                  Grid.Row="1"
                  Navigated="OnWebViewNavigated"/>
-        
-        <!-- Loading Overlay -->
-        <Grid x:Name="LoadingOverlay" 
-              Grid.Row="1" 
+
+        <Grid x:Name="LoadingOverlay"
+              Grid.Row="1"
               IsVisible="True"
-              BackgroundColor="{AppThemeBinding Light=#CCFFFFFF, Dark=#CC000000}">
+              BackgroundColor="{AppThemeBinding Light={StaticResource OverlayLight}, Dark={StaticResource OverlayDark}}">
             <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="16">
-                <ActivityIndicator IsRunning="True" 
-                                   Color="{StaticResource Primary}"
+                <ActivityIndicator IsRunning="True"
+                                   Color="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource White}}"
                                    HeightRequest="48"
                                    WidthRequest="48"/>
                 <Label Text="Loading TikTok..."
-                       FontSize="14"
-                       TextColor="{StaticResource Gray400}"
+                       TextColor="{AppThemeBinding Light={StaticResource Gray950}, Dark={StaticResource Gray200}}"
+                       FontSize="13"
                        HorizontalOptions="Center"/>
             </VerticalStackLayout>
         </Grid>
-        
-        <!-- Footer Actions -->
-        <Frame Grid.Row="2"
-               BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
-               CornerRadius="0"
-               Padding="16"
-               HasShadow="False">
+
+        <Border Grid.Row="2" Style="{StaticResource BottomActionBorder}">
             <Grid ColumnDefinitions="*, *" ColumnSpacing="12">
-                <Button Text="← Back"
-                        BackgroundColor="{StaticResource Gray600}"
-                        TextColor="White"
-                        CornerRadius="8"
+                <Button Text="Back"
+                        Style="{StaticResource TextButton}"
                         HeightRequest="44"
                         Clicked="OnBackClicked"/>
                 <Button Grid.Column="1"
-                        Text="🔄 Refresh"
-                        BackgroundColor="{StaticResource Gray600}"
-                        TextColor="White"
-                        CornerRadius="8"
+                        Text="Refresh"
+                        BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                        TextColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource PrimaryDarkText}}"
+                        FontFamily="InterSemiBold"
+                        CornerRadius="14"
                         HeightRequest="44"
                         Clicked="OnRefreshClicked"/>
             </Grid>
-        </Frame>
+        </Border>
     </Grid>
 </ContentPage>
-
-
-
-
-
-
-
-
-

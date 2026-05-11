@@ -14,11 +14,18 @@
     <Color x:Key="SecondaryDarkText">#25F4EE</Color>
     <Color x:Key="Tertiary">#FE2C55</Color>
 
+    <!-- Softer primary for subtle tints and backgrounds -->
+    <Color x:Key="PrimaryLight">#FFF0F3</Color>
+    <Color x:Key="PrimarySubtle">#FFE4EA</Color>
+
     <Color x:Key="White">White</Color>
     <Color x:Key="Black">Black</Color>
     <Color x:Key="Magenta">#FE2C55</Color>
     <Color x:Key="MidnightBlue">#161823</Color>
-    <Color x:Key="OffBlack">#000000</Color>
+
+    <!-- Page backgrounds — warm dark instead of pure black -->
+    <Color x:Key="OffBlack">#121214</Color>
+    <Color x:Key="PageBackgroundLight">#F8F8FA</Color>
 
     <!-- Semi Design Semantic Colors (light-mode values; dark handled via AppThemeBinding) -->
     <Color x:Key="Success">#22946E</Color>
@@ -30,17 +37,17 @@
     <Color x:Key="Info">#21498A</Color>
     <Color x:Key="InfoDark">#4077D1</Color>
 
-    <!-- Neutral Surface Scale (aligned to DOCX) -->
-    <Color x:Key="Gray100">#F2F2F2</Color>
-    <Color x:Key="Gray200">#E1E8ED</Color>
-    <Color x:Key="Gray300">#AAAAAA</Color>
-    <Color x:Key="Gray400">#92979E</Color>
-    <Color x:Key="Gray500">#666666</Color>
-    <Color x:Key="Gray600">#3F3F3F</Color>
-    <Color x:Key="Gray700">#333333</Color>
-    <Color x:Key="Gray800">#282828</Color>
-    <Color x:Key="Gray900">#121212</Color>
-    <Color x:Key="Gray950">#161823</Color>
+    <!-- Neutral Surface Scale -->
+    <Color x:Key="Gray100">#F2F3F5</Color>
+    <Color x:Key="Gray200">#E5E7EB</Color>
+    <Color x:Key="Gray300">#B0B4BA</Color>
+    <Color x:Key="Gray400">#8B8F96</Color>
+    <Color x:Key="Gray500">#5F636A</Color>
+    <Color x:Key="Gray600">#3F4147</Color>
+    <Color x:Key="Gray700">#2E3036</Color>
+    <Color x:Key="Gray800">#232528</Color>
+    <Color x:Key="Gray900">#1A1B1E</Color>
+    <Color x:Key="Gray950">#141517</Color>
 
     <Color x:Key="OverlayLight">#CCFFFFFF</Color>
     <Color x:Key="OverlayDark">#CC000000</Color>
@@ -60,17 +67,18 @@
     <SolidColorBrush x:Key="Gray900Brush" Color="{StaticResource Gray900}"/>
     <SolidColorBrush x:Key="Gray950Brush" Color="{StaticResource Gray950}"/>
     
-    <!-- Light Theme Surfaces (DOCX) -->
+    <!-- Card and Surface tokens -->
     <Color x:Key="CardBackgroundLight">#FFFFFF</Color>
-    <Color x:Key="CardBackgroundDark">#282828</Color>
-    <Color x:Key="BorderColorLight">#E1E8ED</Color>
-    <Color x:Key="BorderColorDark">#3F3F3F</Color>
+    <Color x:Key="CardBackgroundDark">#1E1F23</Color>
+    <Color x:Key="SurfaceElevated">#1A1A2E</Color>
+    <Color x:Key="BorderColorLight">#EBEDF0</Color>
+    <Color x:Key="BorderColorDark">#2E3036</Color>
     <Color x:Key="DeleteColor">#EE1D52</Color>
-    
-    <Color x:Key="ListItemLight">#F4F4F4</Color>
-    <Color x:Key="ListItemDark">#282828</Color>
-    <Color x:Key="ListItemBorderLight">#E1E8ED</Color>
-    <Color x:Key="ListItemBorderDark">#3F3F3F</Color>
+
+    <Color x:Key="ListItemLight">#F5F5F7</Color>
+    <Color x:Key="ListItemDark">#252629</Color>
+    <Color x:Key="ListItemBorderLight">#EBEDF0</Color>
+    <Color x:Key="ListItemBorderDark">#2E3036</Color>
 
     <!-- Explicit Brushes for AppThemeBindings on Strokes -->
     <SolidColorBrush x:Key="BorderColorLightBrush" Color="{StaticResource BorderColorLight}"/>

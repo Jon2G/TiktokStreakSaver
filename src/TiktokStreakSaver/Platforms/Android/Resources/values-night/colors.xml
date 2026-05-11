@@ -4,4 +4,6 @@
   <color name="maui_splash_color">#121212</color>
   <!-- Adaptive launcher icon background in dark mode (pairs with @mipmap-night-anydpi-v26/appicon*.xml) -->
   <color name="appicon_adaptive_background">#121212</color>
+  <!-- Android 12+ themed splash background (dark) -->
+  <color name="splash_bg">#000000</color>
 </resources>

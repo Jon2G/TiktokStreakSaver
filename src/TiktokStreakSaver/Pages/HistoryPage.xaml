@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:TiktokStreakSaver.Views"
+             x:Class="TiktokStreakSaver.Pages.HistoryPage"
+             Title="History"
+             Shell.NavBarIsVisible="False"
+             Shell.TabBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False"
+             BackgroundColor="{AppThemeBinding Light={StaticResource PageBackgroundLight}, Dark={StaticResource OffBlack}}">
+
+    <Grid>
+
+        <RefreshView x:Name="MainRefreshView" Refreshing="OnRefreshing">
+            <ScrollView>
+                <VerticalStackLayout Padding="20" Spacing="16">
+
+                    <VerticalStackLayout Spacing="2" Margin="0,8,0,0">
+                        <Label Text="Activity"
+                               Style="{StaticResource PageTitleLabel}"
+                               HorizontalOptions="Start"/>
+                        <Label Text="Run history &amp; logs"
+                               FontFamily="InterRegular"
+                               FontSize="13"
+                               TextColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray400}}"
+                               HorizontalOptions="Start"/>
+                    </VerticalStackLayout>
+
+                <Border Style="{StaticResource SectionCard}">
+                    <Grid ColumnDefinitions="Auto, *" ColumnSpacing="16">
+                        <GraphicsView x:Name="SuccessChartView"
+                                      WidthRequest="80" HeightRequest="80"/>
+                        <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="4">
+                            <Label x:Name="SuccessRateLabel"
+                                   Text="No data yet"
+                                   Style="{StaticResource ValueLabel}"/>
+                            <Label x:Name="TotalRunsLabel"
+                                   Text=""
+                                   Style="{StaticResource DataLabel}"/>
+                            <Label x:Name="AvgDurationLabel"
+                                   Text=""
+                                   Style="{StaticResource DataLabel}"/>
+                        </VerticalStackLayout>
+                    </Grid>
+                </Border>
+
+                <Border Style="{StaticResource SectionCard}">
+                    <VerticalStackLayout Spacing="12">
+                        <Grid ColumnDefinitions="*, Auto, Auto" ColumnSpacing="8">
+                            <Label Text="Run Log"
+                                   Style="{StaticResource SectionLabel}"
+                                   VerticalOptions="Center"/>
+                            <Button Grid.Column="1"
+                                    Text="Clear"
+                                    Style="{StaticResource TextButton}"
+                                    TextColor="{AppThemeBinding Light={StaticResource DeleteColor}, Dark={StaticResource DeleteColor}}"
+                                    Clicked="OnClearHistoryClicked"/>
+                            <Button Grid.Column="2"
+                                    Text="Export"
+                                    Style="{StaticResource TextButton}"
+                                    Clicked="OnExportLogsClicked"/>
+                        </Grid>
+                        <VerticalStackLayout x:Name="HistoryContainer" Spacing="8">
+                            <Label x:Name="NoHistoryLabel"
+                                   Text="No activity yet."
+                                   Style="{StaticResource DataLabel}"
+                                   HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+
+                <BoxView HeightRequest="100" BackgroundColor="Transparent"/>
+
+            </VerticalStackLayout>
+        </ScrollView>
+        </RefreshView>
+
+        <views:FloatingNavBar CurrentTab="History" VerticalOptions="End"/>
+    </Grid>
+</ContentPage>

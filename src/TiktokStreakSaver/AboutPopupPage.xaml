@@ -9,9 +9,9 @@
         
         <!-- Header -->
         <VerticalStackLayout Grid.Row="0" Spacing="4" HorizontalOptions="Center" Margin="0, 16, 0, 0">
-            <Label x:Name="HeaderTitle" 
-                   Text="Welcome to Streak Saver" 
-                   Style="{StaticResource PageTitleLabel}" 
+            <Label x:Name="HeaderTitle"
+                   Text="Welcome to Streak Saver"
+                   Style="{StaticResource PageTitleLabel}"
                    HorizontalOptions="Center"
                    HorizontalTextAlignment="Center"/>
             <Label x:Name="VersionLabel" 
@@ -58,12 +58,20 @@
                            FontSize="12" />
                 </VerticalStackLayout>
 
-                <VerticalStackLayout Spacing="4">
+                <VerticalStackLayout Spacing="6">
                     <Label Text="Credits" Style="{StaticResource SectionLabel}" Margin="0, 8, 0, 4"/>
                     <Label Style="{StaticResource ValueLabel}" LineBreakMode="WordWrap">
                         <Label.FormattedText>
                             <FormattedString>
-                                <Span Text="Automation patterns and burst-mode ideas are aligned with the open-source Feener project (" />
+                                <Span Text="The current UI and most of the stability work in this version are a direct port of the rewrite that " />
+                                <Span Text="eulfn"
+                                      TextColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                                      TextDecorations="Underline">
+                                    <Span.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnFeenerCreditTapped" />
+                                    </Span.GestureRecognizers>
+                                </Span>
+                                <Span Text=" did in his fork " />
                                 <Span Text="streak-tiktok"
                                       TextColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
                                       TextDecorations="Underline">
@@ -71,7 +79,24 @@
                                         <TapGestureRecognizer Tapped="OnFeenerCreditTapped" />
                                     </Span.GestureRecognizers>
                                 </Span>
-                                <Span Text=") by eulfen and contributors." />
+                                <Span Text=" (project name &quot;Feener&quot;). Massive thanks to him and contributors." />
+                            </FormattedString>
+                        </Label.FormattedText>
+                    </Label>
+                    <Label Text="Specifically credited:"
+                           Style="{StaticResource DataLabel}"
+                           Margin="0, 6, 0, 0"/>
+                    <Label Style="{StaticResource DataLabel}" LineBreakMode="WordWrap">
+                        <Label.FormattedText>
+                            <FormattedString>
+                                <Span Text="• Multi-page architecture (Dashboard / Friends / History / Profile)&#10;" />
+                                <Span Text="• Custom FloatingNavBar and progress drawables&#10;" />
+                                <Span Text="• Theme tokens, Inter font family, Android 12+ splash screen&#10;" />
+                                <Span Text="• WebView viewport fix (renders TikTok's virtualized chat list)&#10;" />
+                                <Span Text="• Session-stored user agent + cookie-based login helper&#10;" />
+                                <Span Text="• Randomized streak messages and per-friend bounded retry&#10;" />
+                                <Span Text="• Improved tiktok_automation.js (virtualized scroll, checkpoint retry)&#10;" />
+                                <Span Text="• OnDestroy mutex reset and other run-stability fixes" />
                             </FormattedString>
                         </Label.FormattedText>
                     </Label>

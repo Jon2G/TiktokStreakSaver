@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:TiktokStreakSaver.Views"
+             x:Class="TiktokStreakSaver.Pages.ProfilePage"
+             Title="Profile"
+             Shell.NavBarIsVisible="False"
+             Shell.TabBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False"
+             BackgroundColor="{AppThemeBinding Light={StaticResource PageBackgroundLight}, Dark={StaticResource OffBlack}}">
+
+    <Grid>
+
+        <ScrollView>
+            <VerticalStackLayout Padding="20" Spacing="16">
+
+                <VerticalStackLayout Spacing="2" Margin="0,8,0,0">
+                    <Label Text="Profile"
+                           Style="{StaticResource PageTitleLabel}"
+                           HorizontalOptions="Start"/>
+                    <Label Text="Session &amp; settings"
+                           FontFamily="InterRegular"
+                           FontSize="13"
+                           TextColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray400}}"
+                           HorizontalOptions="Start"/>
+                </VerticalStackLayout>
+
+                <Border Style="{StaticResource SectionCard}">
+                    <VerticalStackLayout Spacing="16">
+                        <Label Text="TikTok Account" Style="{StaticResource SectionLabel}"/>
+
+                        <Grid ColumnDefinitions="Auto, *" ColumnSpacing="16">
+                            <Border WidthRequest="56" HeightRequest="56"
+                                    StrokeThickness="2"
+                                    Stroke="{AppThemeBinding Light={StaticResource BorderColorLight}, Dark={StaticResource BorderColorDark}}"
+                                    StrokeShape="RoundRectangle 28"
+                                    BackgroundColor="{AppThemeBinding Light={StaticResource PrimarySubtle}, Dark={StaticResource Gray800}}"
+                                    VerticalOptions="Center">
+                                <Grid>
+                                    <Image x:Name="ProfilePhoto"
+                                           IsVisible="False"
+                                           Aspect="AspectFill"
+                                           WidthRequest="56" HeightRequest="56"/>
+                                    <Label x:Name="ProfileEmoji"
+                                           Text="🎵"
+                                           FontSize="24"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center"/>
+                                </Grid>
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnProfilePhotoTapped"/>
+                                </Border.GestureRecognizers>
+                            </Border>
+
+                            <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="6">
+                                <Border StrokeThickness="0"
+                                        StrokeShape="RoundRectangle 16"
+                                        BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}">
+                                    <Entry x:Name="DisplayNameEntry"
+                                           Placeholder="Your display name"
+                                           Margin="12,4"
+                                           BackgroundColor="Transparent"
+                                           Completed="OnDisplayNameChanged"
+                                           Unfocused="OnDisplayNameChanged"/>
+                                </Border>
+                                <Label x:Name="DisplayNameHint"
+                                       Text="Photo and name can be changed anytime."
+                                       Style="{StaticResource DataLabel}"/>
+                            </VerticalStackLayout>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="Auto, *, Auto" ColumnSpacing="10">
+                            <Border x:Name="SessionDot"
+                                    WidthRequest="10" HeightRequest="10"
+                                    StrokeThickness="0"
+                                    StrokeShape="RoundRectangle 5"
+                                    BackgroundColor="{StaticResource Gray400}"
+                                    VerticalOptions="Center"/>
+                            <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="2">
+                                <Label x:Name="SessionStatusLabel"
+                                       Text="Checking..."
+                                       Style="{StaticResource ValueLabel}"/>
+                                <Label x:Name="SessionLastCheckLabel"
+                                       Text=""
+                                       Style="{StaticResource DataLabel}"/>
+                            </VerticalStackLayout>
+                        </Grid>
+
+                        <Grid>
+                            <Button x:Name="LoginButton"
+                                    Text="Login to TikTok"
+                                    BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                                    TextColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource PrimaryDarkText}}"
+                                    FontFamily="InterSemiBold"
+                                    CornerRadius="14"
+                                    HeightRequest="48"
+                                    Clicked="OnLoginClicked"/>
+                        </Grid>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Style="{StaticResource SectionCard}">
+                    <VerticalStackLayout Spacing="16">
+                        <Label Text="Settings" Style="{StaticResource SectionLabel}"/>
+
+                        <Grid ColumnDefinitions="*, Auto" ColumnSpacing="16">
+                            <VerticalStackLayout VerticalOptions="Center" Spacing="4">
+                                <Label Text="Background Automation" Style="{StaticResource ControlTitleLabel}"/>
+                                <Label Text="Keep streaks alive automatically" Style="{StaticResource DataLabel}" LineBreakMode="WordWrap"/>
+                            </VerticalStackLayout>
+                            <Switch x:Name="ScheduleSwitch"
+                                    Grid.Column="1"
+                                    VerticalOptions="Center"
+                                    Toggled="OnScheduleToggled"/>
+                        </Grid>
+
+                        <!-- Interval (hours-only) -->
+                        <VerticalStackLayout Spacing="8">
+                            <Grid ColumnDefinitions="*, Auto, Auto" ColumnSpacing="12">
+                                <VerticalStackLayout VerticalOptions="Center" Spacing="4">
+                                    <Label Text="Run Interval" Style="{StaticResource ControlTitleLabel}"/>
+                                    <Label x:Name="IntervalSummaryLabel"
+                                           Text="Every 23 hours between automatic runs."
+                                           Style="{StaticResource DataLabel}"
+                                           LineBreakMode="WordWrap"/>
+                                </VerticalStackLayout>
+                                <Label x:Name="IntervalHoursValueLabel"
+                                       Grid.Column="1"
+                                       Text="23"
+                                       VerticalOptions="Center"
+                                       FontFamily="InterSemiBold"
+                                       FontSize="16"
+                                       MinimumWidthRequest="32"
+                                       HorizontalTextAlignment="Center"/>
+                                <Stepper x:Name="IntervalHoursStepper"
+                                         Grid.Column="2"
+                                         Minimum="1"
+                                         Maximum="23"
+                                         Increment="1"
+                                         Value="23"
+                                         VerticalOptions="Center"
+                                         ValueChanged="OnIntervalHoursChanged"/>
+                            </Grid>
+                        </VerticalStackLayout>
+
+                        <Grid ColumnDefinitions="*, Auto" ColumnSpacing="16">
+                            <VerticalStackLayout VerticalOptions="Center" Spacing="4">
+                                <Label Text="Skip Unreachable" Style="{StaticResource ControlTitleLabel}"/>
+                                <Label Text="Continue to remaining users when one is not found" Style="{StaticResource DataLabel}" LineBreakMode="WordWrap"/>
+                            </VerticalStackLayout>
+                            <Switch x:Name="SkipUnreachableSwitch"
+                                    Grid.Column="1"
+                                    VerticalOptions="Center"
+                                    Toggled="OnSkipUnreachableToggled"/>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*, Auto" ColumnSpacing="16">
+                            <VerticalStackLayout VerticalOptions="Center" Spacing="4">
+                                <Label Text="Randomize Messages" Style="{StaticResource ControlTitleLabel}"/>
+                                <Label Text="Send a unique built-in streak message to each friend" Style="{StaticResource DataLabel}" LineBreakMode="WordWrap"/>
+                            </VerticalStackLayout>
+                            <Switch x:Name="RandomizeMessagesSwitch"
+                                    Grid.Column="1"
+                                    VerticalOptions="Center"
+                                    Toggled="OnRandomizeMessagesToggled"/>
+                        </Grid>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Style="{StaticResource SectionCard}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="About" Style="{StaticResource SectionLabel}"/>
+                        <Grid ColumnDefinitions="*, Auto">
+                            <VerticalStackLayout VerticalOptions="Center" Spacing="2">
+                                <Label Text="Streak Saver" Style="{StaticResource ValueLabel}"/>
+                                <Label x:Name="VersionLabel"
+                                       Text="v1.0.0"
+                                       Style="{StaticResource DataLabel}"/>
+                            </VerticalStackLayout>
+                            <Button Grid.Column="1"
+                                    Text="View Details"
+                                    Style="{StaticResource TextButton}"
+                                    Clicked="OnAboutClicked"/>
+                        </Grid>
+                        <Button x:Name="CheckUpdatesButton"
+                                Text="Check for updates"
+                                BackgroundColor="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray800}}"
+                                TextColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource White}}"
+                                CornerRadius="14"
+                                HeightRequest="44"
+                                Clicked="OnCheckUpdatesClicked"/>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Style="{StaticResource SectionCard}">
+                    <VerticalStackLayout Spacing="12">
+                        <Label Text="Data" Style="{StaticResource SectionLabel}"/>
+                        <Button Text="Logout / Clear Session"
+                                BackgroundColor="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray800}}"
+                                TextColor="{AppThemeBinding Light={StaticResource DeleteColor}, Dark={StaticResource DeleteColor}}"
+                                CornerRadius="14"
+                                HeightRequest="44"
+                                Clicked="OnLogoutClicked"/>
+                    </VerticalStackLayout>
+                </Border>
+
+                <BoxView HeightRequest="100" BackgroundColor="Transparent"/>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <views:FloatingNavBar CurrentTab="Profile" VerticalOptions="End"/>
+    </Grid>
+</ContentPage>

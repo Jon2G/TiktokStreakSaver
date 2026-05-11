@@ -46,11 +46,61 @@ public static class TikTokWebViewHelper
     }
 
     public static void FlushCookies() => Android.Webkit.CookieManager.Instance?.Flush();
+
+    /// <summary>
+    /// Instantly check if a valid <c>sessionid</c> cookie exists for TikTok.
+    /// Synchronous and uses zero network.
+    /// </summary>
+    public static bool HasValidSessionCookie()
+    {
+        try
+        {
+            var cookieManager = Android.Webkit.CookieManager.Instance;
+            if (cookieManager == null) return false;
+
+            string cookies1 = cookieManager.GetCookie("https://www.tiktok.com") ?? string.Empty;
+            string cookies2 = cookieManager.GetCookie("https://tiktok.com") ?? string.Empty;
+
+            return cookies1.Contains("sessionid=") || cookies2.Contains("sessionid=");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error checking session cookie: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Physically destroy all WebView cookies to guarantee a clean logout.
+    /// </summary>
+    public static void ClearAllCookies()
+    {
+        try
+        {
+            var cookieManager = Android.Webkit.CookieManager.Instance;
+            if (cookieManager != null)
+            {
+                cookieManager.RemoveAllCookies(null);
+                cookieManager.Flush();
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error clearing cookies: {ex.Message}");
+        }
+    }
+#else
+    public static bool HasValidSessionCookie() => false;
+    public static void ClearAllCookies() { }
 #endif
 
     public static string GetDefaultUserAgent() =>
         "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
 
+    /// <summary>
+    /// Original URL-heuristic login detection. Kept alongside the cookie probe
+    /// for callers that already key off URL transitions.
+    /// </summary>
     public static LoginStatusResult CheckLoginStatus(string? url)
     {
         var result = new LoginStatusResult { Url = url ?? string.Empty };

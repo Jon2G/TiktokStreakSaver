@@ -3,12 +3,35 @@
     x:Class="TiktokStreakSaver.AppShell"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    xmlns:local="clr-namespace:TiktokStreakSaver"
-    Title="TiktokStreakSaver">
+    xmlns:pages="clr-namespace:TiktokStreakSaver.Pages"
+    Title="Streak Saver"
+    Shell.NavBarIsVisible="False"
+    Shell.TabBarIsVisible="False">
 
-    <ShellContent
-        Title="Home"
-        ContentTemplate="{DataTemplate local:MainPage}"
-        Route="MainPage" />
+    <TabBar>
+        <ShellContent
+            Title="Dashboard"
+            ContentTemplate="{DataTemplate pages:DashboardPage}"
+            Route="DashboardPage"
+            Shell.TabBarIsVisible="False" />
+
+        <ShellContent
+            Title="History"
+            ContentTemplate="{DataTemplate pages:HistoryPage}"
+            Route="HistoryPage"
+            Shell.TabBarIsVisible="False" />
+
+        <ShellContent
+            Title="Friends"
+            ContentTemplate="{DataTemplate pages:FriendsPage}"
+            Route="FriendsPage"
+            Shell.TabBarIsVisible="False" />
+
+        <ShellContent
+            Title="Profile"
+            ContentTemplate="{DataTemplate pages:ProfilePage}"
+            Route="ProfilePage"
+            Shell.TabBarIsVisible="False" />
+    </TabBar>
 
 </Shell>

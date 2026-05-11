@@ -1,0 +1,404 @@
+using Microsoft.Maui.Controls.Shapes;
+using TiktokStreakSaver.Models;
+using TiktokStreakSaver.Services;
+using TiktokStreakSaver.Views;
+
+namespace TiktokStreakSaver.Pages;
+
+[Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
+public partial class DashboardPage : ContentPage
+{
+    private readonly SettingsService _settingsService;
+    private readonly SessionService _sessionService;
+    private readonly UpdateService _updateService;
+    private bool _isCheckingForUpdates = false;
+    private bool _isAppInForeground = false;
+    private IDispatcherTimer? _statusTimer;
+    private readonly NormalProgressDrawable _normalProgressDrawable;
+
+    public DashboardPage()
+    {
+        InitializeComponent();
+        _settingsService = new SettingsService();
+        _sessionService = new SessionService();
+        _updateService = new UpdateService();
+
+        _normalProgressDrawable = new NormalProgressDrawable();
+        OverviewProgressGraphicsView.Drawable = _normalProgressDrawable;
+    }
+
+    private Color GetThemeColor(string key, string fallbackHex = "#92979E")
+    {
+        if (Application.Current != null && Application.Current.Resources.TryGetValue(key, out var resource) && resource is Color color)
+            return color;
+        return Color.FromArgb(fallbackHex);
+    }
+
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+        _isAppInForeground = true;
+
+        this.Opacity = 0;
+        this.TranslationY = 12;
+        await Task.WhenAll(
+            this.FadeTo(1, 280, Easing.SinInOut),
+            this.TranslateTo(0, 0, 280, Easing.SinInOut));
+
+        GreetingLabel.Text = $"Hi, {_sessionService.GetDisplayName()}";
+
+        LoadProfilePhoto();
+        UpdateSessionIndicator();
+
+        LoadSettings();
+        UpdateStatus();
+
+        CheckGlobalSessionStatus();
+
+        await EvaluatePermissionsAsync();
+
+        if (_statusTimer == null)
+        {
+            _statusTimer = Dispatcher.CreateTimer();
+            _statusTimer.Interval = TimeSpan.FromSeconds(1);
+            _statusTimer.Tick += OnStatusTimerTick;
+        }
+        _statusTimer.Start();
+        OnStatusTimerTick(null, EventArgs.Empty);
+
+        _ = CheckStartupPopupAsync();
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        _isAppInForeground = false;
+        if (_statusTimer != null)
+        {
+            _statusTimer.Stop();
+            _statusTimer.Tick -= OnStatusTimerTick;
+            _statusTimer = null;
+        }
+    }
+
+    private void LoadProfilePhoto()
+    {
+        var photoPath = _sessionService.GetProfileImagePath();
+        if (!string.IsNullOrEmpty(photoPath) && System.IO.File.Exists(photoPath))
+        {
+            ProfileAvatarImage.Source = ImageSource.FromFile(photoPath);
+            ProfileAvatarImage.IsVisible = true;
+            ProfileAvatarEmoji.IsVisible = false;
+            ProfileAvatarImage.Clip = new EllipseGeometry
+            {
+                Center = new Point(22, 22),
+                RadiusX = 22,
+                RadiusY = 22
+            };
+        }
+        else
+        {
+            ProfileAvatarImage.IsVisible = false;
+            ProfileAvatarEmoji.IsVisible = true;
+        }
+    }
+
+    private void UpdateSessionIndicator()
+    {
+        bool valid = _sessionService.IsSessionValid();
+        MasterRunButton.IsEnabled = valid;
+        MasterRunButton.Opacity = valid ? 1.0 : 0.5;
+        if (!valid && !MasterRunButton.Text.Contains("Login Required"))
+        {
+            MasterRunButton.Text = "Login Required";
+        }
+    }
+
+    private void CheckGlobalSessionStatus()
+    {
+        bool isValid = TikTokWebViewHelper.HasValidSessionCookie();
+        _sessionService.SetSessionValid(isValid);
+        UpdateSessionIndicator();
+    }
+
+    private void OnStatusTimerTick(object? sender, EventArgs e)
+    {
+        bool isRunning = false;
+#if ANDROID
+        isRunning = TiktokStreakSaver.Platforms.Android.Services.StreakService.IsRunning;
+#endif
+        RunButtonsContainer.IsVisible = !isRunning;
+        StopServiceButton.IsVisible = isRunning;
+
+        MessageEditor.IsEnabled = !isRunning;
+        MessageEditor.Opacity = isRunning ? 0.6 : 1.0;
+
+        UpdateStatus();
+    }
+
+    private static string NormalizeVersion(string raw)
+        => raw.StartsWith("v", StringComparison.OrdinalIgnoreCase) ? raw.Substring(1) : raw;
+
+    private async Task CheckStartupPopupAsync()
+    {
+        if (_isCheckingForUpdates) return;
+        _isCheckingForUpdates = true;
+        try
+        {
+            if (!_isAppInForeground) return;
+            if (Navigation.ModalStack.Any(p => p is AboutPopupPage)) return;
+
+            string currentVersion = NormalizeVersion(AppInfo.Current.VersionString);
+
+            bool updateJustInstalled = Preferences.Default.Get("UpdateJustInstalled", false);
+            if (updateJustInstalled)
+            {
+                Preferences.Default.Remove("UpdateJustInstalled");
+                Preferences.Default.Set("LastAppVersionSeen", currentVersion);
+                _isCheckingForUpdates = false;
+                await CheckUpdateOnlyAsync();
+                return;
+            }
+
+            string lastAppSeen = NormalizeVersion(Preferences.Default.Get("LastAppVersionSeen", string.Empty));
+            if (string.IsNullOrEmpty(lastAppSeen) || lastAppSeen != currentVersion)
+            {
+                await MainThread.InvokeOnMainThreadAsync(async () =>
+                    await Navigation.PushModalAsync(new AboutPopupPage(
+                        "Welcome to Streak Saver", currentVersion, string.Empty, false)));
+                return;
+            }
+
+            _isCheckingForUpdates = false;
+            await CheckUpdateOnlyAsync();
+        }
+        catch { }
+        finally { _isCheckingForUpdates = false; }
+    }
+
+    private async Task CheckUpdateOnlyAsync()
+    {
+        if (_isCheckingForUpdates) return;
+        _isCheckingForUpdates = true;
+        try
+        {
+            if (!_isAppInForeground) return;
+            if (Navigation.ModalStack.Any(p => p is AboutPopupPage)) return;
+
+            string currentVersion = NormalizeVersion(AppInfo.Current.VersionString);
+            string lastRemoteSeen = NormalizeVersion(Preferences.Default.Get("LastRemoteVersionSeen", string.Empty));
+
+            var updateCheck = await _updateService.CheckForUpdatesAsync();
+            if (updateCheck == null || !updateCheck.HasUpdate) return;
+
+            string remoteVersion = NormalizeVersion(updateCheck.LatestVersion);
+            if (remoteVersion == lastRemoteSeen || remoteVersion == currentVersion) return;
+            if (Navigation.ModalStack.Any(p => p is AboutPopupPage)) return;
+
+            await MainThread.InvokeOnMainThreadAsync(async () =>
+                await Navigation.PushModalAsync(new AboutPopupPage(
+                    "Update Available!", remoteVersion, updateCheck.Changelog, true, updateCheck.ApkDownloadUrl)));
+        }
+        catch { }
+        finally { _isCheckingForUpdates = false; }
+    }
+
+    private void LoadSettings()
+    {
+        MessageEditor.Text = _settingsService.GetMessageText();
+
+        var isRandomized = _settingsService.GetRandomizeNormalMessages();
+        MessageEditor.IsEnabled = !isRandomized;
+        MessageEditorBorder.Opacity = isRandomized ? 0.4 : 1.0;
+        MessageEditorHint.Text = isRandomized
+            ? "Randomized messages enabled — 50 built-in variants"
+            : "Message sent to each friend during a streak run";
+    }
+
+    private void UpdateStatus()
+    {
+        var isScheduled = _settingsService.IsScheduled();
+        var lastRun = _settingsService.GetLastRunTime();
+        if (lastRun.HasValue)
+        {
+            var timeSince = DateTime.Now - lastRun.Value;
+            if (timeSince.TotalMinutes < 60) LastRunLabel.Text = $"{(int)timeSince.TotalMinutes} minutes ago";
+            else if (timeSince.TotalHours < 24) LastRunLabel.Text = $"{(int)timeSince.TotalHours} hours ago";
+            else LastRunLabel.Text = lastRun.Value.ToString("MMM dd, HH:mm");
+        }
+        else LastRunLabel.Text = "Never";
+
+        if (isScheduled)
+        {
+            var nextRun = _settingsService.GetNextRunTime();
+            var timeUntil = nextRun - DateTime.Now;
+            if (timeUntil.TotalMinutes < 60) NextRunLabel.Text = $"In {(int)timeUntil.TotalMinutes} minutes";
+            else if (timeUntil.TotalHours < 24) NextRunLabel.Text = $"In {(int)timeUntil.TotalHours} hours";
+            else NextRunLabel.Text = nextRun.ToString("MMM dd, HH:mm");
+        }
+        else NextRunLabel.Text = "Not scheduled";
+
+        var history = _settingsService.GetRunHistory();
+        var latestResult = history.FirstOrDefault();
+        var currentEnabledFriends = _settingsService.GetEnabledFriends();
+
+        bool ranToday = latestResult != null && latestResult.RunTime.Date == DateTime.Today;
+
+        int sentToday = 0;
+        int successPercent = 0;
+        int remainingToday = currentEnabledFriends.Count;
+        string progressText = $"0/{currentEnabledFriends.Count}";
+        float progressFraction = 0f;
+
+        if (ranToday && latestResult != null)
+        {
+            sentToday = latestResult.FriendResults.Count(r => r.Success);
+            int totalAttempted = latestResult.FriendResults.Count;
+
+            if (totalAttempted > 0)
+                successPercent = (int)((double)sentToday / totalAttempted * 100);
+            else
+                successPercent = 0;
+
+            remainingToday = Math.Max(0, currentEnabledFriends.Count - sentToday);
+            progressText = $"{sentToday}/{currentEnabledFriends.Count}";
+            progressFraction = currentEnabledFriends.Count > 0 ? (float)sentToday / currentEnabledFriends.Count : 0f;
+        }
+
+        OverviewSentLabel.Text = sentToday.ToString();
+        OverviewSuccessLabel.Text = ranToday ? $"{successPercent}%" : "--";
+        OverviewRemainingLabel.Text = remainingToday.ToString();
+
+        OverviewProgressLabel.Text = progressText;
+        _normalProgressDrawable.Progress = progressFraction;
+        _normalProgressDrawable.IsDarkTheme = Application.Current?.RequestedTheme == AppTheme.Dark;
+        OverviewProgressGraphicsView.Invalidate();
+    }
+
+    private void OnMessageChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (!string.IsNullOrEmpty(e.NewTextValue)) _settingsService.SetMessageText(e.NewTextValue);
+    }
+
+    private async void OnMasterRunClicked(object? sender, EventArgs e)
+    {
+        await MasterRunButton.ScaleTo(0.94, 60, Easing.CubicIn);
+        await MasterRunButton.ScaleTo(1.0, 100, Easing.CubicOut);
+
+        var friends = _settingsService.GetEnabledFriends();
+        if (friends.Count == 0)
+        {
+            await DisplayAlert("No Friends", "Please add at least one friend before running.", "OK");
+            return;
+        }
+
+        var confirm = await DisplayAlert(
+            "Run Now",
+            $"This will send your streak message to {friends.Count} friend{(friends.Count != 1 ? "s" : "")}. Continue?",
+            "Run", "Cancel");
+        if (!confirm) return;
+
+#if ANDROID
+        bool permissionGranted = await RequestNotificationPermission();
+        if (!permissionGranted) return;
+
+        var context = Platform.CurrentActivity ?? Android.App.Application.Context;
+        bool started = TiktokStreakSaver.Platforms.Android.StreakScheduler.RunNow(context);
+        if (started)
+        {
+            await DisplayAlert("Started", "Streak run started. Check the notification for progress.", "OK");
+            UpdateStatus();
+        }
+        else
+        {
+            await DisplayAlert("Already Running", "A process is already running. Please wait for it to finish.", "OK");
+        }
+#else
+        await DisplayAlert("Info", "This feature is only available on Android", "OK");
+#endif
+    }
+
+    private async void OnStopServiceClicked(object? sender, EventArgs e)
+    {
+        await StopServiceButton.ScaleTo(0.94, 60, Easing.CubicIn);
+        await StopServiceButton.ScaleTo(1.0, 100, Easing.CubicOut);
+#if ANDROID
+        var context = Platform.CurrentActivity ?? Android.App.Application.Context;
+        TiktokStreakSaver.Platforms.Android.StreakScheduler.StopService(context);
+#endif
+    }
+
+    private async void OnRefreshing(object? sender, EventArgs e)
+    {
+        GreetingLabel.Text = $"Hi, {_sessionService.GetDisplayName()}";
+        LoadProfilePhoto();
+        UpdateSessionIndicator();
+        LoadSettings();
+        UpdateStatus();
+        await EvaluatePermissionsAsync();
+        await CheckUpdateOnlyAsync();
+        MainRefreshView.IsRefreshing = false;
+    }
+
+    private async Task EvaluatePermissionsAsync()
+    {
+#if ANDROID
+        var context = Platform.CurrentActivity ?? Android.App.Application.Context;
+        bool exactAlarmGranted = TiktokStreakSaver.Platforms.Android.StreakScheduler.CanScheduleExactAlarms(context);
+        bool batteryOptGranted = TiktokStreakSaver.Platforms.Android.StreakScheduler.IsIgnoringBatteryOptimizations(context);
+        bool notificationGranted = true;
+        if (Android.OS.Build.VERSION.SdkInt >= Android.OS.BuildVersionCodes.Tiramisu)
+        {
+            var status = await Permissions.CheckStatusAsync<Permissions.PostNotifications>();
+            notificationGranted = (status == PermissionStatus.Granted);
+        }
+        BtnExactAlarm.IsVisible = !exactAlarmGranted;
+        BtnBatteryOpt.IsVisible = !batteryOptGranted;
+        BtnNotification.IsVisible = !notificationGranted;
+        PermissionsPanel.IsVisible = !exactAlarmGranted || !batteryOptGranted || !notificationGranted;
+#else
+        await Task.CompletedTask;
+        PermissionsPanel.IsVisible = false;
+#endif
+    }
+
+    private void OnRequestExactAlarmClicked(object? sender, EventArgs e)
+    {
+#if ANDROID
+        var context = Platform.CurrentActivity ?? Android.App.Application.Context;
+        TiktokStreakSaver.Platforms.Android.StreakScheduler.RequestExactAlarmPermission(context);
+#endif
+    }
+
+    private void OnRequestBatteryOptimizationClicked(object? sender, EventArgs e)
+    {
+#if ANDROID
+        var context = Platform.CurrentActivity ?? Android.App.Application.Context;
+        TiktokStreakSaver.Platforms.Android.StreakScheduler.RequestBatteryOptimizationExemption(context);
+#endif
+    }
+
+    private async void OnRequestNotificationClicked(object? sender, EventArgs e)
+    {
+        await RequestNotificationPermission();
+        await EvaluatePermissionsAsync();
+    }
+
+    private async Task<bool> RequestNotificationPermission()
+    {
+#if ANDROID
+        if (Android.OS.Build.VERSION.SdkInt >= Android.OS.BuildVersionCodes.Tiramisu)
+        {
+            var status = await Permissions.RequestAsync<Permissions.PostNotifications>();
+            if (status != PermissionStatus.Granted)
+            {
+                await DisplayAlert("Permission Required", "Notification permission is required to show status while sending streaks.", "OK");
+                return false;
+            }
+        }
+#else
+        await Task.CompletedTask;
+#endif
+        return true;
+    }
+}

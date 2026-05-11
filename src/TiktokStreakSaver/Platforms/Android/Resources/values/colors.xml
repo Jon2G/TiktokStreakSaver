@@ -2,4 +2,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
   <!-- Theme-aware splash: light / default system theme -->
   <color name="maui_splash_color">#FE2C55</color>
+  <!-- Android 12+ themed splash background (used by App.StartingTheme / values-v31). -->
+  <color name="splash_bg">#FFFFFF</color>
 </resources>
