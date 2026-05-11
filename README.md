@@ -1,6 +1,10 @@
-# 🔥 Streak Saver
+<p align="center">
+  <img src="docs/imgs/icon.png" alt="Streak Saver app icon" width="128" height="128"/>
+</p>
 
-**Automatically send TikTok messages to keep your streaks alive!**
+<h1 align="center">🔥 Streak Saver</h1>
+
+<p align="center"><strong>Automatically send TikTok messages to keep your streaks alive!</strong></p>
 
 Streak Saver is an open-source Android app that runs in the background and automatically sends messages to your TikTok friends every 23 hours, ensuring you never lose your streaks.
 
