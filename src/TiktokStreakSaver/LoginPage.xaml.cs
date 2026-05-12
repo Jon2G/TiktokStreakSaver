@@ -7,12 +7,14 @@ namespace TiktokStreakSaver;
 public partial class LoginPage : ContentPage
 {
     private readonly SessionService _sessionService;
+    private readonly SettingsService _settingsService;
     private bool _isLoggedIn = false;
 
     public LoginPage()
     {
         InitializeComponent();
         _sessionService = new SessionService();
+        _settingsService = new SettingsService();
     }
 
     protected override void OnAppearing()
@@ -71,8 +73,24 @@ public partial class LoginPage : ContentPage
 
         if (_isLoggedIn)
         {
-            await DisplayAlert("Logged In",
-                "You're logged in to TikTok! The app will use this session for background messaging.", "OK");
+            // Auto-enable background automation on the first login (idempotent: a no-op if the
+            // user has already enabled it, so re-logging in won't disturb an existing schedule).
+            bool justEnabled = false;
+            if (!_settingsService.IsScheduled())
+            {
+#if ANDROID
+                var context = Platform.CurrentActivity ?? Android.App.Application.Context;
+                TiktokStreakSaver.Platforms.Android.StreakScheduler.ScheduleNextRun(context);
+#else
+                _settingsService.SetScheduled(true);
+#endif
+                justEnabled = true;
+            }
+
+            var body = justEnabled
+                ? "You're logged in to TikTok! Background automation has been enabled — your streaks will run on the schedule set in Profile."
+                : "You're logged in to TikTok! The app will use this session for background messaging.";
+            await DisplayAlert("Logged In", body, "OK");
             await Navigation.PopAsync();
         }
         else

@@ -26,6 +26,44 @@
                                HorizontalOptions="Start"/>
                     </VerticalStackLayout>
 
+                    <!-- Login required warning (visible only when no TikTok session) -->
+                    <Border x:Name="LoginRequiredBanner"
+                            IsVisible="False"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 16"
+                            Padding="14,12"
+                            Stroke="{AppThemeBinding Light=#FED7AA, Dark=#9A3412}"
+                            BackgroundColor="{AppThemeBinding Light=#FFF7ED, Dark=#2A1A0E}">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" VerticalOptions="Center">
+                            <Label Grid.Column="0"
+                                   Text="!"
+                                   FontFamily="InterSemiBold"
+                                   FontSize="18"
+                                   WidthRequest="28" HeightRequest="28"
+                                   HorizontalTextAlignment="Center" VerticalTextAlignment="Center"
+                                   BackgroundColor="{AppThemeBinding Light=#D97706, Dark=#FBBF24}"
+                                   TextColor="{AppThemeBinding Light=White, Dark=Black}"
+                                   VerticalOptions="Center"/>
+                            <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                                <Label Text="TikTok login required"
+                                       FontFamily="InterSemiBold"
+                                       FontSize="14"
+                                       TextColor="{AppThemeBinding Light=#9A3412, Dark=#FBBF24}"/>
+                                <Label Text="You must log in to TikTok before any streak messages can be sent."
+                                       FontFamily="InterRegular"
+                                       FontSize="12"
+                                       TextColor="{AppThemeBinding Light=#7C2D12, Dark={StaticResource Gray300}}"/>
+                            </VerticalStackLayout>
+                            <Button Grid.Column="2"
+                                    Text="Log in"
+                                    FontSize="12" Padding="12,0" HeightRequest="36"
+                                    CornerRadius="14"
+                                    BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                                    TextColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource PrimaryDarkText}}"
+                                    Clicked="OnLoginRequiredClicked"/>
+                        </Grid>
+                    </Border>
+
                     <!-- Mode Switcher (Friends / Groups) -->
                     <Border Stroke="{AppThemeBinding Light={StaticResource BorderColorLight}, Dark={StaticResource BorderColorDark}}"
                             StrokeThickness="1"

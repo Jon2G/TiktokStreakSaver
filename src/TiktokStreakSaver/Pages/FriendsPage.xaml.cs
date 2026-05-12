@@ -8,6 +8,7 @@ namespace TiktokStreakSaver.Pages;
 public partial class FriendsPage : ContentPage
 {
     private readonly SettingsService _settingsService;
+    private readonly SessionService _sessionService;
     private bool _lastIsRunning = false;
     private IDispatcherTimer? _statusTimer;
     private bool _isGroupMode = false;
@@ -16,6 +17,7 @@ public partial class FriendsPage : ContentPage
     {
         InitializeComponent();
         _settingsService = new SettingsService();
+        _sessionService = new SessionService();
     }
 
     private Color GetThemeColor(string key, string fallbackHex = "#92979E")
@@ -34,6 +36,7 @@ public partial class FriendsPage : ContentPage
             this.FadeTo(1, 280, Easing.SinInOut),
             this.TranslateTo(0, 0, 280, Easing.SinInOut));
         LoadLists();
+        UpdateLoginBanner();
 
         if (_statusTimer == null)
         {
@@ -58,6 +61,8 @@ public partial class FriendsPage : ContentPage
 
     private void OnStatusTimerTick(object? sender, EventArgs e)
     {
+        UpdateLoginBanner();
+
         bool isRunning = false;
 #if ANDROID
         isRunning = TiktokStreakSaver.Platforms.Android.Services.StreakService.IsRunning;
@@ -438,6 +443,35 @@ public partial class FriendsPage : ContentPage
             await DisplayAlert("Import Complete", $"Import complete.\n\nAdded: {added}\nUpdated: {updated}\nSkipped: {skipped}", "OK");
         }
         catch (Exception ex) { await DisplayAlert("Import Failed", $"Unexpected error: {ex.Message}", "OK"); }
+    }
+
+    // ─── Login banner ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Show a non-blocking warning banner when no valid TikTok session is stored.
+    /// Without a session the background service can manage the friend list locally
+    /// but cannot actually send streak messages, so users editing this page need to
+    /// see that gap immediately. The cookie probe is best-effort: on Android it's
+    /// a real lookup; on other targets it returns false, in which case we fall back
+    /// to the persisted session flag and skip flipping it negative.
+    /// </summary>
+    private void UpdateLoginBanner()
+    {
+        bool sessionValid = _sessionService.IsSessionValid();
+#if ANDROID
+        bool cookieValid = TikTokWebViewHelper.HasValidSessionCookie();
+        if (cookieValid != sessionValid)
+        {
+            _sessionService.SetSessionValid(cookieValid);
+            sessionValid = cookieValid;
+        }
+#endif
+        LoginRequiredBanner.IsVisible = !sessionValid;
+    }
+
+    private async void OnLoginRequiredClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PushAsync(new LoginPage());
     }
 
     private async void OnExportFriendsClicked(object? sender, EventArgs e)
