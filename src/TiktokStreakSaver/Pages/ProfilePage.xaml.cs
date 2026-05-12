@@ -45,6 +45,14 @@ public partial class ProfilePage : ContentPage
         SkipUnreachableSwitch.IsToggled = _settingsService.GetSkipUnreachableUsers();
         RandomizeMessagesSwitch.IsToggled = _settingsService.GetRandomizeNormalMessages();
 
+        FixedTimeSwitch.IsToggled = _settingsService.GetUseFixedTime();
+        ScheduleTimePicker.Time = new TimeSpan(
+            _settingsService.GetFixedTimeHour(),
+            _settingsService.GetFixedTimeMinute(), 0);
+        ScheduleOptionsPanel.IsVisible = ScheduleSwitch.IsToggled;
+        TimePickerRow.IsVisible = FixedTimeSwitch.IsToggled;
+        IntervalPanel.IsVisible = !FixedTimeSwitch.IsToggled;
+
         _suppressIntervalChanged = true;
         try
         {
@@ -155,12 +163,42 @@ public partial class ProfilePage : ContentPage
 
     private void OnScheduleToggled(object? sender, ToggledEventArgs e)
     {
+        ScheduleOptionsPanel.IsVisible = e.Value;
 #if ANDROID
         var context = Platform.CurrentActivity ?? Android.App.Application.Context;
         if (e.Value)
             TiktokStreakSaver.Platforms.Android.StreakScheduler.ScheduleNextRun(context);
         else
             TiktokStreakSaver.Platforms.Android.StreakScheduler.CancelSchedule(context);
+#endif
+    }
+
+    private void OnFixedTimeToggled(object? sender, ToggledEventArgs e)
+    {
+        _settingsService.SetUseFixedTime(e.Value);
+        TimePickerRow.IsVisible = e.Value;
+        IntervalPanel.IsVisible = !e.Value;
+#if ANDROID
+        if (_settingsService.IsScheduled())
+        {
+            var context = Platform.CurrentActivity ?? Android.App.Application.Context;
+            TiktokStreakSaver.Platforms.Android.StreakScheduler.ScheduleNextRun(context);
+        }
+#endif
+    }
+
+    private void OnTimePickerChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(TimePicker.Time)) return;
+        var time = ScheduleTimePicker.Time;
+        _settingsService.SetFixedTimeHour(time.Hours);
+        _settingsService.SetFixedTimeMinute(time.Minutes);
+#if ANDROID
+        if (_settingsService.IsScheduled() && _settingsService.GetUseFixedTime())
+        {
+            var context = Platform.CurrentActivity ?? Android.App.Application.Context;
+            TiktokStreakSaver.Platforms.Android.StreakScheduler.ScheduleNextRun(context);
+        }
 #endif
     }
 

@@ -23,23 +23,37 @@ public static class StreakScheduler
     public static void ScheduleNextRun(Context context)
     {
         var settingsService = new SettingsService();
-        var intervalHours = settingsService.GetIntervalHours();
-        var lastRun = settingsService.GetLastRunTime();
-
         DateTime nextRunTime;
-        if (lastRun.HasValue)
+
+        if (settingsService.GetUseFixedTime())
         {
-            nextRunTime = lastRun.Value.AddHours(intervalHours);
-            // If the calculated time is in the past, schedule for now + small delay
-            if (nextRunTime < DateTime.Now)
-            {
-                nextRunTime = DateTime.Now.AddMinutes(1);
-            }
+            // Fixed daily mode: today's target time, or tomorrow if it's already past.
+            var now = DateTime.Now;
+            var hour = settingsService.GetFixedTimeHour();
+            var minute = settingsService.GetFixedTimeMinute();
+            nextRunTime = now.Date.AddHours(hour).AddMinutes(minute);
+            if (nextRunTime <= now)
+                nextRunTime = nextRunTime.AddDays(1);
         }
         else
         {
-            // First run - schedule for interval from now
-            nextRunTime = DateTime.Now.AddHours(intervalHours);
+            var intervalHours = settingsService.GetIntervalHours();
+            var lastRun = settingsService.GetLastRunTime();
+
+            if (lastRun.HasValue)
+            {
+                nextRunTime = lastRun.Value.AddHours(intervalHours);
+                // If the calculated time is in the past, schedule for now + small delay
+                if (nextRunTime < DateTime.Now)
+                {
+                    nextRunTime = DateTime.Now.AddMinutes(1);
+                }
+            }
+            else
+            {
+                // First run - schedule for interval from now
+                nextRunTime = DateTime.Now.AddHours(intervalHours);
+            }
         }
 
         ScheduleAt(context, nextRunTime);

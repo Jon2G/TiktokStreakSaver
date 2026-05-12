@@ -114,8 +114,33 @@
                                     Toggled="OnScheduleToggled"/>
                         </Grid>
 
-                        <!-- Interval (hours-only) -->
-                        <VerticalStackLayout Spacing="8">
+                        <!-- Daily Schedule (visible when automation is ON) -->
+                        <VerticalStackLayout x:Name="ScheduleOptionsPanel" IsVisible="False" Spacing="12">
+                            <Grid ColumnDefinitions="*, Auto" ColumnSpacing="16">
+                                <VerticalStackLayout VerticalOptions="Center" Spacing="4">
+                                    <Label Text="Daily Schedule" Style="{StaticResource ControlTitleLabel}"/>
+                                    <Label Text="Run at the same time every day instead of every N hours" Style="{StaticResource DataLabel}" LineBreakMode="WordWrap"/>
+                                </VerticalStackLayout>
+                                <Switch x:Name="FixedTimeSwitch"
+                                        Grid.Column="1"
+                                        VerticalOptions="Center"
+                                        Toggled="OnFixedTimeToggled"/>
+                            </Grid>
+
+                            <Grid x:Name="TimePickerRow" IsVisible="False"
+                                  ColumnDefinitions="*, Auto" ColumnSpacing="16">
+                                <Label Text="Run at" VerticalOptions="Center"
+                                       Style="{StaticResource ControlTitleLabel}"/>
+                                <TimePicker x:Name="ScheduleTimePicker"
+                                            Grid.Column="1"
+                                            Format="HH:mm"
+                                            VerticalOptions="Center"
+                                            PropertyChanged="OnTimePickerChanged"/>
+                            </Grid>
+                        </VerticalStackLayout>
+
+                        <!-- Interval (hours-only) — used when Daily Schedule is OFF -->
+                        <VerticalStackLayout x:Name="IntervalPanel" Spacing="8">
                             <Grid ColumnDefinitions="*, Auto, Auto" ColumnSpacing="12">
                                 <VerticalStackLayout VerticalOptions="Center" Spacing="4">
                                     <Label Text="Run Interval" Style="{StaticResource ControlTitleLabel}"/>

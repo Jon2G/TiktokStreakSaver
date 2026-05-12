@@ -440,7 +440,8 @@ public class StreakService : Service
 
         var friend = _friendsToProcess[_currentFriendIndex];
 
-        AppLog("PROCESS", $"@{friend.Username}", "Starting regular messaging");
+        var logTarget = friend.IsGroup ? $"Group: {friend.DisplayName}" : $"@{friend.Username}";
+        AppLog("PROCESS", logTarget, "Starting regular messaging");
 
         SendCurrentFriendMessage();
     }
@@ -467,11 +468,23 @@ public class StreakService : Service
         {
             message = _settingsService?.GetMessageText() ?? SettingsService.DefaultMessage;
         }
-        UpdateNotification($"{_currentFriendIndex + 1}/{_friendsToProcess.Count} \u2014 Processing: @{friend.Username}",
+
+        var displayLabel = friend.IsGroup ? friend.DisplayName : $"@{friend.Username}";
+        UpdateNotification($"{_currentFriendIndex + 1}/{_friendsToProcess.Count} \u2014 Processing: {displayLabel}",
             _currentFriendIndex, _friendsToProcess.Count);
 
+        // For groups TikTok has no @handle, so we match the chat header by display name instead.
+        var target = friend.IsGroup ? friend.DisplayName : friend.Username;
+        if (string.IsNullOrWhiteSpace(target))
+        {
+            AppLog("FAIL", "-", friend.IsGroup ? "Group name is empty" : "Username is empty");
+            _currentFriendIndex++;
+            _mainHandler?.PostDelayed(ProcessNextFriend, 1000);
+            return;
+        }
+
         _allowSendRetries = true;
-        var js = GetFriendMessageScript(friend.Username, message);
+        var js = GetFriendMessageScript(target, message, friend.IsGroup);
         _webView?.EvaluateJavascript(js, null);
     }
 
@@ -484,15 +497,17 @@ public class StreakService : Service
         }
     }
 
-    private string GetFriendMessageScript(string username, string message)
+    private string GetFriendMessageScript(string target, string message, bool isGroup)
     {
-        // Escape special characters for JavaScript
-        var escapedUsername = username.Replace("\\", "\\\\").Replace("'", "\\'").Replace("\"", "\\\"");
+        // Escape special characters for JavaScript string literals
+        target ??= string.Empty;
+        message ??= string.Empty;
+        var escapedTarget = target.Replace("\\", "\\\\").Replace("'", "\\'").Replace("\"", "\\\"");
         var escapedMessage = message.Replace("\\", "\\\\").Replace("'", "\\'").Replace("\"", "\\\"").Replace("\n", "\\n");
 
-
-        var automationScript = this._baseScript.Replace("[UserName]", escapedUsername);
+        var automationScript = this._baseScript.Replace("[UserName]", escapedTarget);
         automationScript = automationScript.Replace("[Message]", escapedMessage);
+        automationScript = automationScript.Replace("[IsGroup]", isGroup ? "true" : "false");
         return automationScript;
     }
 
@@ -501,15 +516,19 @@ public class StreakService : Service
         if (_isCancelRequested) return;
         if (_friendsToProcess == null || _settingsService == null) return;
 
-        var friend = _friendsToProcess.FirstOrDefault(f => f.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
+        // The JS callback reports the target it was given: a username for DMs, or the
+        // display name for groups (groups have no @handle on TikTok).
+        var friend = _friendsToProcess.FirstOrDefault(f =>
+            (f.IsGroup && f.DisplayName.Equals(username, StringComparison.OrdinalIgnoreCase)) ||
+            (!f.IsGroup && f.Username.Equals(username, StringComparison.OrdinalIgnoreCase)));
 
         if (friend == null)
         {
-            // Username reported by JS doesn't match any friend in the list. This can happen
-            // when TikTok returns a different username casing/format. Retry the current friend
+            // Target reported by JS doesn't match any friend/group in the list. This can happen
+            // when TikTok returns a different casing/format. Retry the current friend
             // a few times rather than silently advancing past it.
             AppLog("WARN", $"@{username}",
-                "Username from JS callback did not match any friend in the list. Retrying current friend...");
+                "Target from JS callback did not match any entry in the list. Retrying current friend...");
             _failureAttemptsForCurrentFriend++;
             if (_failureAttemptsForCurrentFriend < MaxSendAttemptsPerFriend)
             {
@@ -525,26 +544,27 @@ public class StreakService : Service
             return;
         }
 
+        var label = friend.IsGroup ? $"Group: {friend.DisplayName}" : $"@{username}";
         if (!success)
         {
             _failureAttemptsForCurrentFriend++;
             if (_allowSendRetries && _failureAttemptsForCurrentFriend < MaxSendAttemptsPerFriend)
             {
-                AppLog("RETRY", $"@{username}",
+                AppLog("RETRY", label,
                     $"Attempt {_failureAttemptsForCurrentFriend}/{MaxSendAttemptsPerFriend}: {error}");
                 _mainHandler?.PostDelayed(SendCurrentFriendMessage, 3000);
                 return;
             }
 
             friend.FailureCount++;
-            AppLog("FAIL", $"@{username}", error);
+            AppLog("FAIL", label, error);
 
             bool skipUnreachable = _settingsService.GetSkipUnreachableUsers();
             if (skipUnreachable && error == UserNotFoundError)
             {
                 friend.IsEnabled = false;
-                _disabledUsernames.Add($"@{username}");
-                AppLog("DISABLED", $"@{username}", "Auto-disabled — not found in chat list");
+                _disabledUsernames.Add(label);
+                AppLog("DISABLED", label, "Auto-disabled — not found in chat list");
             }
             _settingsService.UpdateFriend(friend);
 
@@ -558,14 +578,14 @@ public class StreakService : Service
 
             _failureAttemptsForCurrentFriend = 0;
             _currentFriendIndex++;
-            UpdateNotification($"{_currentFriendIndex}/{_friendsToProcess.Count} : Failed: @{username}", _currentFriendIndex, _friendsToProcess.Count);
+            UpdateNotification($"{_currentFriendIndex}/{_friendsToProcess.Count} : Failed: {label}", _currentFriendIndex, _friendsToProcess.Count);
             _mainHandler?.PostDelayed(ProcessNextFriend, 3000);
             return;
         }
 
         friend.SuccessCount++;
         friend.LastMessageSent = DateTime.Now;
-        AppLog("SUCCESS", $"@{username}", "Message sent");
+        AppLog("SUCCESS", label, "Message sent");
 
         _settingsService.UpdateFriend(friend);
 
@@ -582,11 +602,15 @@ public class StreakService : Service
 
     private void AdvanceToNextFriend(string username)
     {
+        var prevFriend = _friendsToProcess != null && _currentFriendIndex < _friendsToProcess.Count
+            ? _friendsToProcess[_currentFriendIndex] : null;
+        var sentLabel = prevFriend?.IsGroup == true ? prevFriend.DisplayName : $"@{username}";
+
         _currentFriendIndex++;
         _failureAttemptsForCurrentFriend = 0;
         var completedCount = _currentFriendIndex;
         var totalCount = _friendsToProcess?.Count ?? 0;
-        var resultText = $"{completedCount}/{totalCount} : Sent to @{username}";
+        var resultText = $"{completedCount}/{totalCount} : Sent to {sentLabel}";
         UpdateNotification(resultText, completedCount, totalCount);
 
         if (_currentFriendIndex < totalCount)

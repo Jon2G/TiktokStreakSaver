@@ -16,6 +16,9 @@ public class SettingsService
     private const string RunHistoryKey = "run_history";
     private const string IntervalHoursKey = "interval_hours";
     private const string SkipUnreachableUsersKey = "skip_unreachable_users";
+    private const string UseFixedTimeKey = "use_fixed_time";
+    private const string FixedTimeHourKey = "fixed_time_hour";
+    private const string FixedTimeMinuteKey = "fixed_time_minute";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -238,6 +241,13 @@ public class SettingsService
 
     public DateTime GetNextRunTime()
     {
+        if (GetUseFixedTime())
+        {
+            var now = DateTime.Now;
+            var today = now.Date.AddHours(GetFixedTimeHour()).AddMinutes(GetFixedTimeMinute());
+            return today > now ? today : today.AddDays(1);
+        }
+
         var lastRun = GetLastRunTime();
         var intervalHours = GetIntervalHours();
 
@@ -246,6 +256,28 @@ public class SettingsService
 
         return DateTime.Now;
     }
+
+    /// <summary>
+    /// When true, scheduling uses a fixed daily clock time (Hour:Minute) instead of
+    /// the rolling interval based on last run.
+    /// </summary>
+    public bool GetUseFixedTime() => Preferences.Get(UseFixedTimeKey, false);
+
+    public void SetUseFixedTime(bool value) => Preferences.Set(UseFixedTimeKey, value);
+
+    /// <summary>
+    /// Hour of day (0-23) for fixed daily schedule.
+    /// </summary>
+    public int GetFixedTimeHour() => Preferences.Get(FixedTimeHourKey, DateTime.Now.Hour);
+
+    public void SetFixedTimeHour(int hour) => Preferences.Set(FixedTimeHourKey, Math.Clamp(hour, 0, 23));
+
+    /// <summary>
+    /// Minute (0-59) for fixed daily schedule.
+    /// </summary>
+    public int GetFixedTimeMinute() => Preferences.Get(FixedTimeMinuteKey, DateTime.Now.Minute);
+
+    public void SetFixedTimeMinute(int minute) => Preferences.Set(FixedTimeMinuteKey, Math.Clamp(minute, 0, 59));
 
     #endregion
 
