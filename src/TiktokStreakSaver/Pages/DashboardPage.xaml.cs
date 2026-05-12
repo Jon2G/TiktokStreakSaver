@@ -230,11 +230,7 @@ public partial class DashboardPage : ContentPage
 
         if (isScheduled)
         {
-            var nextRun = _settingsService.GetNextRunTime();
-            var timeUntil = nextRun - DateTime.Now;
-            if (timeUntil.TotalMinutes < 60) NextRunLabel.Text = $"In {(int)timeUntil.TotalMinutes} minutes";
-            else if (timeUntil.TotalHours < 24) NextRunLabel.Text = $"In {(int)timeUntil.TotalHours} hours";
-            else NextRunLabel.Text = nextRun.ToString("MMM dd, HH:mm");
+            NextRunLabel.Text = FormatNextRun(_settingsService.GetNextRunTime());
         }
         else NextRunLabel.Text = "Not scheduled";
 
@@ -273,6 +269,36 @@ public partial class DashboardPage : ContentPage
         _normalProgressDrawable.Progress = progressFraction;
         _normalProgressDrawable.IsDarkTheme = Application.Current?.RequestedTheme == AppTheme.Dark;
         OverviewProgressGraphicsView.Invalidate();
+    }
+
+    /// <summary>
+    /// Human-readable next-run label.
+    /// Imminent runs use a relative phrasing ("Now", "In 12 minutes"); future runs are anchored to
+    /// the calendar day ("Today at 09:00", "Tomorrow at 09:00", "Wed, May 14 at 09:00") so the
+    /// fixed-daily-schedule mode reads naturally even when the next run is up to a day away.
+    /// </summary>
+    private static string FormatNextRun(DateTime nextRun)
+    {
+        var now = DateTime.Now;
+        var timeUntil = nextRun - now;
+
+        if (timeUntil.TotalSeconds < 30)
+            return "Now";
+        if (timeUntil.TotalMinutes < 1)
+            return "In <1 min";
+        if (timeUntil.TotalMinutes < 60)
+            return $"In {(int)timeUntil.TotalMinutes} min";
+
+        var time = nextRun.ToString("HH:mm");
+        var nextDate = nextRun.Date;
+        var today = now.Date;
+
+        if (nextDate == today)
+            return $"Today at {time}";
+        if (nextDate == today.AddDays(1))
+            return $"Tomorrow at {time}";
+
+        return nextRun.ToString("ddd, MMM dd") + $" at {time}";
     }
 
     private void OnMessageChanged(object? sender, TextChangedEventArgs e)
