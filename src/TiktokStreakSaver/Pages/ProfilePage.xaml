@@ -189,6 +189,17 @@
                                     VerticalOptions="Center"
                                     Toggled="OnRandomizeMessagesToggled"/>
                         </Grid>
+
+                        <Grid ColumnDefinitions="*, Auto" ColumnSpacing="16">
+                            <VerticalStackLayout VerticalOptions="Center" Spacing="4">
+                                <Label Text="Send streaks if battery is running low" Style="{StaticResource ControlTitleLabel}"/>
+                                <Label Text="Anticipate today's run when the system battery-low warning fires" Style="{StaticResource DataLabel}" LineBreakMode="WordWrap"/>
+                            </VerticalStackLayout>
+                            <Switch x:Name="SendOnBatteryLowSwitch"
+                                    Grid.Column="1"
+                                    VerticalOptions="Center"
+                                    Toggled="OnSendOnBatteryLowToggled"/>
+                        </Grid>
                     </VerticalStackLayout>
                 </Border>
 

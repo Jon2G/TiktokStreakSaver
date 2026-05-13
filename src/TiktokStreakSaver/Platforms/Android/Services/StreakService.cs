@@ -633,8 +633,6 @@ public class StreakService : Service
     {
         try
         {
-            UpdateNotification("No Wi‑Fi or mobile data — skipped (retry in 1 hour)");
-
             if (_runResult != null && _settingsService != null)
             {
                 _runResult.Success = false;
@@ -642,11 +640,26 @@ public class StreakService : Service
                 _settingsService.AddRunResult(_runResult);
             }
 
-            StreakScheduler.ScheduleRetryInOneHour(this);
+            var attempt = StreakScheduler.TryScheduleRetryOrGiveUp(this, SettingsService.FailureReasonNoNetwork);
+            var max = SettingsService.MaxRetriesPerDay;
 
-            const string body = "No Wi‑Fi or mobile data connection. Streak run was skipped; will retry in 1 hour.";
+            string title;
+            string body;
+            if (attempt > 0)
+            {
+                title = "TikTok Streak Saver — offline";
+                body = $"No Wi‑Fi or mobile data. Streak run skipped; retrying in 1 hour (attempt {attempt}/{max}).";
+                UpdateNotification($"No Wi‑Fi or mobile data — retry in 1 hour ({attempt}/{max})");
+            }
+            else
+            {
+                title = "TikTok Streak Saver — gave up for today";
+                body = $"No Wi‑Fi or mobile data after {max} retries. Will try again on the next scheduled run.";
+                UpdateNotification($"No Wi‑Fi or mobile data — {max} retries exhausted");
+            }
+
             var finalNotification = new NotificationCompat.Builder(this, StatusChannelId)
-                .SetContentTitle("TikTok Streak Saver — offline")
+                .SetContentTitle(title)
                 .SetContentText(body)
                 .SetStyle(new NotificationCompat.BigTextStyle().BigText(body))
                 .SetSmallIcon(Resource.Drawable.ic_notification)
@@ -729,9 +742,31 @@ public class StreakService : Service
             var notificationManager = (NotificationManager?)GetSystemService(NotificationService);
             notificationManager?.Notify(NotificationId + 1, finalNotification);
 
-            // Only re-arm the scheduler if scheduling is enabled
+            // Re-arm the scheduler if scheduling is enabled. Either:
+            //   - everything succeeded → normal next-run slot, retry counter reset
+            //   - anything failed → 1-hour retry (up to MaxRetriesPerDay), then normal slot
             if (_settingsService?.IsScheduled() == true)
-                StreakScheduler.ScheduleNextRun(this);
+            {
+                bool allSucceeded = success
+                    && (_runResult?.FriendResults.Count == 0
+                        || _runResult.FriendResults.All(r => r.Success));
+
+                if (allSucceeded)
+                {
+                    _settingsService.ResetTodayRetryCount();
+                    _settingsService.SetLastRunFailed(false, null);
+                    StreakScheduler.ScheduleNextRun(this);
+                }
+                else
+                {
+                    var attempt = StreakScheduler.TryScheduleRetryOrGiveUp(this, SettingsService.FailureReasonSendError);
+                    if (attempt > 0)
+                        AppLog("SYSTEM", "-", $"Run had errors — scheduled hourly retry {attempt}/{SettingsService.MaxRetriesPerDay}");
+                    else
+                        AppLog("SYSTEM", "-", $"Run had errors — retry budget exhausted, normal next-run slot scheduled");
+                }
+            }
+
             AppLog("SYSTEM", "-", $"Run complete: {(success ? "Success" : message)}");
         }
         finally

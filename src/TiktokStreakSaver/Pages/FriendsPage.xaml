@@ -64,6 +64,44 @@
                         </Grid>
                     </Border>
 
+                    <!-- Battery restrictions warning (visible when automation is on and battery optimizations aren't disabled) -->
+                    <Border x:Name="BatteryRestrictionsBanner"
+                            IsVisible="False"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 16"
+                            Padding="14,12"
+                            Stroke="{AppThemeBinding Light=#FEF08A, Dark=#854D0E}"
+                            BackgroundColor="{AppThemeBinding Light=#FEFCE8, Dark=#2A220A}">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" VerticalOptions="Center">
+                            <Label Grid.Column="0"
+                                   Text="!"
+                                   FontFamily="InterSemiBold"
+                                   FontSize="18"
+                                   WidthRequest="28" HeightRequest="28"
+                                   HorizontalTextAlignment="Center" VerticalTextAlignment="Center"
+                                   BackgroundColor="{AppThemeBinding Light=#CA8A04, Dark=#FACC15}"
+                                   TextColor="{AppThemeBinding Light=White, Dark=Black}"
+                                   VerticalOptions="Center"/>
+                            <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                                <Label Text="Battery restrictions are enabled"
+                                       FontFamily="InterSemiBold"
+                                       FontSize="14"
+                                       TextColor="{AppThemeBinding Light=#854D0E, Dark=#FACC15}"/>
+                                <Label Text="Your device may stop streaks from running on schedule. Disable battery optimization for this app to keep streaks reliable."
+                                       FontFamily="InterRegular"
+                                       FontSize="12"
+                                       TextColor="{AppThemeBinding Light=#713F12, Dark={StaticResource Gray300}}"/>
+                            </VerticalStackLayout>
+                            <Button Grid.Column="2"
+                                    Text="Allow"
+                                    FontSize="12" Padding="12,0" HeightRequest="36"
+                                    CornerRadius="14"
+                                    BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                                    TextColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource PrimaryDarkText}}"
+                                    Clicked="OnBatteryRestrictionsClicked"/>
+                        </Grid>
+                    </Border>
+
                     <!-- Mode Switcher (Friends / Groups) -->
                     <Border Stroke="{AppThemeBinding Light={StaticResource BorderColorLight}, Dark={StaticResource BorderColorDark}}"
                             StrokeThickness="1"

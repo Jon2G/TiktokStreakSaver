@@ -467,11 +467,42 @@ public partial class FriendsPage : ContentPage
         }
 #endif
         LoginRequiredBanner.IsVisible = !sessionValid;
+
+        UpdateBatteryRestrictionsBanner();
+    }
+
+    /// <summary>
+    /// Show a non-blocking warning banner when background automation is enabled but
+    /// the OS is still allowed to apply battery optimizations to the app. In that
+    /// state Android can defer or skip the streak alarm entirely, which is exactly
+    /// what would make the function "never get executed". The banner disappears
+    /// automatically once the user grants the exemption from the settings sheet.
+    /// </summary>
+    private void UpdateBatteryRestrictionsBanner()
+    {
+#if ANDROID
+        var context = Platform.CurrentActivity ?? Android.App.Application.Context;
+        bool scheduled = _settingsService.IsScheduled();
+        bool ignoring = TiktokStreakSaver.Platforms.Android.StreakScheduler
+            .IsIgnoringBatteryOptimizations(context);
+        BatteryRestrictionsBanner.IsVisible = scheduled && !ignoring;
+#else
+        BatteryRestrictionsBanner.IsVisible = false;
+#endif
     }
 
     private async void OnLoginRequiredClicked(object? sender, EventArgs e)
     {
         await Navigation.PushAsync(new LoginPage());
+    }
+
+    private void OnBatteryRestrictionsClicked(object? sender, EventArgs e)
+    {
+#if ANDROID
+        var context = Platform.CurrentActivity ?? Android.App.Application.Context;
+        TiktokStreakSaver.Platforms.Android.StreakScheduler
+            .RequestBatteryOptimizationExemption(context);
+#endif
     }
 
     private async void OnExportFriendsClicked(object? sender, EventArgs e)

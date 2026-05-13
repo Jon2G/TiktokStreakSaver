@@ -44,6 +44,7 @@ public partial class ProfilePage : ContentPage
         ScheduleSwitch.IsToggled = _settingsService.IsScheduled();
         SkipUnreachableSwitch.IsToggled = _settingsService.GetSkipUnreachableUsers();
         RandomizeMessagesSwitch.IsToggled = _settingsService.GetRandomizeNormalMessages();
+        SendOnBatteryLowSwitch.IsToggled = _settingsService.GetSendOnBatteryLow();
 
         FixedTimeSwitch.IsToggled = _settingsService.GetUseFixedTime();
         ScheduleTimePicker.Time = new TimeSpan(
@@ -234,6 +235,11 @@ public partial class ProfilePage : ContentPage
     private void OnRandomizeMessagesToggled(object? sender, ToggledEventArgs e)
     {
         _settingsService.SetRandomizeNormalMessages(e.Value);
+    }
+
+    private void OnSendOnBatteryLowToggled(object? sender, ToggledEventArgs e)
+    {
+        _settingsService.SetSendOnBatteryLow(e.Value);
     }
 
     private async void OnAboutClicked(object? sender, EventArgs e)

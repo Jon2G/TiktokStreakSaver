@@ -70,6 +70,40 @@ public static class StreakScheduler
     }
 
     /// <summary>
+    /// Either schedule a 1-hour retry (if we haven't exhausted the daily retry budget yet)
+    /// or fall back to the normal next-run slot. Tags <see cref="SettingsService.SetLastRunFailed"/>
+    /// so listeners (network change, battery low) know whether a recovery attempt is wanted.
+    /// </summary>
+    /// <param name="context">Android context used to schedule the alarm.</param>
+    /// <param name="reason">Why the run failed (e.g. <see cref="SettingsService.FailureReasonNoNetwork"/>).</param>
+    /// <returns>
+    /// The 1-based retry attempt number when a retry was scheduled, or 0 when the daily
+    /// budget is exhausted and the next normal-slot run was scheduled instead.
+    /// </returns>
+    public static int TryScheduleRetryOrGiveUp(Context context, string reason)
+    {
+        var settings = new SettingsService();
+        var attempt = settings.IncrementTodayRetryCount();
+
+        if (attempt <= SettingsService.MaxRetriesPerDay)
+        {
+            ScheduleRetryInOneHour(context);
+            settings.SetLastRunFailed(true, reason);
+            System.Diagnostics.Debug.WriteLine(
+                $"StreakScheduler: hourly retry {attempt}/{SettingsService.MaxRetriesPerDay} scheduled (reason: {reason})");
+            return attempt;
+        }
+
+        // Daily retry budget exhausted — clear the recovery flag so listeners
+        // don't keep restarting the service, and re-arm the normal cadence.
+        settings.SetLastRunFailed(false, null);
+        ScheduleNextRun(context);
+        System.Diagnostics.Debug.WriteLine(
+            $"StreakScheduler: retry budget exhausted ({SettingsService.MaxRetriesPerDay}), falling back to normal next-run slot");
+        return 0;
+    }
+
+    /// <summary>
     /// Schedule a run at a specific time
     /// </summary>
     public static void ScheduleAt(Context context, DateTime triggerTime)

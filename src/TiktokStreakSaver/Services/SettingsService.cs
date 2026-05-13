@@ -20,6 +20,25 @@ public class SettingsService
     private const string FixedTimeHourKey = "fixed_time_hour";
     private const string FixedTimeMinuteKey = "fixed_time_minute";
 
+    // ── Resilience: retry tracking + event-driven recovery flags ──
+    private const string RetryCountTodayKey = "retry_count_today";
+    private const string RetryCountDateKey = "retry_count_date";
+    private const string LastRunFailedKey = "last_run_failed";
+    private const string LastRunFailureReasonKey = "last_run_failure_reason";
+    private const string BatteryAnticipationDateKey = "battery_anticipation_date";
+    private const string SendOnBatteryLowKey = "send_on_battery_low";
+
+    /// <summary>
+    /// Maximum hourly retries per calendar day, in addition to the original scheduled run.
+    /// </summary>
+    public const int MaxRetriesPerDay = 3;
+
+    /// <summary>Failure-reason value: the run was skipped because there was no Wi‑Fi/cellular.</summary>
+    public const string FailureReasonNoNetwork = "no_network";
+
+    /// <summary>Failure-reason value: the run completed but one or more messages failed to send.</summary>
+    public const string FailureReasonSendError = "send_error";
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -278,6 +297,93 @@ public class SettingsService
     public int GetFixedTimeMinute() => Preferences.Get(FixedTimeMinuteKey, DateTime.Now.Minute);
 
     public void SetFixedTimeMinute(int minute) => Preferences.Set(FixedTimeMinuteKey, Math.Clamp(minute, 0, 59));
+
+    #endregion
+
+    #region Resilience: retry counter, failure flag, battery toggle
+
+    /// <summary>
+    /// Current count of hourly retries used today. Auto-resets when the stored date
+    /// stamp is not today's date (so the counter naturally rolls over at midnight).
+    /// </summary>
+    public int GetTodayRetryCount()
+    {
+        var storedDateTicks = Preferences.Get(RetryCountDateKey, 0L);
+        var today = DateTime.Now.Date.Ticks;
+        if (storedDateTicks != today)
+            return 0;
+        return Preferences.Get(RetryCountTodayKey, 0);
+    }
+
+    /// <summary>
+    /// Increments today's retry counter (rolling the date stamp if it's a new day)
+    /// and returns the new value.
+    /// </summary>
+    public int IncrementTodayRetryCount()
+    {
+        var today = DateTime.Now.Date.Ticks;
+        var storedDateTicks = Preferences.Get(RetryCountDateKey, 0L);
+        var current = storedDateTicks == today ? Preferences.Get(RetryCountTodayKey, 0) : 0;
+        var next = current + 1;
+        Preferences.Set(RetryCountDateKey, today);
+        Preferences.Set(RetryCountTodayKey, next);
+        return next;
+    }
+
+    /// <summary>Reset today's retry counter (typically on a fully successful run).</summary>
+    public void ResetTodayRetryCount()
+    {
+        Preferences.Set(RetryCountDateKey, DateTime.Now.Date.Ticks);
+        Preferences.Set(RetryCountTodayKey, 0);
+    }
+
+    /// <summary>
+    /// Flag indicating that the last attempted run failed and a recovery (e.g. on
+    /// network restore) may be worth attempting.
+    /// </summary>
+    public bool GetLastRunFailed() => Preferences.Get(LastRunFailedKey, false);
+
+    /// <summary>Set / clear the last-run-failed flag, optionally tagging the reason.</summary>
+    public void SetLastRunFailed(bool failed, string? reason)
+    {
+        Preferences.Set(LastRunFailedKey, failed);
+        if (failed && !string.IsNullOrEmpty(reason))
+            Preferences.Set(LastRunFailureReasonKey, reason);
+        else
+            Preferences.Remove(LastRunFailureReasonKey);
+    }
+
+    /// <summary>Reason tag set the last time the run failed, or null when cleared.</summary>
+    public string? GetLastRunFailureReason()
+    {
+        var v = Preferences.Get(LastRunFailureReasonKey, string.Empty);
+        return string.IsNullOrEmpty(v) ? null : v;
+    }
+
+    /// <summary>
+    /// True if the battery-low anticipation already fired today (we only fire it once
+    /// per calendar day to avoid loops if the device keeps oscillating around 15%).
+    /// </summary>
+    public bool WasBatteryAnticipationUsedToday()
+    {
+        var storedTicks = Preferences.Get(BatteryAnticipationDateKey, 0L);
+        return storedTicks == DateTime.Now.Date.Ticks;
+    }
+
+    /// <summary>Mark today as already used for battery-low anticipation.</summary>
+    public void MarkBatteryAnticipationUsedToday()
+    {
+        Preferences.Set(BatteryAnticipationDateKey, DateTime.Now.Date.Ticks);
+    }
+
+    /// <summary>
+    /// User toggle: when ON, the app will start the streak run early if Android fires
+    /// the system battery-low broadcast and today's streak hasn't been sent yet.
+    /// Default ON.
+    /// </summary>
+    public bool GetSendOnBatteryLow() => Preferences.Get(SendOnBatteryLowKey, true);
+
+    public void SetSendOnBatteryLow(bool value) => Preferences.Set(SendOnBatteryLowKey, value);
 
     #endregion
 
