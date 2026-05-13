@@ -178,6 +178,10 @@ dotnet build -f net9.0-android
 
 This app is for educational purposes only. Use responsibly and in accordance with TikTok's Terms of Service. The developers are not responsible for any account restrictions or bans that may result from using this application.
 
+## 🔒 Privacy
+
+Streak Saver does not collect, transmit, sell, or share any personal data. There are no analytics, no advertising, no third-party tracking SDKs, and no developer-owned servers — everything you configure stays on your device. See the full policy in [PRIVACY.md](PRIVACY.md).
+
 ## 📄 License
 
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.

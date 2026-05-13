@@ -293,6 +293,11 @@ public partial class ProfilePage : ContentPage
         }
     }
 
+    private async void OnPrivacyPolicyClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PushAsync(new PrivacyPage());
+    }
+
     private async void OnLogoutClicked(object? sender, EventArgs e)
     {
         bool confirm = await DisplayAlert("Logout", "This will clear your TikTok session. You'll need to login again before running automations.", "Logout", "Cancel");

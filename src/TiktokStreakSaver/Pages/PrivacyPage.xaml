@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="TiktokStreakSaver.Pages.PrivacyPage"
+             Title="Privacy Policy"
+             Shell.NavBarIsVisible="False"
+             Shell.TabBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False"
+             BackgroundColor="{AppThemeBinding Light={StaticResource PageBackgroundLight}, Dark={StaticResource OffBlack}}">
+
+    <Grid RowDefinitions="*, Auto">
+
+        <ScrollView>
+            <VerticalStackLayout Padding="20" Spacing="16">
+
+                <VerticalStackLayout Spacing="2" Margin="0,8,0,0">
+                    <Label Text="Privacy Policy"
+                           Style="{StaticResource PageTitleLabel}"
+                           HorizontalOptions="Start"/>
+                    <Label Text="What this app does and doesn't do with your data"
+                           FontFamily="InterRegular"
+                           FontSize="13"
+                           TextColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray400}}"
+                           HorizontalOptions="Start"/>
+                    <Label x:Name="EffectiveDateLabel"
+                           Text="Effective date: May 13, 2026"
+                           Style="{StaticResource ControlSubLabel}"
+                           Margin="0,4,0,0"/>
+                </VerticalStackLayout>
+
+                <Border Style="{StaticResource SectionCard}">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="TL;DR" Style="{StaticResource SectionLabel}"/>
+                        <Label Text="The app does not collect, transmit, sell, or share any personal data about you. There are no analytics, no advertising, no third-party tracking SDKs, and no developer-owned servers receiving anything about you or your usage. Everything you configure stays on your device."
+                               Style="{StaticResource ValueLabel}"
+                               LineBreakMode="WordWrap"/>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Style="{StaticResource SectionCard}">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="What the app stores on your device" Style="{StaticResource SectionLabel}"/>
+                        <Label Text="The following information is saved on your device using Android's standard preferences and the system WebView cookie store. It never leaves your device unless you back it up or export it yourself:"
+                               Style="{StaticResource ValueLabel}"
+                               LineBreakMode="WordWrap"/>
+                        <VerticalStackLayout Spacing="6">
+                            <Label Text="• TikTok session data: cookies and the browser user-agent string captured at login, so background runs can send streak messages without re-logging in."
+                                   Style="{StaticResource ValueLabel}" LineBreakMode="WordWrap"/>
+                            <Label Text="• The friends and groups list you add: TikTok usernames, optional display names, group names, enable/disable state, and counters (last-sent timestamp, success/failure counts)."
+                                   Style="{StaticResource ValueLabel}" LineBreakMode="WordWrap"/>
+                            <Label Text="• Your custom message text and the randomized-messages toggle."
+                                   Style="{StaticResource ValueLabel}" LineBreakMode="WordWrap"/>
+                            <Label Text="• Scheduling preferences: interval or fixed daily time, retry counter for the day, the 'Send streaks if battery is running low' toggle, and similar app settings."
+                                   Style="{StaticResource ValueLabel}" LineBreakMode="WordWrap"/>
+                            <Label Text="• Run history: per-run results (success/failure per friend), capped to the most recent 50 runs."
+                                   Style="{StaticResource ValueLabel}" LineBreakMode="WordWrap"/>
+                            <Label Text="• Optional display name and profile photo you set in the app. The photo, if any, is stored as a file in the app's private storage."
+                                   Style="{StaticResource ValueLabel}" LineBreakMode="WordWrap"/>
+                        </VerticalStackLayout>
+                        <Label Text="You can erase all of this at any time by tapping 'Logout / Clear Session' on the Profile page, or by going to Android Settings → Apps → Streak Saver → Storage → Clear data, or by uninstalling the app."
+                               Style="{StaticResource ValueLabel}"
+                               LineBreakMode="WordWrap"
+                               Margin="0,4,0,0"/>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Style="{StaticResource SectionCard}">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Network connections" Style="{StaticResource SectionLabel}"/>
+                        <Label Text="The app communicates directly with the following services from your device. The developer does not operate any intermediary server and does not see this traffic:"
+                               Style="{StaticResource ValueLabel}"
+                               LineBreakMode="WordWrap"/>
+                        <VerticalStackLayout Spacing="10">
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="1. TikTok (tiktok.com and subdomains)"
+                                       Style="{StaticResource ControlTitleLabel}"/>
+                                <Label Text="When you log in and whenever a scheduled run starts, the app loads TikTok in an Android WebView and uses your own cookies to open chat threads and send the message you configured. TikTok's own privacy policy applies to whatever happens inside that WebView."
+                                       Style="{StaticResource ValueLabel}"
+                                       LineBreakMode="WordWrap"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="2. GitHub (api.github.com, github.com, and release-asset URLs)"
+                                       Style="{StaticResource ControlTitleLabel}"/>
+                                <Label Text="For the in-app 'Check for updates' feature. The app calls the public GitHub Releases API for repo Jon2G/TiktokStreakSaver and downloads APK files from release assets. The only header sent is 'User-Agent: TiktokStreakSaver/1.0'. No account, device, or personal identifiers are sent."
+                                       Style="{StaticResource ValueLabel}"
+                                       LineBreakMode="WordWrap"/>
+                            </VerticalStackLayout>
+                        </VerticalStackLayout>
+                        <Label Text="That is the entire set of outbound connections. There are no analytics endpoints, no crash-reporting endpoints, no advertising endpoints."
+                               Style="{StaticResource ValueLabel}"
+                               LineBreakMode="WordWrap"
+                               Margin="0,4,0,0"/>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Style="{StaticResource SectionCard}">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Permissions and why they are requested" Style="{StaticResource SectionLabel}"/>
+                        <VerticalStackLayout Spacing="10">
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="INTERNET, ACCESS_NETWORK_STATE" Style="{StaticResource ControlTitleLabel}"/>
+                                <Label Text="Connect to TikTok to send streaks and to GitHub for update checks; detect Wi-Fi / cellular availability before starting a run."
+                                       Style="{StaticResource ValueLabel}" LineBreakMode="WordWrap"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="FOREGROUND_SERVICE, FOREGROUND_SERVICE_DATA_SYNC, WAKE_LOCK" Style="{StaticResource ControlTitleLabel}"/>
+                                <Label Text="Keep the streak-sender service alive while a run is in progress."
+                                       Style="{StaticResource ValueLabel}" LineBreakMode="WordWrap"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="SCHEDULE_EXACT_ALARM, USE_EXACT_ALARM" Style="{StaticResource ControlTitleLabel}"/>
+                                <Label Text="Trigger the next streak run at the configured time."
+                                       Style="{StaticResource ValueLabel}" LineBreakMode="WordWrap"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="RECEIVE_BOOT_COMPLETED" Style="{StaticResource ControlTitleLabel}"/>
+                                <Label Text="Reschedule the alarm after the device restarts."
+                                       Style="{StaticResource ValueLabel}" LineBreakMode="WordWrap"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" Style="{StaticResource ControlTitleLabel}"/>
+                                <Label Text="Ask Android to keep the app reliable in the background."
+                                       Style="{StaticResource ValueLabel}" LineBreakMode="WordWrap"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="POST_NOTIFICATIONS" Style="{StaticResource ControlTitleLabel}"/>
+                                <Label Text="Show progress and completion notifications."
+                                       Style="{StaticResource ValueLabel}" LineBreakMode="WordWrap"/>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="REQUEST_INSTALL_PACKAGES" Style="{StaticResource ControlTitleLabel}"/>
+                                <Label Text="Install updated APKs downloaded from GitHub Releases."
+                                       Style="{StaticResource ValueLabel}" LineBreakMode="WordWrap"/>
+                            </VerticalStackLayout>
+                        </VerticalStackLayout>
+                        <Label Text="The app uses these permissions only for the purposes listed above."
+                               Style="{StaticResource ValueLabel}"
+                               LineBreakMode="WordWrap"
+                               Margin="0,4,0,0"/>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Style="{StaticResource SectionCard}">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Children" Style="{StaticResource SectionLabel}"/>
+                        <Label Text="The app is not directed at children under 13. TikTok's own age and content policies apply to your TikTok account; this app does not change them."
+                               Style="{StaticResource ValueLabel}"
+                               LineBreakMode="WordWrap"/>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Style="{StaticResource SectionCard}">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Third parties" Style="{StaticResource SectionLabel}"/>
+                        <Label Text="The app does not embed any third-party advertising, analytics, attribution, marketing, or social SDKs. The only services it talks to are TikTok (your own account) and GitHub (public release metadata), each with their own privacy practices, which apply to your direct interaction with them."
+                               Style="{StaticResource ValueLabel}"
+                               LineBreakMode="WordWrap"/>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Style="{StaticResource SectionCard}">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Security" Style="{StaticResource SectionLabel}"/>
+                        <Label Text="Local data is kept inside the app's private storage, protected by Android's standard app-sandboxing model. Because nothing is transmitted to a developer-controlled server, there is no remote breach risk on the developer's side."
+                               Style="{StaticResource ValueLabel}"
+                               LineBreakMode="WordWrap"/>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Style="{StaticResource SectionCard}">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Changes" Style="{StaticResource SectionLabel}"/>
+                        <Label Text="Updates to this policy are committed to PRIVACY.md in the repository and reflected in the in-app Privacy screen on the next app update. The Effective date above changes whenever the text changes."
+                               Style="{StaticResource ValueLabel}"
+                               LineBreakMode="WordWrap"/>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Style="{StaticResource SectionCard}">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Contact" Style="{StaticResource SectionLabel}"/>
+                        <Label Text="This app is maintained on GitHub. To report a privacy concern, open an issue on the project's GitHub Issues page."
+                               Style="{StaticResource ValueLabel}"
+                               LineBreakMode="WordWrap"/>
+                        <Button x:Name="ContactGitHubButton"
+                                Text="Open GitHub Issues"
+                                BackgroundColor="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray800}}"
+                                TextColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource White}}"
+                                CornerRadius="14"
+                                HeightRequest="44"
+                                Clicked="OnContactGitHubClicked"/>
+                    </VerticalStackLayout>
+                </Border>
+
+                <BoxView HeightRequest="32" BackgroundColor="Transparent"/>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <Border Grid.Row="1" Style="{StaticResource BottomActionBorder}">
+            <Grid ColumnDefinitions="*, *" ColumnSpacing="12">
+                <Button Text="Back"
+                        Style="{StaticResource TextButton}"
+                        HeightRequest="44"
+                        Clicked="OnBackClicked"/>
+                <Button Grid.Column="1"
+                        Text="View on GitHub"
+                        BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                        TextColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource PrimaryDarkText}}"
+                        FontFamily="InterSemiBold"
+                        CornerRadius="14"
+                        HeightRequest="44"
+                        Clicked="OnViewOnGitHubClicked"/>
+            </Grid>
+        </Border>
+
+    </Grid>
+</ContentPage>

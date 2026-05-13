@@ -3,7 +3,13 @@ name: CI
 on:
   push:
     branches: [main, master]
+    paths:
+      - 'src/TiktokStreakSaver/**'
+      - '.github/workflows/ci.yml'
   pull_request:
+    paths:
+      - 'src/TiktokStreakSaver/**'
+      - '.github/workflows/ci.yml'
   workflow_dispatch:
 
 concurrency:

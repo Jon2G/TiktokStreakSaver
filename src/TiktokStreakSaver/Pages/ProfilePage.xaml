@@ -225,6 +225,13 @@
                                 CornerRadius="14"
                                 HeightRequest="44"
                                 Clicked="OnCheckUpdatesClicked"/>
+                        <Button x:Name="PrivacyPolicyButton"
+                                Text="Privacy Policy"
+                                BackgroundColor="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray800}}"
+                                TextColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource White}}"
+                                CornerRadius="14"
+                                HeightRequest="44"
+                                Clicked="OnPrivacyPolicyClicked"/>
                     </VerticalStackLayout>
                 </Border>
 
