@@ -94,18 +94,24 @@ jobs:
     - name: Rename APK
       run: |
         $newName = "StreakSaver-v${{ steps.get_version.outputs.VERSION }}.apk"
+        $stableName = "StreakSaver.apk"
         $apk = Get-ChildItem -Path ./artifacts -Filter "*-Signed.apk" | Select-Object -First 1
         if (-not $apk) {
           $apk = Get-ChildItem -Path ./artifacts -Filter "*.apk" | Select-Object -First 1
         }
         if ($apk) {
           Rename-Item -Path $apk.FullName -NewName $newName
+          # Also publish a stable-named copy so the marketing site can link to
+          # https://github.com/Jon2G/TiktokStreakSaver/releases/latest/download/StreakSaver.apk
+          # without breaking every release.
+          Copy-Item -Path "./artifacts/$newName" -Destination "./artifacts/$stableName" -Force
           echo "APK_NAME=$newName" >> $env:GITHUB_OUTPUT
           echo "APK_PATH=./artifacts/$newName" >> $env:GITHUB_OUTPUT
+          echo "APK_STABLE_NAME=$stableName" >> $env:GITHUB_OUTPUT
           Get-ChildItem -Path ./artifacts -Filter "*.apk" |
-            Where-Object { $_.Name -ne $newName } |
+            Where-Object { $_.Name -ne $newName -and $_.Name -ne $stableName } |
             Remove-Item -Force
-          Write-Host "Published APK: $newName"
+          Write-Host "Published APK: $newName (+ stable copy: $stableName)"
         }
       shell: pwsh
       id: rename_apk

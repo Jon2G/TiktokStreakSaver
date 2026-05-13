@@ -1,0 +1,6 @@
+export const REPO_URL = 'https://github.com/Jon2G/TiktokStreakSaver'
+export const APK_URL = 'https://github.com/Jon2G/TiktokStreakSaver/releases/latest/download/StreakSaver.apk'
+export const RELEASES_URL = 'https://github.com/Jon2G/TiktokStreakSaver/releases/latest'
+export const PRIVACY_URL = 'https://github.com/Jon2G/TiktokStreakSaver/blob/master/PRIVACY.md'
+export const ISSUES_URL = 'https://github.com/Jon2G/TiktokStreakSaver/issues'
+export const LICENSE_URL = 'https://github.com/Jon2G/TiktokStreakSaver/blob/master/LICENSE'

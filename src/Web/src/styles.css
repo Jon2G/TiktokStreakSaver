@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+/* Enable class-based dark mode controlled by a `dark` class on <html>. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Brand palette mirrors the MAUI app's Primary / PrimaryDark tokens. */
+  --color-brand-50: #fff1f4;
+  --color-brand-100: #ffe1e8;
+  --color-brand-200: #ffc2cd;
+  --color-brand-300: #ff96a8;
+  --color-brand-400: #ff5c7c;
+  --color-brand-500: #fe2c55;
+  --color-brand-600: #e02148;
+  --color-brand-700: #b81a3c;
+  --color-brand-800: #951832;
+  --color-brand-900: #7a172d;
+
+  --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-family: var(--font-sans);
+}
+
+/* Trim the WebKit scrollbar on horizontal rails for a cleaner look. */
+.scroll-rail {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-brand-500) transparent;
+}
+.scroll-rail::-webkit-scrollbar {
+  height: 8px;
+}
+.scroll-rail::-webkit-scrollbar-thumb {
+  background-color: var(--color-brand-500);
+  border-radius: 9999px;
+}
