@@ -68,6 +68,14 @@ public partial class ProfilePage : ContentPage
 
         VersionLabel.Text = $"v{AppInfo.Current.VersionString}";
 
+#if IOS
+        IosShortcutsSettingsPanel.IsVisible = true;
+        AndroidSchedulingPanel.IsVisible = false;
+#else
+        IosShortcutsSettingsPanel.IsVisible = false;
+        AndroidSchedulingPanel.IsVisible = true;
+#endif
+
         UpdateLoginButtonState(_sessionService.IsSessionValid());
     }
 
@@ -162,9 +170,15 @@ public partial class ProfilePage : ContentPage
         await Navigation.PushAsync(new LoginPage());
     }
 
+    private async void OnShortcutTutorialClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PushAsync(new IosShortcutTutorialPage());
+    }
+
     private void OnScheduleToggled(object? sender, ToggledEventArgs e)
     {
         ScheduleOptionsPanel.IsVisible = e.Value;
+        _settingsService.SetScheduled(e.Value);
 #if ANDROID
         var context = Platform.CurrentActivity ?? Android.App.Application.Context;
         if (e.Value)
@@ -273,8 +287,14 @@ public partial class ProfilePage : ContentPage
 
             if (info.HasUpdate)
             {
+                var downloadUrl =
+#if IOS
+                    info.IpaDownloadUrl ?? info.ReleaseUrl;
+#else
+                    info.ApkDownloadUrl;
+#endif
                 await Navigation.PushModalAsync(new AboutPopupPage(
-                    "Update Available!", remoteVersion, info.Changelog, true, info.ApkDownloadUrl));
+                    "Update Available!", remoteVersion, info.Changelog, true, downloadUrl));
             }
             else
             {

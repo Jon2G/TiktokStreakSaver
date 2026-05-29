@@ -3,6 +3,9 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
+# Local iOS release artifacts (IPA built by scripts/build-ios-release.sh)
+release-out/
+
 # Android Keystore files (NEVER commit these!)
 *.keystore
 *.jks
@@ -66,6 +69,9 @@ BenchmarkDotNet.Artifacts/
 project.lock.json
 project.fragment.lock.json
 artifacts/
+
+# iOS: copied from src/TiktokStreakSaver/Resources/Raw/ at build time (see src/ios/build.sh)
+src/ios/StreakEngine/StreakEngine/Resources/tiktok_automation.js
 
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt

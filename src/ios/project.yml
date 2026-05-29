@@ -1,0 +1,82 @@
+# Generate with: brew install xcodegen && cd src/ios && xcodegen generate
+name: StreakNative
+options:
+  bundleIdPrefix: com.jon2g.tiktokstreaksaver
+  deploymentTarget:
+    iOS: "17.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+    # Set DEVELOPMENT_TEAM when running xcodebuild (see scripts/build-ios-native.sh)
+targets:
+  StreakEngine:
+    type: framework
+    platform: iOS
+    sources:
+      - path: StreakEngine/StreakEngine
+        excludes:
+          - "**/Info.plist"
+    resources:
+      - path: StreakEngine/StreakEngine/Resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jon2g.tiktokstreaksaver.StreakEngine
+        DEFINES_MODULE: YES
+        BUILD_LIBRARY_FOR_DISTRIBUTION: YES
+        SKIP_INSTALL: NO
+    info:
+      path: StreakEngine/StreakEngine/Info.plist
+  StreakSaverExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: StreakSaverExtension/StreakSaverExtension
+        excludes:
+          - "**/Entitlements.plist"
+          - "**/Info.plist"
+    dependencies:
+      - target: StreakEngine
+        embed: true
+    entitlements:
+      path: StreakSaverExtension/StreakSaverExtension/Entitlements.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jon2g.tiktokstreaksaver.StreakSaverExtension
+    info:
+      path: StreakSaverExtension/StreakSaverExtension/Info.plist
+      properties:
+        CFBundleDisplayName: Streak Saver
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+  # Minimal app used only to register com.jon2g.tiktokstreaksaver with Xcode (MAUI publish needs its profile).
+  StreakSaverHost:
+    type: application
+    platform: iOS
+    sources:
+      - path: StreakSaverHost
+        excludes:
+          - "**/Entitlements.plist"
+          - "**/Info.plist"
+    entitlements:
+      path: StreakSaverHost/Entitlements.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jon2g.tiktokstreaksaver
+    info:
+      path: StreakSaverHost/Info.plist
+schemes:
+  StreakEngine:
+    build:
+      targets:
+        StreakEngine: all
+  StreakSaverExtension:
+    build:
+      targets:
+        StreakSaverExtension: all
+  StreakSaverHost:
+    build:
+      targets:
+        StreakSaverHost: all

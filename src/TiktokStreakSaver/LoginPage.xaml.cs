@@ -1,4 +1,3 @@
-using AsyncAwaitBestPractices;
 using TiktokStreakSaver.Services;
 
 namespace TiktokStreakSaver;
@@ -8,7 +7,8 @@ public partial class LoginPage : ContentPage
 {
     private readonly SessionService _sessionService;
     private readonly SettingsService _settingsService;
-    private bool _isLoggedIn = false;
+    private bool _isLoggedIn;
+    private bool _webViewTornDown;
 
     public LoginPage()
     {
@@ -20,17 +20,22 @@ public partial class LoginPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        _webViewTornDown = false;
         LoadTikTok();
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        TearDownLoginWebView();
     }
 
     private void LoadTikTok()
     {
         LoadingOverlay.IsVisible = true;
 
-#if ANDROID
-        // Use a modern Chrome desktop UA. Older randomized UAs (e.g. Firefox 3.6)
-        // cause TikTok to serve degraded markup that breaks the chat header.
-        var desktopUa = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+        var desktopUa = AppConstants.DesktopChromeUserAgent;
+#if ANDROID || IOS
         TikTokWebViewHelper.ConfigureWebView(TikTokWebView, desktopUa);
         _sessionService.SetLoginUserAgent(desktopUa);
 #endif
@@ -38,19 +43,33 @@ public partial class LoginPage : ContentPage
         TikTokWebView.Source = TikTokWebViewHelper.LoginUrl;
     }
 
-    private void OnWebViewNavigated(object? sender, WebNavigatedEventArgs e)
+    private async void OnWebViewNavigated(object? sender, WebNavigatedEventArgs e)
     {
         if (_isLoggedIn) return;
         LoadingOverlay.IsVisible = false;
 
-        // Cookie-based check is authoritative; URL heuristics are unreliable on TikTok.
-        bool hasSession = TikTokWebViewHelper.HasValidSessionCookie();
-
-        if (hasSession)
+        // Cookie check is authoritative. On iOS, read WKWebView cookies (export file is updated after login).
+        bool hasSession;
+#if IOS
+        Platforms.iOS.Services.IosWebViewConfigurator.AttachWebView(TikTokWebView);
+        hasSession = await TikTokWebViewHelper.HasValidSessionCookieAsync(TikTokWebView);
+        if (!hasSession && TikTokWebViewHelper.CheckLoginStatus(e.Url).IsLoggedIn)
         {
-            _isLoggedIn = true;
-            Done().SafeFireAndForget();
+            await Task.Delay(400);
+            hasSession = await TikTokWebViewHelper.HasValidSessionCookieAsync(TikTokWebView);
         }
+#else
+        hasSession = TikTokWebViewHelper.HasValidSessionCookie();
+#endif
+
+        if (!hasSession)
+            return;
+
+        _isLoggedIn = true;
+#if IOS
+        await Platforms.iOS.Services.IosWebViewConfigurator.ExportCookiesFromCurrentWebViewAsync();
+#endif
+        await Done();
     }
 
     private async void OnBackClicked(object? sender, EventArgs e)
@@ -67,8 +86,18 @@ public partial class LoginPage : ContentPage
         TikTokWebView.Reload();
     }
 
+    private void TearDownLoginWebView()
+    {
+        if (_webViewTornDown)
+            return;
+        _webViewTornDown = true;
+        TikTokWebViewHelper.TearDownLoginWebView(TikTokWebView);
+    }
+
     private async Task Done()
     {
+        // Tear down WebView before session update so we don't touch WKWebView during cookie file I/O.
+        TearDownLoginWebView();
         TikTokWebViewHelper.UpdateSessionStatus(_sessionService, _isLoggedIn);
 
         if (_isLoggedIn)
@@ -88,8 +117,12 @@ public partial class LoginPage : ContentPage
             }
 
             var body = justEnabled
+#if IOS
+                ? "You're logged in to TikTok! Set up a daily Shortcut (see Profile) to run streaks automatically."
+#else
                 ? "You're logged in to TikTok! Background automation has been enabled — your streaks will run on the schedule set in Profile."
-                : "You're logged in to TikTok! The app will use this session for background messaging.";
+#endif
+                : "You're logged in to TikTok! The app will use this session for streak messaging.";
             await DisplayAlert("Logged In", body, "OK");
             await Navigation.PopAsync();
         }

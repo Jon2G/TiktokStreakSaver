@@ -10,6 +10,10 @@ public partial class App : Application
 
     protected override Window CreateWindow(IActivationState? activationState)
     {
+#if IOS
+        if (!Services.Storage.AppStorageProvider.Current.GetBool(AppConstants.IosOnboardingCompleteKey))
+            return new Window(new NavigationPage(new Pages.IosOnboardingPage()));
+#endif
         return new Window(new AppShell());
     }
 }

@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>net9.0-android</TargetFrameworks>
+		<TargetFrameworks>net9.0-android;net9.0-ios</TargetFrameworks>
 
 		<OutputType>Exe</OutputType>
 		<RootNamespace>TiktokStreakSaver</RootNamespace>
@@ -41,6 +41,14 @@
 		<SupportedOSPlatformVersion>24.0</SupportedOSPlatformVersion>
 	</PropertyGroup>
 
+	<PropertyGroup Condition="$(TargetFramework.Contains('-ios'))">
+		<SupportedOSPlatformVersion>17.0</SupportedOSPlatformVersion>
+		<CodesignEntitlements>Platforms\iOS\Entitlements.plist</CodesignEntitlements>
+		<IosRootDir>$(MSBuildThisFileDirectory)..\ios</IosRootDir>
+		<IosArtifactsDir>$(IosRootDir)\artifacts</IosArtifactsDir>
+		<RepoRootDir>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..'))</RepoRootDir>
+	</PropertyGroup>
+
 	<!-- Android Release Signing Configuration -->
 	<PropertyGroup Condition="$(TargetFramework.Contains('-android')) and '$(Configuration)' == 'Release'">
 		<AndroidKeyStore>true</AndroidKeyStore>
@@ -69,6 +77,45 @@
 		<!-- Raw Assets (also remove the "Resources\Raw" prefix) -->
 		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
 	</ItemGroup>
+
+	<!-- Rebuild StreakEngine.xcframework when Swift/project inputs change (macOS only). -->
+	<Target Name="EnsureIosNativeBuilt"
+	        BeforeTargets="PrepareForBuild"
+	        Condition="'$(TargetFramework)' == 'net9.0-ios' AND $([MSBuild]::IsOSPlatform('OSX')) AND '$(SkipIosNativeBuild)' != 'true'">
+		<Exec WorkingDirectory="$(RepoRootDir)"
+		      Command="bash &quot;$(RepoRootDir)/scripts/ensure-ios-native-built.sh&quot;"
+		      ConsoleToMSBuild="true" />
+	</Target>
+
+	<ItemGroup Condition="$(TargetFramework.Contains('-ios')) AND Exists('$(IosArtifactsDir)/StreakEngine.xcframework')">
+		<NativeReference Include="$(IosArtifactsDir)/StreakEngine.xcframework">
+			<Kind>Framework</Kind>
+			<ForceLoad>true</ForceLoad>
+			<SmartLink>false</SmartLink>
+		</NativeReference>
+	</ItemGroup>
+
+	<Target Name="WarnStreakEngineMissing" BeforeTargets="Build"
+	        Condition="'$(TargetFramework)' == 'net9.0-ios' AND !Exists('$(IosArtifactsDir)/StreakEngine.xcframework')">
+		<Warning Text="StreakEngine.xcframework not found. On macOS this should build automatically; otherwise run ./src/ios/build.sh (see src/ios/README.md)." />
+	</Target>
+
+	<Target Name="CopyStreakWidgetExtension" AfterTargets="_CopyAppConfigFile"
+	        Condition="$(TargetFramework.Contains('-ios'))">
+		<PropertyGroup>
+			<_StreakExtensionAppexPath Condition="$(RuntimeIdentifier.Contains('simulator'))">$(IosArtifactsDir)/StreakSaverExtension-Sim.appex</_StreakExtensionAppexPath>
+			<_StreakExtensionAppexPath Condition="!$(RuntimeIdentifier.Contains('simulator'))">$(IosArtifactsDir)/StreakSaverExtension.appex</_StreakExtensionAppexPath>
+		</PropertyGroup>
+		<ItemGroup Condition="Exists('$(_StreakExtensionAppexPath)')">
+			<_StreakExtension Include="$(_StreakExtensionAppexPath)/**" />
+		</ItemGroup>
+		<Copy Condition="'@(_StreakExtension)' != ''"
+		      SourceFiles="@(_StreakExtension)"
+		      DestinationFiles="@(_StreakExtension->'$(AppBundleDir)/PlugIns/StreakSaverExtension.appex/%(RecursiveDir)%(Filename)%(Extension)')"
+		      SkipUnchangedFiles="true" />
+		<Warning Condition="!Exists('$(_StreakExtensionAppexPath)')"
+		         Text="StreakSaverExtension not embedded ($(_StreakExtensionAppexPath) missing). Run ./src/ios/build.sh — widget and Shortcuts actions will not appear." />
+	</Target>
 
 	<ItemGroup>
 		<PackageReference Include="asyncawaitbestpractices" Version="10.0.0" />

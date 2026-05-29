@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0-ios</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsBindingProject>true</IsBindingProject>
+    <RootNamespace>TiktokStreakSaver.Native</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <NativeArtifactsDir>$(MSBuildThisFileDirectory)..\ios\artifacts</NativeArtifactsDir>
+    <StreakEngineXcframework>$(NativeArtifactsDir)/StreakEngine.xcframework</StreakEngineXcframework>
+    <StreakExtensionAppex>$(NativeArtifactsDir)/StreakSaverExtension.appex</StreakExtensionAppex>
+  </PropertyGroup>
+
+  <ItemGroup Condition="Exists('$(StreakEngineXcframework)')">
+    <NativeReference Include="$(StreakEngineXcframework)">
+      <Kind>Framework</Kind>
+      <ForceLoad>true</ForceLoad>
+      <SmartLink>false</SmartLink>
+    </NativeReference>
+  </ItemGroup>
+
+  <Target Name="WarnNativeArtifacts" BeforeTargets="Build"
+          Condition="!Exists('$(StreakEngineXcframework)')">
+    <Warning Text="StreakEngine.xcframework not found. Run ./src/ios/build.sh on macOS (see src/ios/README.md)." />
+  </Target>
+</Project>

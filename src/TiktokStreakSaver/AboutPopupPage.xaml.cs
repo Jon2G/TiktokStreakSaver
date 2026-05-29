@@ -428,6 +428,14 @@ blockquote{{
     {
         if (_isDownloading) return;
 
+#if IOS
+        var url = _apkDownloadUrl ?? "https://github.com/Jon2G/TiktokStreakSaver/releases/latest";
+        await Launcher.OpenAsync(url);
+        Preferences.Default.Set("LastRemoteVersionSeen", _assignedVersion);
+        try { await Navigation.PopModalAsync(); } catch { }
+        return;
+#endif
+
         // If no APK asset found, fall back to opening GitHub releases page
         if (string.IsNullOrEmpty(_apkDownloadUrl))
         {

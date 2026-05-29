@@ -1,6 +1,7 @@
 using Microsoft.Maui.Controls.Shapes;
 using TiktokStreakSaver.Models;
 using TiktokStreakSaver.Services;
+using TiktokStreakSaver.Services.Storage;
 using TiktokStreakSaver.Views;
 
 namespace TiktokStreakSaver.Pages;
@@ -106,12 +107,9 @@ public partial class DashboardPage : ContentPage
     private void UpdateSessionIndicator()
     {
         bool valid = _sessionService.IsSessionValid();
-        MasterRunButton.IsEnabled = valid;
-        MasterRunButton.Opacity = valid ? 1.0 : 0.5;
-        if (!valid && !MasterRunButton.Text.Contains("Login Required"))
-        {
-            MasterRunButton.Text = "Login Required";
-        }
+        MasterRunButton.IsEnabled = true;
+        MasterRunButton.Opacity = 1.0;
+        MasterRunButton.Text = valid ? "Run Now" : "Login Required";
     }
 
     private void CheckGlobalSessionStatus()
@@ -126,6 +124,8 @@ public partial class DashboardPage : ContentPage
         bool isRunning = false;
 #if ANDROID
         isRunning = TiktokStreakSaver.Platforms.Android.Services.StreakService.IsRunning;
+#elif IOS
+        isRunning = Platforms.iOS.Services.IosStreakRunner.IsRunning;
 #endif
         RunButtonsContainer.IsVisible = !isRunning;
         StopServiceButton.IsVisible = isRunning;
@@ -195,9 +195,15 @@ public partial class DashboardPage : ContentPage
             if (remoteVersion == lastRemoteSeen || remoteVersion == currentVersion) return;
             if (Navigation.ModalStack.Any(p => p is AboutPopupPage)) return;
 
+            var downloadUrl =
+#if IOS
+                updateCheck.IpaDownloadUrl ?? updateCheck.ReleaseUrl;
+#else
+                updateCheck.ApkDownloadUrl;
+#endif
             await MainThread.InvokeOnMainThreadAsync(async () =>
                 await Navigation.PushModalAsync(new AboutPopupPage(
-                    "Update Available!", remoteVersion, updateCheck.Changelog, true, updateCheck.ApkDownloadUrl)));
+                    "Update Available!", remoteVersion, updateCheck.Changelog, true, downloadUrl)));
         }
         catch { }
         finally { _isCheckingForUpdates = false; }
@@ -311,6 +317,13 @@ public partial class DashboardPage : ContentPage
         await MasterRunButton.ScaleTo(0.94, 60, Easing.CubicIn);
         await MasterRunButton.ScaleTo(1.0, 100, Easing.CubicOut);
 
+        CheckGlobalSessionStatus();
+        if (!_sessionService.IsSessionValid())
+        {
+            await Navigation.PushAsync(new LoginPage());
+            return;
+        }
+
         var friends = _settingsService.GetEnabledFriends();
         if (friends.Count == 0)
         {
@@ -338,6 +351,18 @@ public partial class DashboardPage : ContentPage
         else
         {
             await DisplayAlert("Already Running", "A process is already running. Please wait for it to finish.", "OK");
+        }
+#elif IOS
+        await Platforms.iOS.Services.IosNotificationService.RequestPermissionAsync();
+        bool started = await Platforms.iOS.Services.IosStreakRunner.RunNowAsync();
+        if (started)
+        {
+            await DisplayAlert("Started", "Streak run started. You'll get a notification when it finishes.", "OK");
+            UpdateStatus();
+        }
+        else
+        {
+            await DisplayAlert("Already Running", "A streak run is already in progress.", "OK");
         }
 #else
         await DisplayAlert("Info", "This feature is only available on Android", "OK");
@@ -368,7 +393,21 @@ public partial class DashboardPage : ContentPage
 
     private async Task EvaluatePermissionsAsync()
     {
-#if ANDROID
+#if IOS
+        var authRequired = AppStorageProvider.Current.GetBool(AppConstants.AuthRequiredKey);
+        if (authRequired && _sessionService.IsSessionValid())
+        {
+            PermissionsPanel.IsVisible = true;
+            BtnNotification.IsVisible = false;
+            BtnExactAlarm.IsVisible = false;
+            BtnBatteryOpt.IsVisible = false;
+        }
+        else
+        {
+            PermissionsPanel.IsVisible = false;
+        }
+        await Platforms.iOS.Services.IosNotificationService.RequestPermissionAsync();
+#elif ANDROID
         var context = Platform.CurrentActivity ?? Android.App.Application.Context;
         bool exactAlarmGranted = TiktokStreakSaver.Platforms.Android.StreakScheduler.CanScheduleExactAlarms(context);
         bool batteryOptGranted = TiktokStreakSaver.Platforms.Android.StreakScheduler.IsIgnoringBatteryOptimizations(context);

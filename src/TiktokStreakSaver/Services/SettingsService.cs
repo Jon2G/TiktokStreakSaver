@@ -1,5 +1,6 @@
 using System.Text.Json;
 using TiktokStreakSaver.Models;
+using TiktokStreakSaver.Services.Storage;
 
 namespace TiktokStreakSaver.Services;
 
@@ -9,6 +10,8 @@ namespace TiktokStreakSaver.Services;
 [Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
 public class SettingsService
 {
+    private readonly IAppStorage _storage = AppStorageProvider.Current;
+
     private const string FriendsListKey = "friends_list";
     private const string MessageTextKey = "message_text";
     private const string LastRunKey = "last_run";
@@ -61,7 +64,7 @@ public class SettingsService
     {
         try
         {
-            var json = Preferences.Get(FriendsListKey, string.Empty);
+            var json = _storage.GetString(FriendsListKey, string.Empty);
             if (string.IsNullOrEmpty(json))
                 return new List<FriendConfig>();
 
@@ -76,7 +79,7 @@ public class SettingsService
     public void SaveFriendsList(List<FriendConfig> friends)
     {
         var json = JsonSerializer.Serialize(friends, JsonOptions);
-        Preferences.Set(FriendsListKey, json);
+        _storage.SetString(FriendsListKey, json);
     }
 
     public void AddFriend(FriendConfig friend)
@@ -115,12 +118,12 @@ public class SettingsService
 
     public string GetMessageText()
     {
-        return Preferences.Get(MessageTextKey, DefaultMessage);
+        return _storage.GetString(MessageTextKey, DefaultMessage);
     }
 
     public void SetMessageText(string message)
     {
-        Preferences.Set(MessageTextKey, message);
+        _storage.SetString(MessageTextKey, message);
     }
 
     // ── Randomized Normal Messages ──
@@ -189,7 +192,7 @@ public class SettingsService
     /// </summary>
     public bool GetRandomizeNormalMessages()
     {
-        return Preferences.Get(RandomizeNormalMessagesKey, false);
+        return _storage.GetBool(RandomizeNormalMessagesKey, false);
     }
 
     /// <summary>
@@ -197,7 +200,7 @@ public class SettingsService
     /// </summary>
     public void SetRandomizeNormalMessages(bool enabled)
     {
-        Preferences.Set(RandomizeNormalMessagesKey, enabled);
+        _storage.SetBool(RandomizeNormalMessagesKey, enabled);
     }
 
     #endregion
@@ -209,7 +212,7 @@ public class SettingsService
     /// </summary>
     public int GetIntervalHours()
     {
-        var v = Preferences.Get(IntervalHoursKey, DefaultIntervalHours);
+        var v = (int)_storage.GetLong(IntervalHoursKey, DefaultIntervalHours);
         return Math.Clamp(v, 1, 23);
     }
 
@@ -218,18 +221,18 @@ public class SettingsService
     /// </summary>
     public void SetIntervalHours(int hours)
     {
-        Preferences.Set(IntervalHoursKey, Math.Clamp(hours, 1, 23));
+        _storage.SetLong(IntervalHoursKey, Math.Clamp(hours, 1, 23));
     }
 
     public DateTime? GetLastRunTime()
     {
-        var ticks = Preferences.Get(LastRunKey, 0L);
+        var ticks = _storage.GetLong(LastRunKey, 0L);
         return ticks > 0 ? new DateTime(ticks) : null;
     }
 
     public void SetLastRunTime(DateTime time)
     {
-        Preferences.Set(LastRunKey, time.Ticks);
+        _storage.SetLong(LastRunKey, time.Ticks);
     }
 
     /// <summary>
@@ -237,12 +240,12 @@ public class SettingsService
     /// </summary>
     public bool IsScheduled()
     {
-        return Preferences.Get(IsScheduledKey, false);
+        return _storage.GetBool(IsScheduledKey, false);
     }
 
     public void SetScheduled(bool scheduled)
     {
-        Preferences.Set(IsScheduledKey, scheduled);
+        _storage.SetBool(IsScheduledKey, scheduled);
     }
 
     /// <summary>
@@ -250,12 +253,12 @@ public class SettingsService
     /// </summary>
     public bool GetSkipUnreachableUsers()
     {
-        return Preferences.Get(SkipUnreachableUsersKey, true);
+        return _storage.GetBool(SkipUnreachableUsersKey, true);
     }
 
     public void SetSkipUnreachableUsers(bool skip)
     {
-        Preferences.Set(SkipUnreachableUsersKey, skip);
+        _storage.SetBool(SkipUnreachableUsersKey, skip);
     }
 
     public DateTime GetNextRunTime()
@@ -280,23 +283,31 @@ public class SettingsService
     /// When true, scheduling uses a fixed daily clock time (Hour:Minute) instead of
     /// the rolling interval based on last run.
     /// </summary>
-    public bool GetUseFixedTime() => Preferences.Get(UseFixedTimeKey, false);
+    public bool GetUseFixedTime() => _storage.GetBool(UseFixedTimeKey, false);
 
-    public void SetUseFixedTime(bool value) => Preferences.Set(UseFixedTimeKey, value);
+    public void SetUseFixedTime(bool value) => _storage.SetBool(UseFixedTimeKey, value);
 
     /// <summary>
     /// Hour of day (0-23) for fixed daily schedule.
     /// </summary>
-    public int GetFixedTimeHour() => Preferences.Get(FixedTimeHourKey, DateTime.Now.Hour);
+    public int GetFixedTimeHour()
+    {
+        var stored = _storage.GetLong(FixedTimeHourKey, -1);
+        return stored >= 0 ? (int)stored : DateTime.Now.Hour;
+    }
 
-    public void SetFixedTimeHour(int hour) => Preferences.Set(FixedTimeHourKey, Math.Clamp(hour, 0, 23));
+    public void SetFixedTimeHour(int hour) => _storage.SetLong(FixedTimeHourKey, Math.Clamp(hour, 0, 23));
 
     /// <summary>
     /// Minute (0-59) for fixed daily schedule.
     /// </summary>
-    public int GetFixedTimeMinute() => Preferences.Get(FixedTimeMinuteKey, DateTime.Now.Minute);
+    public int GetFixedTimeMinute()
+    {
+        var stored = _storage.GetLong(FixedTimeMinuteKey, -1);
+        return stored >= 0 ? (int)stored : DateTime.Now.Minute;
+    }
 
-    public void SetFixedTimeMinute(int minute) => Preferences.Set(FixedTimeMinuteKey, Math.Clamp(minute, 0, 59));
+    public void SetFixedTimeMinute(int minute) => _storage.SetLong(FixedTimeMinuteKey, Math.Clamp(minute, 0, 59));
 
     #endregion
 
@@ -308,11 +319,11 @@ public class SettingsService
     /// </summary>
     public int GetTodayRetryCount()
     {
-        var storedDateTicks = Preferences.Get(RetryCountDateKey, 0L);
+        var storedDateTicks = _storage.GetLong(RetryCountDateKey, 0L);
         var today = DateTime.Now.Date.Ticks;
         if (storedDateTicks != today)
             return 0;
-        return Preferences.Get(RetryCountTodayKey, 0);
+        return (int)_storage.GetLong(RetryCountTodayKey, 0);
     }
 
     /// <summary>
@@ -322,41 +333,41 @@ public class SettingsService
     public int IncrementTodayRetryCount()
     {
         var today = DateTime.Now.Date.Ticks;
-        var storedDateTicks = Preferences.Get(RetryCountDateKey, 0L);
-        var current = storedDateTicks == today ? Preferences.Get(RetryCountTodayKey, 0) : 0;
+        var storedDateTicks = _storage.GetLong(RetryCountDateKey, 0L);
+        var current = storedDateTicks == today ? (int)_storage.GetLong(RetryCountTodayKey, 0) : 0;
         var next = current + 1;
-        Preferences.Set(RetryCountDateKey, today);
-        Preferences.Set(RetryCountTodayKey, next);
+        _storage.SetLong(RetryCountDateKey, today);
+        _storage.SetLong(RetryCountTodayKey, next);
         return next;
     }
 
     /// <summary>Reset today's retry counter (typically on a fully successful run).</summary>
     public void ResetTodayRetryCount()
     {
-        Preferences.Set(RetryCountDateKey, DateTime.Now.Date.Ticks);
-        Preferences.Set(RetryCountTodayKey, 0);
+        _storage.SetLong(RetryCountDateKey, DateTime.Now.Date.Ticks);
+        _storage.SetLong(RetryCountTodayKey, 0);
     }
 
     /// <summary>
     /// Flag indicating that the last attempted run failed and a recovery (e.g. on
     /// network restore) may be worth attempting.
     /// </summary>
-    public bool GetLastRunFailed() => Preferences.Get(LastRunFailedKey, false);
+    public bool GetLastRunFailed() => _storage.GetBool(LastRunFailedKey, false);
 
     /// <summary>Set / clear the last-run-failed flag, optionally tagging the reason.</summary>
     public void SetLastRunFailed(bool failed, string? reason)
     {
-        Preferences.Set(LastRunFailedKey, failed);
+        _storage.SetBool(LastRunFailedKey, failed);
         if (failed && !string.IsNullOrEmpty(reason))
-            Preferences.Set(LastRunFailureReasonKey, reason);
+            _storage.SetString(LastRunFailureReasonKey, reason);
         else
-            Preferences.Remove(LastRunFailureReasonKey);
+            _storage.Remove(LastRunFailureReasonKey);
     }
 
     /// <summary>Reason tag set the last time the run failed, or null when cleared.</summary>
     public string? GetLastRunFailureReason()
     {
-        var v = Preferences.Get(LastRunFailureReasonKey, string.Empty);
+        var v = _storage.GetString(LastRunFailureReasonKey, string.Empty);
         return string.IsNullOrEmpty(v) ? null : v;
     }
 
@@ -366,14 +377,14 @@ public class SettingsService
     /// </summary>
     public bool WasBatteryAnticipationUsedToday()
     {
-        var storedTicks = Preferences.Get(BatteryAnticipationDateKey, 0L);
+        var storedTicks = _storage.GetLong(BatteryAnticipationDateKey, 0L);
         return storedTicks == DateTime.Now.Date.Ticks;
     }
 
     /// <summary>Mark today as already used for battery-low anticipation.</summary>
     public void MarkBatteryAnticipationUsedToday()
     {
-        Preferences.Set(BatteryAnticipationDateKey, DateTime.Now.Date.Ticks);
+        _storage.SetLong(BatteryAnticipationDateKey, DateTime.Now.Date.Ticks);
     }
 
     /// <summary>
@@ -381,9 +392,9 @@ public class SettingsService
     /// the system battery-low broadcast and today's streak hasn't been sent yet.
     /// Default ON.
     /// </summary>
-    public bool GetSendOnBatteryLow() => Preferences.Get(SendOnBatteryLowKey, true);
+    public bool GetSendOnBatteryLow() => _storage.GetBool(SendOnBatteryLowKey, true);
 
-    public void SetSendOnBatteryLow(bool value) => Preferences.Set(SendOnBatteryLowKey, value);
+    public void SetSendOnBatteryLow(bool value) => _storage.SetBool(SendOnBatteryLowKey, value);
 
     #endregion
 
@@ -393,7 +404,7 @@ public class SettingsService
     {
         try
         {
-            var json = Preferences.Get(RunHistoryKey, string.Empty);
+            var json = _storage.GetString(RunHistoryKey, string.Empty);
             if (string.IsNullOrEmpty(json))
                 return new List<StreakRunResult>();
 
@@ -414,7 +425,7 @@ public class SettingsService
             history = history.Take(50).ToList();
 
         var json = JsonSerializer.Serialize(history, JsonOptions);
-        Preferences.Set(RunHistoryKey, json);
+        _storage.SetString(RunHistoryKey, json);
     }
 
     #endregion
@@ -423,12 +434,12 @@ public class SettingsService
 
     public void ClearRunHistory()
     {
-        Preferences.Remove(RunHistoryKey);
+        _storage.Remove(RunHistoryKey);
     }
 
     public void ClearAll()
     {
-        Preferences.Clear();
+        _storage.Clear();
     }
 
     #endregion
