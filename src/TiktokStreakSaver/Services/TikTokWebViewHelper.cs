@@ -17,6 +17,29 @@ public static class TikTokWebViewHelper
         public bool IsValidUrl { get; set; }
     }
 
+    /// <summary>Stop loading and release the login WebView so TikTok video/audio does not continue in the background.</summary>
+    public static void TearDownLoginWebView(WebView webView)
+    {
+#if ANDROID
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            if (webView.Handler?.PlatformView is Android.Webkit.WebView awv)
+            {
+                awv.StopLoading();
+                awv.OnPause();
+                awv.PauseTimers();
+                awv.LoadUrl("about:blank");
+            }
+            webView.Source = null;
+            webView.Handler?.DisconnectHandler();
+        });
+#elif IOS
+        Platforms.iOS.Services.IosWebViewConfigurator.TearDownLoginWebView(webView);
+#else
+        webView.Source = null;
+#endif
+    }
+
     public static void ConfigureWebView(WebView webView, string? customUserAgent = null)
     {
 #if ANDROID
@@ -26,6 +49,8 @@ public static class TikTokWebViewHelper
             if (androidWebView != null)
                 ConfigureAndroidWebView(androidWebView, customUserAgent);
         });
+#elif IOS
+        Platforms.iOS.Services.IosWebViewConfigurator.Configure(webView, customUserAgent);
 #endif
     }
 
@@ -47,10 +72,6 @@ public static class TikTokWebViewHelper
 
     public static void FlushCookies() => Android.Webkit.CookieManager.Instance?.Flush();
 
-    /// <summary>
-    /// Instantly check if a valid <c>sessionid</c> cookie exists for TikTok.
-    /// Synchronous and uses zero network.
-    /// </summary>
     public static bool HasValidSessionCookie()
     {
         try
@@ -70,9 +91,6 @@ public static class TikTokWebViewHelper
         }
     }
 
-    /// <summary>
-    /// Physically destroy all WebView cookies to guarantee a clean logout.
-    /// </summary>
     public static void ClearAllCookies()
     {
         try
@@ -89,6 +107,17 @@ public static class TikTokWebViewHelper
             System.Diagnostics.Debug.WriteLine($"Error clearing cookies: {ex.Message}");
         }
     }
+#elif IOS
+    public static bool HasValidSessionCookie() =>
+        Platforms.iOS.Services.IosWebViewConfigurator.HasValidSessionCookie();
+
+    public static Task<bool> HasValidSessionCookieAsync(WebView? webView = null) =>
+        Platforms.iOS.Services.IosWebViewConfigurator.HasValidSessionCookieInWebViewAsync(webView);
+
+    public static void ClearAllCookies()
+    {
+        Platforms.iOS.Services.IosWebViewConfigurator.ClearCookies();
+    }
 #else
     public static bool HasValidSessionCookie() => false;
     public static void ClearAllCookies() { }
@@ -97,10 +126,6 @@ public static class TikTokWebViewHelper
     public static string GetDefaultUserAgent() =>
         "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
 
-    /// <summary>
-    /// Original URL-heuristic login detection. Kept alongside the cookie probe
-    /// for callers that already key off URL transitions.
-    /// </summary>
     public static LoginStatusResult CheckLoginStatus(string? url)
     {
         var result = new LoginStatusResult { Url = url ?? string.Empty };
@@ -145,6 +170,10 @@ public static class TikTokWebViewHelper
 #if ANDROID
         if (isLoggedIn)
             FlushCookies();
+#elif IOS
+        if (isLoggedIn)
+            Storage.AppStorageProvider.Current.SetBool(AppConstants.AuthRequiredKey, false);
+        // Cookie export runs on LoginPage before Done(); avoid re-export after WebView teardown.
 #endif
     }
 }

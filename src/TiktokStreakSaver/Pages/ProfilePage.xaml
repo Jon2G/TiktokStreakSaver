@@ -103,10 +103,48 @@
                     <VerticalStackLayout Spacing="16">
                         <Label Text="Settings" Style="{StaticResource SectionLabel}"/>
 
+                        <!-- iOS: Shortcuts-only scheduling (no in-app alarms) -->
+                        <VerticalStackLayout x:Name="IosShortcutsSettingsPanel"
+                                             IsVisible="False"
+                                             Spacing="12">
+                            <Border StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 16"
+                                    Padding="14,12"
+                                    Stroke="{AppThemeBinding Light=#BFDBFE, Dark=#1E3A5F}"
+                                    BackgroundColor="{AppThemeBinding Light=#EFF6FF, Dark=#0F1A2E}">
+                                <VerticalStackLayout Spacing="8">
+                                    <Label Text="Scheduling on iPhone"
+                                           FontFamily="InterSemiBold"
+                                           FontSize="14"
+                                           TextColor="{AppThemeBinding Light=#1E40AF, Dark=#93C5FD}"/>
+                                    <Label Text="Streak Saver cannot run on a timer inside the app on iOS. Automations only work through the Shortcuts app (or the home screen widget)."
+                                           FontFamily="InterRegular"
+                                           FontSize="13"
+                                           LineBreakMode="WordWrap"
+                                           TextColor="{AppThemeBinding Light=#1E3A8A, Dark={StaticResource Gray300}}"/>
+                                    <Label Text="Create a daily Shortcut automation, turn off Ask Before Running, and pick the same time each day. The app will open briefly when the automation runs."
+                                           FontFamily="InterRegular"
+                                           FontSize="13"
+                                           LineBreakMode="WordWrap"
+                                           TextColor="{AppThemeBinding Light=#1E3A8A, Dark={StaticResource Gray300}}"/>
+                                </VerticalStackLayout>
+                            </Border>
+                            <Button x:Name="ShortcutTutorialButton"
+                                    Text="Shortcut setup guide"
+                                    BackgroundColor="{AppThemeBinding Light={StaticResource PrimarySubtle}, Dark={StaticResource Gray800}}"
+                                    TextColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                                    FontFamily="InterSemiBold"
+                                    CornerRadius="14"
+                                    HeightRequest="44"
+                                    Clicked="OnShortcutTutorialClicked"/>
+                        </VerticalStackLayout>
+
+                        <!-- Android: in-app background scheduling -->
+                        <VerticalStackLayout x:Name="AndroidSchedulingPanel" Spacing="16">
                         <Grid ColumnDefinitions="*, Auto" ColumnSpacing="16">
                             <VerticalStackLayout VerticalOptions="Center" Spacing="4">
-                                <Label Text="Background Automation" Style="{StaticResource ControlTitleLabel}"/>
-                                <Label Text="Keep streaks alive automatically" Style="{StaticResource DataLabel}" LineBreakMode="WordWrap"/>
+                                <Label x:Name="ScheduleTitleLabel" Text="Background Automation" Style="{StaticResource ControlTitleLabel}"/>
+                                <Label x:Name="ScheduleSubtitleLabel" Text="Keep streaks alive automatically" Style="{StaticResource DataLabel}" LineBreakMode="WordWrap"/>
                             </VerticalStackLayout>
                             <Switch x:Name="ScheduleSwitch"
                                     Grid.Column="1"
@@ -190,7 +228,7 @@
                                     Toggled="OnRandomizeMessagesToggled"/>
                         </Grid>
 
-                        <Grid ColumnDefinitions="*, Auto" ColumnSpacing="16">
+                        <Grid x:Name="BatteryLowRow" ColumnDefinitions="*, Auto" ColumnSpacing="16">
                             <VerticalStackLayout VerticalOptions="Center" Spacing="4">
                                 <Label Text="Send streaks if battery is running low" Style="{StaticResource ControlTitleLabel}"/>
                                 <Label Text="Anticipate today's run when the system battery-low warning fires" Style="{StaticResource DataLabel}" LineBreakMode="WordWrap"/>
@@ -200,6 +238,7 @@
                                     VerticalOptions="Center"
                                     Toggled="OnSendOnBatteryLowToggled"/>
                         </Grid>
+                        </VerticalStackLayout>
                     </VerticalStackLayout>
                 </Border>
 

@@ -40,6 +40,7 @@ public class UpdateInfo
     public string Changelog { get; set; } = string.Empty;
     public string ReleaseUrl { get; set; } = string.Empty;
     public string? ApkDownloadUrl { get; set; }
+    public string? IpaDownloadUrl { get; set; }
 }
 
 /// <summary>
@@ -80,13 +81,24 @@ public class UpdateService
                     ?? release.Assets.FirstOrDefault(a =>
                         a.Name.EndsWith(".apk", StringComparison.OrdinalIgnoreCase));
 
+                var ipaAsset = release.Assets.FirstOrDefault(a =>
+                    a.Name.EndsWith(".ipa", StringComparison.OrdinalIgnoreCase));
+
+                // Only prompt when this platform has a release artifact (avoid Android-only updates on iOS).
+#if IOS
+                bool hasPlatformRelease = ipaAsset != null;
+#else
+                bool hasPlatformRelease = apkAsset != null;
+#endif
+
                 return new UpdateInfo
                 {
-                    HasUpdate = remoteVersion > localVersion,
+                    HasUpdate = hasPlatformRelease && remoteVersion > localVersion,
                     LatestVersion = remoteVersionStr,
                     Changelog = release.Body,
                     ReleaseUrl = release.HtmlUrl,
-                    ApkDownloadUrl = apkAsset?.BrowserDownloadUrl
+                    ApkDownloadUrl = apkAsset?.BrowserDownloadUrl,
+                    IpaDownloadUrl = ipaAsset?.BrowserDownloadUrl
                 };
             }
 

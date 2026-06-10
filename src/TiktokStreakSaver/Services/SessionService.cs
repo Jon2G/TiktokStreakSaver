@@ -1,3 +1,5 @@
+using TiktokStreakSaver.Services.Storage;
+
 namespace TiktokStreakSaver.Services;
 
 /// <summary>
@@ -6,6 +8,8 @@ namespace TiktokStreakSaver.Services;
 [Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
 public class SessionService
 {
+    private readonly IAppStorage _storage = AppStorageProvider.Current;
+
     private const string SessionValidKey = "session_valid";
     private const string SessionLastCheckKey = "session_last_check";
     private const string DisplayNameKey = "session_display_name";
@@ -17,7 +21,7 @@ public class SessionService
     /// </summary>
     public bool IsSessionValid()
     {
-        return Preferences.Get(SessionValidKey, false);
+        return _storage.GetBool(SessionValidKey, false);
     }
 
     /// <summary>
@@ -25,8 +29,8 @@ public class SessionService
     /// </summary>
     public void SetSessionValid(bool valid)
     {
-        Preferences.Set(SessionValidKey, valid);
-        Preferences.Set(SessionLastCheckKey, DateTime.Now.Ticks);
+        _storage.SetBool(SessionValidKey, valid);
+        _storage.SetLong(SessionLastCheckKey, DateTime.Now.Ticks);
     }
 
     /// <summary>
@@ -34,7 +38,7 @@ public class SessionService
     /// </summary>
     public DateTime? GetLastCheckTime()
     {
-        var ticks = Preferences.Get(SessionLastCheckKey, 0L);
+        var ticks = _storage.GetLong(SessionLastCheckKey, 0L);
         return ticks > 0 ? new DateTime(ticks) : null;
     }
 
@@ -43,7 +47,7 @@ public class SessionService
     /// </summary>
     public string GetDisplayName()
     {
-        return Preferences.Get(DisplayNameKey, "User");
+        return _storage.GetString(DisplayNameKey, "User");
     }
 
     /// <summary>
@@ -51,7 +55,7 @@ public class SessionService
     /// </summary>
     public void SetDisplayName(string name)
     {
-        Preferences.Set(DisplayNameKey, string.IsNullOrWhiteSpace(name) ? "User" : name.Trim());
+        _storage.SetString(DisplayNameKey, string.IsNullOrWhiteSpace(name) ? "User" : name.Trim());
     }
 
     /// <summary>
@@ -59,7 +63,7 @@ public class SessionService
     /// </summary>
     public string? GetLoginUserAgent()
     {
-        var ua = Preferences.Get(LoginUserAgentKey, string.Empty);
+        var ua = _storage.GetString(LoginUserAgentKey, string.Empty);
         return string.IsNullOrEmpty(ua) ? null : ua;
     }
 
@@ -68,7 +72,7 @@ public class SessionService
     /// </summary>
     public void SetLoginUserAgent(string userAgent)
     {
-        Preferences.Set(LoginUserAgentKey, userAgent ?? string.Empty);
+        _storage.SetString(LoginUserAgentKey, userAgent ?? string.Empty);
     }
 
     /// <summary>
@@ -76,7 +80,7 @@ public class SessionService
     /// </summary>
     public string GetProfileImagePath()
     {
-        return Preferences.Get(ProfileImagePathKey, string.Empty);
+        return _storage.GetString(ProfileImagePathKey, string.Empty);
     }
 
     /// <summary>
@@ -84,7 +88,7 @@ public class SessionService
     /// </summary>
     public void SetProfileImagePath(string path)
     {
-        Preferences.Set(ProfileImagePathKey, path ?? string.Empty);
+        _storage.SetString(ProfileImagePathKey, path ?? string.Empty);
     }
 
     /// <summary>
@@ -93,10 +97,13 @@ public class SessionService
     /// </summary>
     public void ClearSession()
     {
-        Preferences.Set(SessionValidKey, false);
-        Preferences.Remove(SessionLastCheckKey);
+        _storage.SetBool(SessionValidKey, false);
+        _storage.Remove(SessionLastCheckKey);
 
-        // Physically destroy cookies to guarantee a clean logout
         TikTokWebViewHelper.ClearAllCookies();
+#if IOS
+        Platforms.iOS.Services.CookieSyncService.ClearExportedCookies();
+        _storage.SetBool(AppConstants.AuthRequiredKey, false);
+#endif
     }
 }

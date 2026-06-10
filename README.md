@@ -31,7 +31,8 @@ Streak Saver is an open-source Android app that runs in the background and autom
 
 ## 📋 Requirements
 
-- Android 7.0 (API 24) or higher
+- **Android:** 7.0 (API 24) or higher
+- **iOS:** 17.0 or higher (Shortcuts + interactive widget)
 - TikTok account
 - Internet connection
 
@@ -44,6 +45,14 @@ Streak Saver is an open-source Android app that runs in the background and autom
 3. Enable "Install from unknown sources" on your Android device
 4. Install the APK
 
+### iOS (AltStore)
+
+1. Add the AltStore source: `https://raw.githubusercontent.com/Jon2G/TiktokStreakSaver/main/dist/altstore/source.json`
+2. Install **Streak Saver** from that source (or sideload the latest `StreakSaver.ipa` from [Releases](../../releases))
+3. Complete in-app onboarding: sign in, create a **daily Shortcuts automation** for **Maintain TikTok Streaks**, and allow notifications
+4. See [docs/ios-altstore-release.md](docs/ios-altstore-release.md) to build the release IPA and publish `source.json`
+5. See [docs/ios-signing.md](docs/ios-signing.md) for signing details and CI
+
 ### Option 2: Build from Source
 
 ```bash
@@ -54,6 +63,10 @@ cd TiktokStreakSaver
 # Build for Android
 cd src/TiktokStreakSaver
 dotnet build -f net9.0-android -c Release
+
+# iOS (macOS + Xcode + maui-ios workload) — see src/ios/README.md
+cd src/TiktokStreakSaver
+dotnet build TiktokStreakSaver.csproj -f net9.0-ios -c Release -r ios-arm64
 ```
 
 ## 🚀 Getting Started

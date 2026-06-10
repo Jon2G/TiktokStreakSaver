@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="TiktokStreakSaver.Pages.IosOnboardingPage"
+             Title="Setup"
+             BackgroundColor="{AppThemeBinding Light={StaticResource PageBackgroundLight}, Dark={StaticResource OffBlack}}">
+    <ScrollView>
+        <VerticalStackLayout Padding="24" Spacing="16">
+            <Label x:Name="StepTitleLabel" Style="{StaticResource PageTitleLabel}" />
+            <Label x:Name="StepBodyLabel" Style="{StaticResource ValueLabel}" LineBreakMode="WordWrap" />
+
+            <Button x:Name="PrimaryButton" Clicked="OnPrimaryClicked" />
+            <Button x:Name="SecondaryButton" Text="Skip for now" Clicked="OnSkipClicked"
+                    IsVisible="False" BackgroundColor="Transparent"
+                    TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

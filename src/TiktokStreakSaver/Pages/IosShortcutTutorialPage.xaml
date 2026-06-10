@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:models="clr-namespace:TiktokStreakSaver.Models"
+             xmlns:views="clr-namespace:TiktokStreakSaver.Views"
+             x:Class="TiktokStreakSaver.Pages.IosShortcutTutorialPage"
+             Title="Shortcuts setup"
+             Shell.NavBarIsVisible="True"
+             BackgroundColor="{AppThemeBinding Light={StaticResource PageBackgroundLight}, Dark={StaticResource OffBlack}}">
+
+    <Grid RowDefinitions="Auto, Auto, *, Auto, Auto" Padding="0,8,0,16" RowSpacing="0">
+
+        <Label Grid.Row="0"
+               Text="Follow each tab in order. Swipe or tap a step to move through the guide."
+               Margin="20,0,20,12"
+               FontSize="13"
+               LineBreakMode="WordWrap"
+               TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}" />
+
+        <!-- Step tabs -->
+        <ScrollView Grid.Row="1"
+                    Orientation="Horizontal"
+                    HorizontalScrollBarVisibility="Never"
+                    Margin="0,0,0,8">
+            <HorizontalStackLayout x:Name="TabStrip"
+                                   Padding="16,0"
+                                   Spacing="8" />
+        </ScrollView>
+
+        <CarouselView Grid.Row="2"
+                      x:Name="TutorialCarousel"
+                      IndicatorView="{x:Reference StepIndicator}"
+                      PositionChanged="OnCarouselPositionChanged"
+                      PeekAreaInsets="24,0"
+                      Margin="0,0,0,8">
+            <CarouselView.ItemTemplate>
+                <DataTemplate x:DataType="models:IosShortcutTutorialStep">
+                    <ScrollView>
+                        <VerticalStackLayout Padding="20,0" Spacing="16">
+                            <views:TutorialMediaView MediaFileName="{Binding MediaFileName}"
+                                                     HeightRequest="300" />
+                            <VerticalStackLayout Spacing="8">
+                                <Label Text="{Binding Title}"
+                                       FontFamily="InterSemiBold"
+                                       FontSize="18"
+                                       TextColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource White}}" />
+                                <Label Text="{Binding Description}"
+                                       FontSize="15"
+                                       LineBreakMode="WordWrap"
+                                       TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray300}}" />
+                            </VerticalStackLayout>
+                        </VerticalStackLayout>
+                    </ScrollView>
+                </DataTemplate>
+            </CarouselView.ItemTemplate>
+        </CarouselView>
+
+        <IndicatorView Grid.Row="3"
+                       x:Name="StepIndicator"
+                       IndicatorColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
+                       SelectedIndicatorColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                       HorizontalOptions="Center"
+                       Margin="0,0,0,12" />
+
+        <VerticalStackLayout Grid.Row="4" Padding="20,0" Spacing="10">
+            <Grid ColumnDefinitions="*, 12, *" ColumnSpacing="0">
+                <Button x:Name="PreviousButton"
+                        Grid.Column="0"
+                        Text="Previous"
+                        BackgroundColor="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray800}}"
+                        TextColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource White}}"
+                        CornerRadius="14"
+                        HeightRequest="48"
+                        Clicked="OnPreviousClicked" />
+                <Button x:Name="NextButton"
+                        Grid.Column="2"
+                        Text="Next"
+                        BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                        TextColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource PrimaryDarkText}}"
+                        FontFamily="InterSemiBold"
+                        CornerRadius="14"
+                        HeightRequest="48"
+                        Clicked="OnNextClicked" />
+            </Grid>
+            <Button x:Name="OpenShortcutsButton"
+                    Text="Open Shortcuts app"
+                    BackgroundColor="Transparent"
+                    TextColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                    Clicked="OnOpenShortcutsClicked" />
+            <Button x:Name="DoneButton"
+                    Text="Done"
+                    IsVisible="False"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                    TextColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource PrimaryDarkText}}"
+                    FontFamily="InterSemiBold"
+                    CornerRadius="14"
+                    HeightRequest="48"
+                    Clicked="OnDoneClicked" />
+        </VerticalStackLayout>
+    </Grid>
+</ContentPage>
