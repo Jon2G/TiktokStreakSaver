@@ -36,7 +36,9 @@ jobs:
         run: dotnet --info
 
       - name: Install MAUI iOS workload
-        run: dotnet workload install maui-ios
+        run: |
+          dotnet workload restore
+          dotnet workload list
 
       - name: Install xcodegen
         run: brew install xcodegen
