@@ -114,12 +114,18 @@ jobs:
             "${{ steps.version.outputs.TAG }}"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.version.outputs.TAG }}
-          name: Streak Saver iOS v${{ steps.version.outputs.VERSION }}
-          generate_release_notes: true
-          files: release-out/StreakSaver.ipa
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.version.outputs.TAG }}"
+          TITLE="Streak Saver iOS v${{ steps.version.outputs.VERSION }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" release-out/StreakSaver.ipa --clobber
+          else
+            gh release create "$TAG" release-out/StreakSaver.ipa \
+              --title "$TITLE" \
+              --generate-notes
+          fi
 
       - name: Commit AltStore source JSON
         run: |
