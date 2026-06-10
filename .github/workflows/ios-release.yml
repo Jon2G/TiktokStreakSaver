@@ -25,11 +25,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Apply CI SDK pin
+        run: cp global.ci.json global.json
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
-          global-json-file: global.ci.json
+          global-json-file: global.json
 
       - name: Verify .NET SDK
         run: dotnet --info
