@@ -28,6 +28,7 @@ path = Path("$JSON")
 data = json.loads(path.read_text())
 data["sourceURL"] = "$SOURCE_URL"
 app = data["apps"][0]
+app.pop("marketplaceID", None)  # AltStore Classic rejects notarized/PAL apps
 app["version"] = "$VERSION"
 app["buildVersion"] = "$BUILD_VERSION"
 app["downloadURL"] = "$DOWNLOAD_URL"
