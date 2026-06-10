@@ -42,11 +42,16 @@ public class SettingsService
     /// <summary>Failure-reason value: the run completed but one or more messages failed to send.</summary>
     public const string FailureReasonSendError = "send_error";
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
+
+    private static JsonSerializerOptions CreateJsonOptions()
     {
-        PropertyNameCaseInsensitive = true,
-        WriteIndented = true
-    };
+        var options = new JsonSerializerOptions(AppJsonSerialization.Settings)
+        {
+            TypeInfoResolver = AppJsonContext.Default
+        };
+        return options;
+    }
 
     /// <summary>
     /// Default message to send (kept from original; do NOT change to "Streak").
@@ -62,25 +67,81 @@ public class SettingsService
 
     public List<FriendConfig> GetFriendsList()
     {
+        var json = _storage.GetString(FriendsListKey, string.Empty);
+        if (string.IsNullOrWhiteSpace(json))
+            return new List<FriendConfig>();
+
         try
         {
-            var json = _storage.GetString(FriendsListKey, string.Empty);
-            if (string.IsNullOrEmpty(json))
-                return new List<FriendConfig>();
-
-            return JsonSerializer.Deserialize<List<FriendConfig>>(json, JsonOptions) ?? new List<FriendConfig>();
+            return JsonSerializer.Deserialize(json, AppJsonContext.Default.ListFriendConfig)
+                ?? new List<FriendConfig>();
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"GetFriendsList deserialize failed: {ex.Message}");
+#if IOS
+            TryRecoverFriendsListFromStandardDefaults();
+            json = _storage.GetString(FriendsListKey, string.Empty);
+            if (!string.IsNullOrWhiteSpace(json))
+            {
+                try
+                {
+                    return JsonSerializer.Deserialize(json, AppJsonContext.Default.ListFriendConfig)
+                        ?? new List<FriendConfig>();
+                }
+                catch (Exception retryEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"GetFriendsList retry failed: {retryEx.Message}");
+                }
+            }
+#endif
+            _storage.Remove(FriendsListKey);
             return new List<FriendConfig>();
         }
     }
 
     public void SaveFriendsList(List<FriendConfig> friends)
     {
-        var json = JsonSerializer.Serialize(friends, JsonOptions);
+        var json = JsonSerializer.Serialize(friends, AppJsonContext.Default.ListFriendConfig);
         _storage.SetString(FriendsListKey, json);
+
+        if (!VerifyFriendsListRoundTrip(json))
+            System.Diagnostics.Debug.WriteLine("SaveFriendsList round-trip verification failed");
     }
+
+#if IOS
+    private void TryRecoverFriendsListFromStandardDefaults()
+    {
+        Platforms.iOS.Services.AppGroupAppStorage.TryCopyNonEmptyStringFromStandard(
+            FriendsListKey, _storage);
+    }
+
+    private static bool VerifyFriendsListRoundTrip(string json)
+    {
+        try
+        {
+            var parsed = JsonSerializer.Deserialize(json, AppJsonContext.Default.ListFriendConfig);
+            return parsed != null;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+#else
+    private static bool VerifyFriendsListRoundTrip(string json)
+    {
+        try
+        {
+            var parsed = JsonSerializer.Deserialize<List<FriendConfig>>(json, JsonOptions);
+            return parsed != null;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+#endif
 
     public void AddFriend(FriendConfig friend)
     {
@@ -402,16 +463,18 @@ public class SettingsService
 
     public List<StreakRunResult> GetRunHistory()
     {
+        var json = _storage.GetString(RunHistoryKey, string.Empty);
+        if (string.IsNullOrWhiteSpace(json))
+            return new List<StreakRunResult>();
+
         try
         {
-            var json = _storage.GetString(RunHistoryKey, string.Empty);
-            if (string.IsNullOrEmpty(json))
-                return new List<StreakRunResult>();
-
-            return JsonSerializer.Deserialize<List<StreakRunResult>>(json, JsonOptions) ?? new List<StreakRunResult>();
+            return JsonSerializer.Deserialize(json, AppJsonContext.Default.ListStreakRunResult)
+                ?? new List<StreakRunResult>();
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"GetRunHistory deserialize failed: {ex.Message}");
             return new List<StreakRunResult>();
         }
     }
@@ -424,7 +487,7 @@ public class SettingsService
         if (history.Count > 50)
             history = history.Take(50).ToList();
 
-        var json = JsonSerializer.Serialize(history, JsonOptions);
+        var json = JsonSerializer.Serialize(history, AppJsonContext.Default.ListStreakRunResult);
         _storage.SetString(RunHistoryKey, json);
     }
 

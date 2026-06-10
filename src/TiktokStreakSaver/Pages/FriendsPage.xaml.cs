@@ -465,6 +465,12 @@ public partial class FriendsPage : ContentPage
             _sessionService.SetSessionValid(cookieValid);
             sessionValid = cookieValid;
         }
+#elif IOS
+        if (TikTokWebViewHelper.HasValidSessionCookie())
+        {
+            _sessionService.SetSessionValid(true);
+            sessionValid = true;
+        }
 #endif
         LoginRequiredBanner.IsVisible = !sessionValid;
 

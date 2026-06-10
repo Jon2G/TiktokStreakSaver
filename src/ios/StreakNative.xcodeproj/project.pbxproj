@@ -17,7 +17,6 @@
 		97933443BF78314A789476DC /* StreakEngine.h in Headers */ = {isa = PBXBuildFile; fileRef = 4D2BEB2900E9795CB56ABC7F /* StreakEngine.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		C21667C3D472E6E0B2752518 /* StreakEngine.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 177F29A74DEDF0445E4F63F9 /* StreakEngine.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D90EADF893B55E19ED988A26 /* StreakEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 177F29A74DEDF0445E4F63F9 /* StreakEngine.framework */; };
-		DCDE505105C64DDDFC2307E1 /* tiktok_automation.js in Resources */ = {isa = PBXBuildFile; fileRef = 029CAAEF115B4E3EE55ECCA7 /* tiktok_automation.js */; };
 		DFDDA99E43832532DC09A5C9 /* StreakNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08EB7C910223A93B3BB3B466 /* StreakNotifications.swift */; };
 		E1153899EDA177A45B919B9B /* StreakWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7808B7DC2269809AFE331F5C /* StreakWidget.swift */; };
 		E54C21CA601DFEBAB7EA77DE /* StreakWebViewRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 658644FBB0A21ADEEA35468D /* StreakWebViewRunner.swift */; };
@@ -49,7 +48,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		029CAAEF115B4E3EE55ECCA7 /* tiktok_automation.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = tiktok_automation.js; sourceTree = "<group>"; };
 		08EB7C910223A93B3BB3B466 /* StreakNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakNotifications.swift; sourceTree = "<group>"; };
 		177F29A74DEDF0445E4F63F9 /* StreakEngine.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = StreakEngine.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		249CC27AC6E062ADD646EFD5 /* StreakEngineBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakEngineBridge.swift; sourceTree = "<group>"; };
@@ -89,14 +87,6 @@
 			);
 			sourceTree = "<group>";
 		};
-		13BFE30C8FA751D4AD362452 /* Resources */ = {
-			isa = PBXGroup;
-			children = (
-				029CAAEF115B4E3EE55ECCA7 /* tiktok_automation.js */,
-			);
-			path = Resources;
-			sourceTree = "<group>";
-		};
 		2C2BFD4371A2E54742A860BA /* StreakSaverHost */ = {
 			isa = PBXGroup;
 			children = (
@@ -117,7 +107,6 @@
 				249CC27AC6E062ADD646EFD5 /* StreakEngineBridge.swift */,
 				08EB7C910223A93B3BB3B466 /* StreakNotifications.swift */,
 				658644FBB0A21ADEEA35468D /* StreakWebViewRunner.swift */,
-				13BFE30C8FA751D4AD362452 /* Resources */,
 			);
 			name = StreakEngine;
 			path = StreakEngine/StreakEngine;
@@ -163,7 +152,6 @@
 			buildPhases = (
 				37A2F21E2F9BCE590DCE3A3A /* Headers */,
 				13BDCDA88ACA53AC138B7F6D /* Sources */,
-				BBA4167DD553595AA14693E8 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -253,17 +241,6 @@
 			);
 		};
 /* End PBXProject section */
-
-/* Begin PBXResourcesBuildPhase section */
-		BBA4167DD553595AA14693E8 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				DCDE505105C64DDDFC2307E1 /* tiktok_automation.js in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		13BDCDA88ACA53AC138B7F6D /* Sources */ = {

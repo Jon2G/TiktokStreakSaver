@@ -16,8 +16,40 @@ public sealed class AppGroupAppStorage : IAppStorage
         MigrateFromStandardIfNeeded();
     }
 
+    /// <summary>Copies a non-empty string from standard UserDefaults into target storage when missing/empty.</summary>
+    internal static void TryCopyNonEmptyStringFromStandard(string key, IAppStorage target)
+    {
+        if (!AppGroupPaths.IsAppGroupAvailable)
+            return;
+
+        var existing = target.GetString(key, string.Empty);
+        if (!string.IsNullOrWhiteSpace(existing))
+            return;
+
+        var standard = NSUserDefaults.StandardUserDefaults.StringForKey(key);
+        if (string.IsNullOrWhiteSpace(standard))
+            return;
+
+        target.SetString(key, standard);
+    }
+
+    private static bool ShouldSkipMigrationKey(NSUserDefaults suite, string name, NSObject? standardValue)
+    {
+        var existing = suite.ValueForKey(new NSString(name));
+        if (existing == null)
+            return false;
+
+        if (existing is NSString existingString)
+            return !string.IsNullOrWhiteSpace(existingString.ToString());
+
+        return true;
+    }
+
     private void MigrateFromStandardIfNeeded()
     {
+        if (!AppGroupPaths.IsAppGroupAvailable)
+            return;
+
         const string migratedKey = "app_group_migrated_v1";
         if (_defaults.BoolForKey(migratedKey))
             return;
@@ -33,7 +65,7 @@ public sealed class AppGroupAppStorage : IAppStorage
                 var name = key.ToString();
                 if (string.IsNullOrEmpty(name) || name == migratedKey)
                     continue;
-                if (_defaults.ValueForKey(new NSString(name)) != null)
+                if (ShouldSkipMigrationKey(_defaults, name, kv.Value))
                     continue;
                 if (kv.Value is NSString s)
                     _defaults.SetString(s.ToString(), name);

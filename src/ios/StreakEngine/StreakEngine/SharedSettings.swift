@@ -62,12 +62,57 @@ public struct ExportedCookie: Codable {
     public let expiresDate: Double?
 }
 
+enum SharedJsonCodec {
+    private static let fractionalFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    private static let plainFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
+    static func decodeDate(from string: String) -> Date? {
+        fractionalFormatter.date(from: string) ?? plainFormatter.date(from: string)
+    }
+
+    static let encoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .custom { date, encoder in
+            var container = encoder.singleValueContainer()
+            let string = fractionalFormatter.string(from: date)
+            try container.encode(string)
+        }
+        return encoder
+    }()
+
+    static let decoder: JSONDecoder = {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            if let string = try? container.decode(String.self), let date = decodeDate(from: string) {
+                return date
+            }
+            if let seconds = try? container.decode(Double.self) {
+                return Date(timeIntervalSinceReferenceDate: seconds)
+            }
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unsupported date format")
+        }
+        return decoder
+    }()
+}
+
 public final class SharedSettings {
     public static let shared = SharedSettings()
 
     private let defaults: UserDefaults
 
     private init() {
+        AppGroupSupport.migrateFromStandardIfNeeded()
         defaults = AppGroupSupport.userDefaults
     }
 
@@ -101,11 +146,11 @@ public final class SharedSettings {
     public func getFriends() -> [FriendConfig] {
         let json = getString(SharedConstants.friendsListKey)
         guard !json.isEmpty, let data = json.data(using: .utf8) else { return [] }
-        return (try? JSONDecoder().decode([FriendConfig].self, from: data)) ?? []
+        return (try? SharedJsonCodec.decoder.decode([FriendConfig].self, from: data)) ?? []
     }
 
     public func saveFriends(_ friends: [FriendConfig]) {
-        guard let data = try? JSONEncoder().encode(friends),
+        guard let data = try? SharedJsonCodec.encoder.encode(friends),
               let json = String(data: data, encoding: .utf8) else { return }
         setString(SharedConstants.friendsListKey, json)
     }
@@ -145,7 +190,7 @@ public final class SharedSettings {
         var history = getRunHistory()
         history.insert(result, at: 0)
         if history.count > 50 { history = Array(history.prefix(50)) }
-        guard let data = try? JSONEncoder().encode(history),
+        guard let data = try? SharedJsonCodec.encoder.encode(history),
               let json = String(data: data, encoding: .utf8) else { return }
         setString(SharedConstants.runHistoryKey, json)
     }
@@ -153,12 +198,10 @@ public final class SharedSettings {
     public func getRunHistory() -> [StreakRunResult] {
         let json = getString(SharedConstants.runHistoryKey)
         guard !json.isEmpty, let data = json.data(using: .utf8) else { return [] }
-        return (try? JSONDecoder().decode([StreakRunResult].self, from: data)) ?? []
+        return (try? SharedJsonCodec.decoder.decode([StreakRunResult].self, from: data)) ?? []
     }
 
     public func setLastRun(_ date: Date) {
-        defaults.set(date.timeIntervalSince1970 * 1_000_000_000, forKey: SharedConstants.lastRunKey)
-        // MAUI stores .NET ticks; also write ticks-compatible via double key used by C#
         defaults.set(Double(date.timeIntervalSince1970 * 10_000_000 + 621_355_968_000_000_000), forKey: SharedConstants.lastRunKey)
         defaults.synchronize()
     }

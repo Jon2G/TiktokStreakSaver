@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Foundation;
+using TiktokStreakSaver.Services;
 using WebKit;
 
 namespace TiktokStreakSaver.Platforms.iOS.Services;
@@ -8,6 +9,16 @@ public record ExportedCookie(string Name, string Value, string Domain, string Pa
 
 public static class CookieSyncService
 {
+    internal static bool IsTikTokRelatedDomain(string? domain)
+    {
+        if (string.IsNullOrEmpty(domain))
+            return false;
+
+        return domain.Contains("tiktok", StringComparison.OrdinalIgnoreCase)
+            || domain.Contains("byteoversea", StringComparison.OrdinalIgnoreCase)
+            || domain.Contains("musical.ly", StringComparison.OrdinalIgnoreCase);
+    }
+
     public static async Task ExportCookiesAsync(WKWebView? webView = null)
     {
         var store = webView?.Configuration?.WebsiteDataStore?.HttpCookieStore
@@ -15,7 +26,7 @@ public static class CookieSyncService
 
         var allCookies = await store.GetAllCookiesAsync();
         var list = allCookies
-            .Where(c => (c.Domain ?? "").Contains("tiktok", StringComparison.OrdinalIgnoreCase))
+            .Where(c => IsTikTokRelatedDomain(c.Domain))
             .Select(c => new ExportedCookie(
                 c.Name ?? string.Empty,
                 c.Value ?? string.Empty,
@@ -29,7 +40,7 @@ public static class CookieSyncService
             .Select(g => g.First())
             .ToList();
 
-        var json = JsonSerializer.Serialize(distinct);
+        var json = JsonSerializer.Serialize(distinct, AppJsonSerialization.Cookies);
         var path = AppGroupPaths.CookiesFilePath;
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         await File.WriteAllTextAsync(path, json);
@@ -48,7 +59,7 @@ public static class CookieSyncService
                     ?? WKWebsiteDataStore.DefaultDataStore.HttpCookieStore;
 
         var allCookies = await store.GetAllCookiesAsync();
-        foreach (var c in allCookies.Where(c => (c.Domain ?? "").Contains("tiktok", StringComparison.OrdinalIgnoreCase)))
+        foreach (var c in allCookies.Where(c => IsTikTokRelatedDomain(c.Domain)))
             store.DeleteCookie(c, null);
 
         ClearExportedCookies();

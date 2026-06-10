@@ -114,8 +114,15 @@ public partial class DashboardPage : ContentPage
 
     private void CheckGlobalSessionStatus()
     {
+#if IOS
+        if (TikTokWebViewHelper.HasValidSessionCookie())
+            _sessionService.SetSessionValid(true);
+        else if (!_sessionService.IsSessionValid())
+            _sessionService.SetSessionValid(false);
+#else
         bool isValid = TikTokWebViewHelper.HasValidSessionCookie();
         _sessionService.SetSessionValid(isValid);
+#endif
         UpdateSessionIndicator();
     }
 

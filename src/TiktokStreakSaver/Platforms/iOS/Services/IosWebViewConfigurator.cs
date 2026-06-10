@@ -18,7 +18,7 @@ public static class IosWebViewConfigurator
             config.AllowsInlineMediaPlayback = true;
             config.Preferences.JavaScriptEnabled = true;
             if (!string.IsNullOrEmpty(customUserAgent))
-                config.ApplicationNameForUserAgent = customUserAgent;
+                wk.CustomUserAgent = customUserAgent;
         });
     }
 
@@ -48,8 +48,9 @@ public static class IosWebViewConfigurator
                 return false;
 
             var json = File.ReadAllText(path);
-            return json.Contains("\"sessionid\"", StringComparison.Ordinal) ||
-                   json.Contains("sessionid", StringComparison.Ordinal);
+            return json.Contains("\"sessionid\"", StringComparison.OrdinalIgnoreCase) ||
+                   json.Contains("\"name\":\"sessionid\"", StringComparison.OrdinalIgnoreCase) ||
+                   json.Contains("sessionid", StringComparison.OrdinalIgnoreCase);
         }
         catch
         {
