@@ -12,4 +12,5 @@ namespace TiktokStreakSaver.Services;
     PropertyNameCaseInsensitive = true,
     WriteIndented = true,
     Converters = [typeof(FlexibleNullableDateTimeConverter), typeof(FlexibleDateTimeConverter)])]
+[Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
 internal partial class AppJsonContext : JsonSerializerContext;

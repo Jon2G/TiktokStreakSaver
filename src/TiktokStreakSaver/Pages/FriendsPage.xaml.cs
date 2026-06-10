@@ -291,7 +291,11 @@ public partial class FriendsPage : ContentPage
         if (existing.Any(f => !f.IsGroup && f.Username.Equals(username, StringComparison.OrdinalIgnoreCase)))
         { await DisplayAlert("Error", "This friend is already in your list", "OK"); return; }
         var friend = new FriendConfig { Username = username, DisplayName = displayName ?? string.Empty, IsEnabled = true, IsGroup = false };
-        _settingsService.AddFriend(friend);
+        if (!_settingsService.TryAddFriend(friend, out var error))
+        {
+            await DisplayAlert("Could Not Save", error ?? "Friend could not be saved on this device.", "OK");
+            return;
+        }
         AddFriendPanel.IsVisible = false;
         LoadLists();
     }
@@ -355,7 +359,11 @@ public partial class FriendsPage : ContentPage
             IsGroup = true,
             IsEnabled = true
         };
-        _settingsService.AddFriend(group);
+        if (!_settingsService.TryAddFriend(group, out var error))
+        {
+            await DisplayAlert("Could Not Save", error ?? "Group could not be saved on this device.", "OK");
+            return;
+        }
         AddGroupPanel.IsVisible = false;
         LoadLists();
     }

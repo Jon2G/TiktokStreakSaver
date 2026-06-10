@@ -65,48 +65,124 @@ public class SettingsService
 
     #region Friends List
 
-    public List<FriendConfig> GetFriendsList()
+    private string ReadFriendsListJson()
     {
-        var json = _storage.GetString(FriendsListKey, string.Empty);
+#if IOS
+        var fromFile = Platforms.iOS.Services.IosFriendsFileStorage.ReadJson(migrateFromDefaults: true);
+        if (!string.IsNullOrWhiteSpace(fromFile))
+            return fromFile;
+#endif
+        return _storage.GetString(FriendsListKey, string.Empty);
+    }
+
+    private bool TryDeserializeFriends(string json, out List<FriendConfig>? friends)
+    {
+        friends = null;
         if (string.IsNullOrWhiteSpace(json))
-            return new List<FriendConfig>();
+        {
+            friends = new List<FriendConfig>();
+            return true;
+        }
 
         try
         {
-            return JsonSerializer.Deserialize(json, AppJsonContext.Default.ListFriendConfig)
-                ?? new List<FriendConfig>();
+            friends = JsonSerializer.Deserialize(json, AppJsonContext.Default.ListFriendConfig);
+            if (friends != null)
+                return true;
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"GetFriendsList deserialize failed: {ex.Message}");
-#if IOS
-            TryRecoverFriendsListFromStandardDefaults();
-            json = _storage.GetString(FriendsListKey, string.Empty);
-            if (!string.IsNullOrWhiteSpace(json))
-            {
-                try
-                {
-                    return JsonSerializer.Deserialize(json, AppJsonContext.Default.ListFriendConfig)
-                        ?? new List<FriendConfig>();
-                }
-                catch (Exception retryEx)
-                {
-                    System.Diagnostics.Debug.WriteLine($"GetFriendsList retry failed: {retryEx.Message}");
-                }
-            }
-#endif
-            _storage.Remove(FriendsListKey);
-            return new List<FriendConfig>();
+            System.Diagnostics.Debug.WriteLine($"TryDeserializeFriends source-gen failed: {ex.Message}");
         }
+
+        try
+        {
+            friends = JsonSerializer.Deserialize<List<FriendConfig>>(json, JsonOptions);
+            return friends != null;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"TryDeserializeFriends fallback failed: {ex.Message}");
+            friends = null;
+            return false;
+        }
+    }
+
+    private bool TryLoadFriendsList(out List<FriendConfig>? friends, out string? error)
+    {
+        friends = null;
+        error = null;
+
+        var json = ReadFriendsListJson();
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            friends = new List<FriendConfig>();
+            return true;
+        }
+
+        if (TryDeserializeFriends(json, out friends))
+            return true;
+
+#if IOS
+        TryRecoverFriendsListFromStandardDefaults();
+        json = ReadFriendsListJson();
+        if (!string.IsNullOrWhiteSpace(json) && TryDeserializeFriends(json, out friends))
+            return true;
+
+        json = _storage.GetString(FriendsListKey, string.Empty);
+        if (!string.IsNullOrWhiteSpace(json) && TryDeserializeFriends(json, out friends))
+        {
+            Platforms.iOS.Services.IosFriendsFileStorage.WriteJson(json);
+            return true;
+        }
+#endif
+
+        error = "Could not read saved friends list.";
+        return false;
+    }
+
+    public List<FriendConfig> GetFriendsList()
+    {
+        if (TryLoadFriendsList(out var friends, out _))
+            return friends ?? new List<FriendConfig>();
+
+        return new List<FriendConfig>();
+    }
+
+    public bool TrySaveFriendsList(List<FriendConfig> friends, out string? error)
+    {
+        error = null;
+        var json = JsonSerializer.Serialize(friends, AppJsonContext.Default.ListFriendConfig);
+
+        if (!TryDeserializeFriends(json, out _))
+        {
+            error = "Could not serialize friends list.";
+            return false;
+        }
+
+#if IOS
+        if (!Platforms.iOS.Services.IosFriendsFileStorage.WriteJson(json))
+        {
+            error = "Could not write friends file.";
+            return false;
+        }
+#endif
+
+        _storage.SetString(FriendsListKey, json);
+
+        var readBack = ReadFriendsListJson();
+        if (string.IsNullOrWhiteSpace(readBack) || !TryDeserializeFriends(readBack, out var parsed) || parsed == null)
+        {
+            error = "Friends list did not persist on this device.";
+            return false;
+        }
+
+        return true;
     }
 
     public void SaveFriendsList(List<FriendConfig> friends)
     {
-        var json = JsonSerializer.Serialize(friends, AppJsonContext.Default.ListFriendConfig);
-        _storage.SetString(FriendsListKey, json);
-
-        if (!VerifyFriendsListRoundTrip(json))
-            System.Diagnostics.Debug.WriteLine("SaveFriendsList round-trip verification failed");
+        TrySaveFriendsList(friends, out _);
     }
 
 #if IOS
@@ -115,39 +191,20 @@ public class SettingsService
         Platforms.iOS.Services.AppGroupAppStorage.TryCopyNonEmptyStringFromStandard(
             FriendsListKey, _storage);
     }
-
-    private static bool VerifyFriendsListRoundTrip(string json)
-    {
-        try
-        {
-            var parsed = JsonSerializer.Deserialize(json, AppJsonContext.Default.ListFriendConfig);
-            return parsed != null;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-#else
-    private static bool VerifyFriendsListRoundTrip(string json)
-    {
-        try
-        {
-            var parsed = JsonSerializer.Deserialize<List<FriendConfig>>(json, JsonOptions);
-            return parsed != null;
-        }
-        catch
-        {
-            return false;
-        }
-    }
 #endif
+
+    public bool TryAddFriend(FriendConfig friend, out string? error)
+    {
+        if (!TryLoadFriendsList(out var friends, out error) || friends == null)
+            friends = new List<FriendConfig>();
+
+        friends.Add(friend);
+        return TrySaveFriendsList(friends, out error);
+    }
 
     public void AddFriend(FriendConfig friend)
     {
-        var friends = GetFriendsList();
-        friends.Add(friend);
-        SaveFriendsList(friends);
+        TryAddFriend(friend, out _);
     }
 
     public void RemoveFriend(string friendId)

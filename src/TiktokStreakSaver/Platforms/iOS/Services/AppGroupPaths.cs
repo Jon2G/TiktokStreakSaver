@@ -27,8 +27,11 @@ public static class AppGroupPaths
         }
     }
 
-  public static string CookiesFilePath =>
+    public static string CookiesFilePath =>
         Path.Combine(ContainerPath ?? FileSystem.AppDataDirectory, AppConstants.SharedCookiesFileName);
+
+    public static string FriendsListFilePath =>
+        Path.Combine(ContainerPath ?? FileSystem.AppDataDirectory, AppConstants.FriendsListFileName);
 
     private static void ProbeIfNeeded()
     {

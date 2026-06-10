@@ -124,6 +124,10 @@ public final class SharedSettings {
         containerURL.appendingPathComponent(SharedConstants.cookiesFileName)
     }
 
+    public var friendsListFileURL: URL {
+        containerURL.appendingPathComponent(SharedConstants.friendsListFileName)
+    }
+
     public func getString(_ key: String, default defaultValue: String = "") -> String {
         defaults.string(forKey: key) ?? defaultValue
     }
@@ -144,15 +148,51 @@ public final class SharedSettings {
     }
 
     public func getFriends() -> [FriendConfig] {
+        migrateFriendsToFileIfNeeded()
+        let url = friendsListFileURL
+        if let data = try? Data(contentsOf: url),
+           let friends = try? SharedJsonCodec.decoder.decode([FriendConfig].self, from: data) {
+            return friends
+        }
+
         let json = getString(SharedConstants.friendsListKey)
-        guard !json.isEmpty, let data = json.data(using: .utf8) else { return [] }
-        return (try? SharedJsonCodec.decoder.decode([FriendConfig].self, from: data)) ?? []
+        guard !json.isEmpty, let data = json.data(using: .utf8),
+              let friends = try? SharedJsonCodec.decoder.decode([FriendConfig].self, from: data) else { return [] }
+        saveFriendsToFile(json)
+        return friends
     }
 
     public func saveFriends(_ friends: [FriendConfig]) {
         guard let data = try? SharedJsonCodec.encoder.encode(friends),
               let json = String(data: data, encoding: .utf8) else { return }
+        saveFriendsToFile(json)
         setString(SharedConstants.friendsListKey, json)
+    }
+
+    private func saveFriendsToFile(_ json: String) {
+        let url = friendsListFileURL
+        let temp = url.appendingPathExtension("tmp")
+        do {
+            try FileManager.default.createDirectory(
+                at: url.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try json.write(to: temp, atomically: true, encoding: .utf8)
+            if FileManager.default.fileExists(atPath: url.path) {
+                try FileManager.default.removeItem(at: url)
+            }
+            try FileManager.default.moveItem(at: temp, to: url)
+        } catch {
+            // Best-effort; UserDefaults mirror remains for MAUI reads during transition.
+        }
+    }
+
+    private func migrateFriendsToFileIfNeeded() {
+        let url = friendsListFileURL
+        guard !FileManager.default.fileExists(atPath: url.path) else { return }
+        let json = getString(SharedConstants.friendsListKey)
+        guard !json.isEmpty else { return }
+        saveFriendsToFile(json)
     }
 
     public func getMessageText() -> String {

@@ -80,6 +80,19 @@ public sealed class AppGroupAppStorage : IAppStorage
 
     public string GetString(string key, string defaultValue = "")
     {
+        var raw = _defaults.ValueForKey(new NSString(key));
+        if (raw is NSString existingString)
+        {
+            var text = existingString.ToString();
+            return string.IsNullOrEmpty(text) ? defaultValue : text;
+        }
+
+        if (raw != null)
+        {
+            _defaults.RemoveObject(key);
+            _defaults.Synchronize();
+        }
+
         var v = _defaults.StringForKey(key);
         return string.IsNullOrEmpty(v) ? defaultValue : v;
     }
