@@ -21,7 +21,41 @@ public class SessionService
     /// </summary>
     public bool IsSessionValid()
     {
+#if IOS
+        if (Platforms.iOS.Services.IosSessionFileStorage.ReadValid(out _))
+            return true;
+#endif
         return _storage.GetBool(SessionValidKey, false);
+    }
+
+    public bool TrySetSessionValid(bool valid, out string? error)
+    {
+        error = null;
+        var ticks = DateTime.Now.Ticks;
+        _storage.SetBool(SessionValidKey, valid);
+        _storage.SetLong(SessionLastCheckKey, ticks);
+
+#if IOS
+        if (!Platforms.iOS.Services.IosSessionFileStorage.WriteValid(valid, ticks))
+        {
+            error = "Session state did not persist on this device.";
+            System.Diagnostics.Debug.WriteLine($"TrySetSessionValid file write failed for valid={valid}");
+            return false;
+        }
+#endif
+
+        if (_storage.GetBool(SessionValidKey, !valid) != valid
+#if IOS
+            && !Platforms.iOS.Services.IosSessionFileStorage.ReadValid(out _)
+#endif
+           )
+        {
+            error = "Session state did not persist on this device.";
+            System.Diagnostics.Debug.WriteLine($"TrySetSessionValid read-back failed for valid={valid}");
+            return false;
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -29,8 +63,7 @@ public class SessionService
     /// </summary>
     public void SetSessionValid(bool valid)
     {
-        _storage.SetBool(SessionValidKey, valid);
-        _storage.SetLong(SessionLastCheckKey, DateTime.Now.Ticks);
+        TrySetSessionValid(valid, out _);
     }
 
     /// <summary>
@@ -102,6 +135,7 @@ public class SessionService
 
         TikTokWebViewHelper.ClearAllCookies();
 #if IOS
+        Platforms.iOS.Services.IosSessionFileStorage.Clear();
         Platforms.iOS.Services.CookieSyncService.ClearExportedCookies();
         _storage.SetBool(AppConstants.AuthRequiredKey, false);
 #endif

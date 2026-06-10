@@ -105,15 +105,40 @@ public sealed class AppGroupAppStorage : IAppStorage
 
     public bool GetBool(string key, bool defaultValue = false)
     {
-        if (_defaults.ValueForKey(new NSString(key)) == null)
+        var raw = _defaults.ValueForKey(new NSString(key));
+        if (raw == null)
             return defaultValue;
-        return _defaults.BoolForKey(key);
+
+        if (raw is NSNumber number)
+            return number.BoolValue;
+
+        if (raw is NSString str)
+        {
+            var text = str.ToString()?.Trim();
+            if (string.IsNullOrEmpty(text))
+                return defaultValue;
+            if (bool.TryParse(text, out var parsed))
+                return parsed;
+            if (text == "1")
+                return true;
+            if (text == "0")
+                return false;
+        }
+
+        _defaults.RemoveObject(key);
+        _defaults.Synchronize();
+        return defaultValue;
     }
 
     public void SetBool(string key, bool value)
     {
         _defaults.SetBool(value, key);
         _defaults.Synchronize();
+
+#if DEBUG
+        if (_defaults.BoolForKey(key) != value)
+            System.Diagnostics.Debug.WriteLine($"AppGroupAppStorage SetBool read-back failed for key={key}");
+#endif
     }
 
     public long GetLong(string key, long defaultValue = 0)

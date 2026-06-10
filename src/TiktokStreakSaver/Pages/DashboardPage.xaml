@@ -89,7 +89,7 @@
 
                             <Grid ColumnDefinitions="*, Auto">
                                 <VerticalStackLayout Spacing="4" VerticalOptions="Center">
-                                    <Label Text="Next Scheduled Run" Style="{StaticResource DataLabel}"/>
+                                    <Label x:Name="NextRunTitleLabel" Text="Next Scheduled Run" Style="{StaticResource DataLabel}"/>
                                     <Label x:Name="NextRunLabel" Text="Not scheduled" FontFamily="InterSemiBold" FontSize="16" TextColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"/>
                                 </VerticalStackLayout>
                                 <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center" HorizontalOptions="End">
@@ -119,7 +119,8 @@
                     </Border>
                 </VerticalStackLayout>
 
-                <Label Text="Pull down to check for updates"
+                <Label x:Name="PullToRefreshHintLabel"
+                       Text="Pull down to check for updates"
                        FontFamily="InterRegular"
                        FontSize="12"
                        TextColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"

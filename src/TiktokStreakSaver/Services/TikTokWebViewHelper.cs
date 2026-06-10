@@ -166,14 +166,22 @@ public static class TikTokWebViewHelper
 
     public static void UpdateSessionStatus(SessionService sessionService, bool isLoggedIn)
     {
+#if IOS
+        if (isLoggedIn)
+        {
+            if (!sessionService.TrySetSessionValid(true, out _))
+                sessionService.SetSessionValid(true);
+            Storage.AppStorageProvider.Current.SetBool(AppConstants.AuthRequiredKey, false);
+            return;
+        }
+
+        sessionService.TrySetSessionValid(false, out _);
+#elif ANDROID
         sessionService.SetSessionValid(isLoggedIn);
-#if ANDROID
         if (isLoggedIn)
             FlushCookies();
-#elif IOS
-        if (isLoggedIn)
-            Storage.AppStorageProvider.Current.SetBool(AppConstants.AuthRequiredKey, false);
-        // Cookie export runs on LoginPage before Done(); avoid re-export after WebView teardown.
+#else
+        sessionService.SetSessionValid(isLoggedIn);
 #endif
     }
 }

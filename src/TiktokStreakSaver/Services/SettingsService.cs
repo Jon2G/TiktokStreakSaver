@@ -361,6 +361,22 @@ public class SettingsService
         return _storage.GetBool(IsScheduledKey, false);
     }
 
+    /// <summary>
+    /// Whether automatic streak runs are expected. On iOS this means a Shortcuts automation
+    /// (onboarding complete); on Android it follows the in-app schedule toggle.
+    /// </summary>
+    public bool IsAutomationActive()
+    {
+#if IOS
+        if (IsScheduled())
+            return true;
+
+        return _storage.GetBool(AppConstants.IosOnboardingCompleteKey, false);
+#else
+        return IsScheduled();
+#endif
+    }
+
     public void SetScheduled(bool scheduled)
     {
         _storage.SetBool(IsScheduledKey, scheduled);

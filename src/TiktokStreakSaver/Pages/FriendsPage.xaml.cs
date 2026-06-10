@@ -20,6 +20,11 @@ public partial class FriendsPage : ContentPage
         _sessionService = new SessionService();
     }
 
+    private void OnSessionStateChanged(object? sender, EventArgs e)
+    {
+        MainThread.BeginInvokeOnMainThread(UpdateLoginBanner);
+    }
+
     private Color GetThemeColor(string key, string fallbackHex = "#92979E")
     {
         if (Application.Current != null && Application.Current.Resources.TryGetValue(key, out var resource) && resource is Color color)
@@ -30,6 +35,9 @@ public partial class FriendsPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
+        SessionState.Changed -= OnSessionStateChanged;
+        SessionState.Changed += OnSessionStateChanged;
+
         this.Opacity = 0;
         this.TranslationY = 12;
         await Task.WhenAll(
@@ -51,6 +59,7 @@ public partial class FriendsPage : ContentPage
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
+        SessionState.Changed -= OnSessionStateChanged;
         if (_statusTimer != null)
         {
             _statusTimer.Stop();
@@ -474,6 +483,7 @@ public partial class FriendsPage : ContentPage
             sessionValid = cookieValid;
         }
 #elif IOS
+        // session_valid is source of truth; cookie probes may only upgrade, never downgrade.
         if (TikTokWebViewHelper.HasValidSessionCookie())
         {
             _sessionService.SetSessionValid(true);
@@ -508,6 +518,7 @@ public partial class FriendsPage : ContentPage
     private async void OnLoginRequiredClicked(object? sender, EventArgs e)
     {
         await Navigation.PushAsync(new LoginPage());
+        UpdateLoginBanner();
     }
 
     private void OnBatteryRestrictionsClicked(object? sender, EventArgs e)

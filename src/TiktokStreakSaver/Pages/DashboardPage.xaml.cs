@@ -11,8 +11,10 @@ public partial class DashboardPage : ContentPage
 {
     private readonly SettingsService _settingsService;
     private readonly SessionService _sessionService;
+#if ANDROID
     private readonly UpdateService _updateService;
     private bool _isCheckingForUpdates = false;
+#endif
     private bool _isAppInForeground = false;
     private IDispatcherTimer? _statusTimer;
     private readonly NormalProgressDrawable _normalProgressDrawable;
@@ -22,10 +24,17 @@ public partial class DashboardPage : ContentPage
         InitializeComponent();
         _settingsService = new SettingsService();
         _sessionService = new SessionService();
+#if ANDROID
         _updateService = new UpdateService();
+#endif
 
         _normalProgressDrawable = new NormalProgressDrawable();
         OverviewProgressGraphicsView.Drawable = _normalProgressDrawable;
+    }
+
+    private void OnSessionStateChanged(object? sender, EventArgs e)
+    {
+        MainThread.BeginInvokeOnMainThread(RefreshSessionUi);
     }
 
     private Color GetThemeColor(string key, string fallbackHex = "#92979E")
@@ -39,6 +48,15 @@ public partial class DashboardPage : ContentPage
     {
         base.OnAppearing();
         _isAppInForeground = true;
+        SessionState.Changed -= OnSessionStateChanged;
+        SessionState.Changed += OnSessionStateChanged;
+
+        RefreshSessionUi();
+
+#if IOS
+        PullToRefreshHintLabel.IsVisible = false;
+        NextRunTitleLabel.Text = "Automation";
+#endif
 
         this.Opacity = 0;
         this.TranslationY = 12;
@@ -49,12 +67,8 @@ public partial class DashboardPage : ContentPage
         GreetingLabel.Text = $"Hi, {_sessionService.GetDisplayName()}";
 
         LoadProfilePhoto();
-        UpdateSessionIndicator();
-
         LoadSettings();
         UpdateStatus();
-
-        CheckGlobalSessionStatus();
 
         await EvaluatePermissionsAsync();
 
@@ -74,6 +88,7 @@ public partial class DashboardPage : ContentPage
     {
         base.OnDisappearing();
         _isAppInForeground = false;
+        SessionState.Changed -= OnSessionStateChanged;
         if (_statusTimer != null)
         {
             _statusTimer.Stop();
@@ -112,18 +127,22 @@ public partial class DashboardPage : ContentPage
         MasterRunButton.Text = valid ? "Run Now" : "Login Required";
     }
 
+    private void RefreshSessionUi()
+    {
+        CheckGlobalSessionStatus();
+        UpdateSessionIndicator();
+    }
+
     private void CheckGlobalSessionStatus()
     {
 #if IOS
+        // session_valid (file + UserDefaults) is source of truth; cookie probes may only upgrade.
         if (TikTokWebViewHelper.HasValidSessionCookie())
             _sessionService.SetSessionValid(true);
-        else if (!_sessionService.IsSessionValid())
-            _sessionService.SetSessionValid(false);
 #else
         bool isValid = TikTokWebViewHelper.HasValidSessionCookie();
         _sessionService.SetSessionValid(isValid);
 #endif
-        UpdateSessionIndicator();
     }
 
     private void OnStatusTimerTick(object? sender, EventArgs e)
@@ -148,8 +167,10 @@ public partial class DashboardPage : ContentPage
 
     private async Task CheckStartupPopupAsync()
     {
+#if ANDROID
         if (_isCheckingForUpdates) return;
         _isCheckingForUpdates = true;
+#endif
         try
         {
             if (!_isAppInForeground) return;
@@ -157,6 +178,7 @@ public partial class DashboardPage : ContentPage
 
             string currentVersion = NormalizeVersion(AppInfo.Current.VersionString);
 
+#if ANDROID
             bool updateJustInstalled = Preferences.Default.Get("UpdateJustInstalled", false);
             if (updateJustInstalled)
             {
@@ -166,6 +188,7 @@ public partial class DashboardPage : ContentPage
                 await CheckUpdateOnlyAsync();
                 return;
             }
+#endif
 
             string lastAppSeen = NormalizeVersion(Preferences.Default.Get("LastAppVersionSeen", string.Empty));
             if (string.IsNullOrEmpty(lastAppSeen) || lastAppSeen != currentVersion)
@@ -176,13 +199,18 @@ public partial class DashboardPage : ContentPage
                 return;
             }
 
+#if ANDROID
             _isCheckingForUpdates = false;
             await CheckUpdateOnlyAsync();
+#endif
         }
         catch { }
+#if ANDROID
         finally { _isCheckingForUpdates = false; }
+#endif
     }
 
+#if ANDROID
     private async Task CheckUpdateOnlyAsync()
     {
         if (_isCheckingForUpdates) return;
@@ -202,19 +230,14 @@ public partial class DashboardPage : ContentPage
             if (remoteVersion == lastRemoteSeen || remoteVersion == currentVersion) return;
             if (Navigation.ModalStack.Any(p => p is AboutPopupPage)) return;
 
-            var downloadUrl =
-#if IOS
-                updateCheck.IpaDownloadUrl ?? updateCheck.ReleaseUrl;
-#else
-                updateCheck.ApkDownloadUrl;
-#endif
             await MainThread.InvokeOnMainThreadAsync(async () =>
                 await Navigation.PushModalAsync(new AboutPopupPage(
-                    "Update Available!", remoteVersion, updateCheck.Changelog, true, downloadUrl)));
+                    "Update Available!", remoteVersion, updateCheck.Changelog, true, updateCheck.ApkDownloadUrl)));
         }
         catch { }
         finally { _isCheckingForUpdates = false; }
     }
+#endif
 
     private void LoadSettings()
     {
@@ -230,7 +253,7 @@ public partial class DashboardPage : ContentPage
 
     private void UpdateStatus()
     {
-        var isScheduled = _settingsService.IsScheduled();
+        var isScheduled = _settingsService.IsAutomationActive();
         var lastRun = _settingsService.GetLastRunTime();
         if (lastRun.HasValue)
         {
@@ -243,9 +266,22 @@ public partial class DashboardPage : ContentPage
 
         if (isScheduled)
         {
+#if IOS
+            NextRunTitleLabel.Text = "Automation";
+            NextRunLabel.Text = "Shortcuts app";
+#else
             NextRunLabel.Text = FormatNextRun(_settingsService.GetNextRunTime());
+#endif
         }
+#if IOS
+        else
+        {
+            NextRunTitleLabel.Text = "Automation";
+            NextRunLabel.Text = "Set up in Profile";
+        }
+#else
         else NextRunLabel.Text = "Not scheduled";
+#endif
 
         var history = _settingsService.GetRunHistory();
         var latestResult = history.FirstOrDefault();
@@ -328,6 +364,8 @@ public partial class DashboardPage : ContentPage
         if (!_sessionService.IsSessionValid())
         {
             await Navigation.PushAsync(new LoginPage());
+            CheckGlobalSessionStatus();
+            UpdateSessionIndicator();
             return;
         }
 
@@ -390,11 +428,13 @@ public partial class DashboardPage : ContentPage
     {
         GreetingLabel.Text = $"Hi, {_sessionService.GetDisplayName()}";
         LoadProfilePhoto();
-        UpdateSessionIndicator();
+        RefreshSessionUi();
         LoadSettings();
         UpdateStatus();
         await EvaluatePermissionsAsync();
+#if ANDROID
         await CheckUpdateOnlyAsync();
+#endif
         MainRefreshView.IsRefreshing = false;
     }
 

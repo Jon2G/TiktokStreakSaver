@@ -8,16 +8,26 @@ public partial class ProfilePage : ContentPage
 {
     private readonly SessionService _sessionService;
     private readonly SettingsService _settingsService;
-    private readonly UpdateService _updateService;
     private bool _suppressIntervalChanged = false;
+#if ANDROID
+    private readonly UpdateService _updateService;
     private bool _isCheckingUpdates = false;
+#endif
 
     public ProfilePage()
     {
         InitializeComponent();
         _sessionService = new SessionService();
         _settingsService = new SettingsService();
+#if ANDROID
         _updateService = new UpdateService();
+#endif
+    }
+
+    private void OnSessionStateChanged(object? sender, EventArgs e)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+            UpdateLoginButtonState(_sessionService.IsSessionValid()));
     }
 
     private Color GetThemeColor(string key, string fallbackHex = "#92979E")
@@ -30,6 +40,8 @@ public partial class ProfilePage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
+        SessionState.Changed -= OnSessionStateChanged;
+        SessionState.Changed += OnSessionStateChanged;
 
         this.Opacity = 0;
         this.TranslationY = 12;
@@ -71,12 +83,20 @@ public partial class ProfilePage : ContentPage
 #if IOS
         IosShortcutsSettingsPanel.IsVisible = true;
         AndroidSchedulingPanel.IsVisible = false;
+        CheckUpdatesButton.IsVisible = false;
+        AltStoreUpdatesLabel.IsVisible = true;
 #else
         IosShortcutsSettingsPanel.IsVisible = false;
         AndroidSchedulingPanel.IsVisible = true;
 #endif
 
         UpdateLoginButtonState(_sessionService.IsSessionValid());
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        SessionState.Changed -= OnSessionStateChanged;
     }
 
     private void LoadProfilePhoto()
@@ -168,6 +188,7 @@ public partial class ProfilePage : ContentPage
     private async void OnLoginClicked(object? sender, EventArgs e)
     {
         await Navigation.PushAsync(new LoginPage());
+        UpdateLoginButtonState(_sessionService.IsSessionValid());
     }
 
     private async void OnShortcutTutorialClicked(object? sender, EventArgs e)
@@ -263,6 +284,7 @@ public partial class ProfilePage : ContentPage
             "About Streak Saver", currentVersion, string.Empty, false));
     }
 
+#if ANDROID
     private async void OnCheckUpdatesClicked(object? sender, EventArgs e)
     {
         if (_isCheckingUpdates) return;
@@ -287,14 +309,8 @@ public partial class ProfilePage : ContentPage
 
             if (info.HasUpdate)
             {
-                var downloadUrl =
-#if IOS
-                    info.IpaDownloadUrl ?? info.ReleaseUrl;
-#else
-                    info.ApkDownloadUrl;
-#endif
                 await Navigation.PushModalAsync(new AboutPopupPage(
-                    "Update Available!", remoteVersion, info.Changelog, true, downloadUrl));
+                    "Update Available!", remoteVersion, info.Changelog, true, info.ApkDownloadUrl));
             }
             else
             {
@@ -312,6 +328,9 @@ public partial class ProfilePage : ContentPage
             _isCheckingUpdates = false;
         }
     }
+#else
+    private void OnCheckUpdatesClicked(object? sender, EventArgs e) { }
+#endif
 
     private async void OnPrivacyPolicyClicked(object? sender, EventArgs e)
     {

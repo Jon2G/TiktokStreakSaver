@@ -33,6 +33,9 @@ public static class AppGroupPaths
     public static string FriendsListFilePath =>
         Path.Combine(ContainerPath ?? FileSystem.AppDataDirectory, AppConstants.FriendsListFileName);
 
+    public static string SessionStateFilePath =>
+        Path.Combine(ContainerPath ?? FileSystem.AppDataDirectory, AppConstants.SessionStateFileName);
+
     private static void ProbeIfNeeded()
     {
         if (_probed)

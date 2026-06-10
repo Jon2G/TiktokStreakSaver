@@ -257,6 +257,11 @@
                                     Style="{StaticResource TextButton}"
                                     Clicked="OnAboutClicked"/>
                         </Grid>
+                        <Label x:Name="AltStoreUpdatesLabel"
+                               Text="Updates are installed through AltStore."
+                               Style="{StaticResource DataLabel}"
+                               IsVisible="False"
+                               LineBreakMode="WordWrap"/>
                         <Button x:Name="CheckUpdatesButton"
                                 Text="Check for updates"
                                 BackgroundColor="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray800}}"

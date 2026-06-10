@@ -17,6 +17,8 @@ public static class AppConstants
 
     public const string FriendsListFileName = "friends_list.json";
 
+    public const string SessionStateFileName = "session_state.json";
+
     public const string AuthRequiredKey = "auth_required";
 
     public const string IosOnboardingCompleteKey = "ios_onboarding_complete";

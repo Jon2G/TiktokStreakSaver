@@ -22,7 +22,25 @@ public static class IosWebViewConfigurator
         });
     }
 
-    public static bool HasValidSessionCookie() => HasExportedSessionCookie();
+    public static bool HasValidSessionCookie()
+    {
+        if (HasExportedSessionCookie())
+            return true;
+
+        // Avoid blocking the UI thread with async WK cookie store probes during tab navigation.
+        if (MainThread.IsMainThread)
+            return false;
+
+        try
+        {
+            return MainThread.InvokeOnMainThreadAsync(HasValidSessionCookieInDefaultStoreAsync)
+                .GetAwaiter().GetResult();
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
     /// <summary>Checks WKWebView cookie store (use on LoginPage right after TikTok sign-in).</summary>
     public static async Task<bool> HasValidSessionCookieInWebViewAsync(WebView? mauiWebView = null)
@@ -36,7 +54,23 @@ public static class IosWebViewConfigurator
         if (wk != null && await CookieStoreHasSessionIdAsync(wk.Configuration.WebsiteDataStore.HttpCookieStore))
             return true;
 
-        return HasExportedSessionCookie();
+        if (HasExportedSessionCookie())
+            return true;
+
+        return await HasValidSessionCookieInDefaultStoreAsync();
+    }
+
+    public static async Task<bool> HasValidSessionCookieInDefaultStoreAsync()
+    {
+        try
+        {
+            var store = WKWebsiteDataStore.DefaultDataStore.HttpCookieStore;
+            return await CookieStoreHasSessionIdAsync(store);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static bool HasExportedSessionCookie()
