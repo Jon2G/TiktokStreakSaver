@@ -12,7 +12,7 @@ on:
         default: '1.0.0'
 
 env:
-  DOTNET_VERSION: '9.0.314'
+  DOTNET_VERSION: '9.0.203'
   PROJECT_PATH: 'src/TiktokStreakSaver/TiktokStreakSaver.csproj'
 
 jobs:
