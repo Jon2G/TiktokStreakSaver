@@ -1,21 +1,45 @@
 #!/usr/bin/env bash
-# Updates dist/altstore/source.json from an IPA file and version string.
-# Usage: ./scripts/update-altstore-source.sh path/to/StreakSaver.ipa 1.0.0 [v1.0.0]
+# Updates dist/altstore/source.json from an IPA file and GitHub release tag.
+# Version fields are read from the IPA Info.plist (must match for AltStore).
+#
+# Usage: ./scripts/update-altstore-source.sh path/to/StreakSaver.ipa ios-v1.0.0
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 JSON="$ROOT/dist/altstore/source.json"
 IPA="${1:?IPA path required}"
-VERSION="${2:?Version required (e.g. 1.0.0)}"
-TAG="${3:-v$VERSION}"
+TAG="${2:?Release tag required (e.g. ios-v1.0.0)}"
 
 if [ ! -f "$IPA" ]; then
   echo "IPA not found: $IPA" >&2
   exit 1
 fi
 
+read_version_from_ipa() {
+  python3 - "$IPA" <<'PY'
+import plistlib, subprocess, sys, zipfile
+
+ipa_path = sys.argv[1]
+with zipfile.ZipFile(ipa_path) as zf:
+    plist_path = next(
+        n for n in zf.namelist()
+        if n.startswith("Payload/") and n.endswith(".app/Info.plist")
+    )
+    data = zf.read(plist_path)
+
+plist = plistlib.loads(data)
+version = plist.get("CFBundleShortVersionString", "")
+build = str(plist.get("CFBundleVersion", ""))
+if not version or not build:
+    raise SystemExit("Could not read CFBundleShortVersionString/CFBundleVersion from IPA")
+print(version)
+print(build)
+PY
+}
+
+{ read -r VERSION; read -r BUILD_VERSION; } < <(read_version_from_ipa)
+
 SIZE=$(stat -f%z "$IPA" 2>/dev/null || stat -c%s "$IPA")
-BUILD_VERSION=$(echo "$VERSION" | tr -d '.')
 REPO="${GITHUB_REPOSITORY:-Jon2G/TiktokStreakSaver}"
 DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${TAG}/StreakSaver.ipa"
 VERSION_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")

@@ -53,6 +53,27 @@ jobs:
           chmod +x scripts/install-ios-signing-ci.sh
           ./scripts/install-ios-signing-ci.sh
 
+      - name: Resolve iOS release version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME#ios-v}"
+          fi
+          TAG="ios-v${VERSION}"
+          VERSION_CODE=$(python3 - <<PY
+          parts = "$VERSION".split(".")
+          while len(parts) < 3:
+              parts.append("0")
+          print(int(parts[0]) * 10000 + int(parts[1]) * 100 + int(parts[2]))
+          PY
+          )
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "TAG=$TAG" >> "$GITHUB_OUTPUT"
+          echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "iOS release: $TAG (version $VERSION, build $VERSION_CODE)"
+
       - name: Build native StreakEngine & extension
         env:
           DEVELOPMENT_TEAM: ${{ secrets.IOS_DEVELOPMENT_TEAM }}
@@ -74,6 +95,8 @@ jobs:
             -p:ArchiveOnBuild=true \
             -p:RuntimeIdentifier=ios-arm64 \
             -p:DevelopmentTeam="$DEVELOPMENT_TEAM" \
+            -p:ApplicationDisplayVersion="${{ steps.version.outputs.VERSION }}" \
+            -p:ApplicationVersion="${{ steps.version.outputs.VERSION_CODE }}" \
             -p:CodesignEntitlements=Platforms/iOS/Entitlements.plist \
             -p:SkipIosNativeBuild=true \
             -o ./artifacts/ios
@@ -84,24 +107,10 @@ jobs:
           find . -name "*.ipa" -maxdepth 6 -exec cp {} release-out/StreakSaver.ipa \;
           ls -la release-out || true
 
-      - name: Resolve iOS release version
-        id: version
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ github.event.inputs.version }}"
-          else
-            VERSION="${GITHUB_REF_NAME#ios-v}"
-          fi
-          TAG="ios-v${VERSION}"
-          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "TAG=$TAG" >> "$GITHUB_OUTPUT"
-          echo "iOS release: $TAG (version $VERSION)"
-
       - name: Update AltStore source JSON
         run: |
           chmod +x scripts/update-altstore-source.sh
           ./scripts/update-altstore-source.sh release-out/StreakSaver.ipa \
-            "${{ steps.version.outputs.VERSION }}" \
             "${{ steps.version.outputs.TAG }}"
 
       - name: Create GitHub Release

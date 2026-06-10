@@ -81,7 +81,7 @@ cp -f "$IPA_SRC" "$OUT/StreakSaver.ipa"
 echo "==> IPA: $OUT/StreakSaver.ipa ($(stat -f%z "$OUT/StreakSaver.ipa" 2>/dev/null || stat -c%s "$OUT/StreakSaver.ipa") bytes)"
 
 echo "==> AltStore source.json"
-"$ROOT/scripts/update-altstore-source.sh" "$OUT/StreakSaver.ipa" "$VERSION" "$TAG"
+"$ROOT/scripts/update-altstore-source.sh" "$OUT/StreakSaver.ipa" "$TAG"
 
 echo ""
 echo "Done. Next steps:"

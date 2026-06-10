@@ -53,4 +53,4 @@ Users add this source URL in AltStore:
 
 **Release checklist:** [ios-altstore-release.md](ios-altstore-release.md) — run `./scripts/build-ios-release.sh`, commit `dist/altstore/source.json`, tag, and `gh release create` with `StreakSaver.ipa`.
 
-Or run `./scripts/update-altstore-source.sh release-out/StreakSaver.ipa 1.0.0 ios-v1.0.0` after building the IPA manually.
+Or run `./scripts/update-altstore-source.sh release-out/StreakSaver.ipa ios-v1.0.0` after building the IPA manually.
