@@ -16,7 +16,8 @@ fi
 
 SIZE=$(stat -f%z "$IPA" 2>/dev/null || stat -c%s "$IPA")
 BUILD_VERSION=$(echo "$VERSION" | tr -d '.')
-DOWNLOAD_URL="https://github.com/Jon2G/TiktokStreakSaver/releases/download/${TAG}/StreakSaver.ipa"
+REPO="${GITHUB_REPOSITORY:-Jon2G/TiktokStreakSaver}"
+DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${TAG}/StreakSaver.ipa"
 VERSION_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 SOURCE_URL="https://raw.githubusercontent.com/Jon2G/TiktokStreakSaver/main/dist/altstore/source.json"
 

@@ -47,7 +47,7 @@ cd TiktokStreakSaver
 chmod +x scripts/build-ios-release.sh scripts/update-altstore-source.sh
 
 export DEVELOPMENT_TEAM=YOUR_TEAM_ID
-./scripts/build-ios-release.sh 1.0.0 v1.0.0
+./scripts/build-ios-release.sh 1.0.0 ios-v1.0.0
 ```
 
 Outputs:
@@ -66,16 +66,18 @@ git commit -m "chore(ios): AltStore source 1.0.0"
 git push origin main
 
 # 2. Tag + release with the IPA
-git tag v1.0.0
-git push origin v1.0.0
+git tag ios-v1.0.0
+git push origin ios-v1.0.0
 
-gh release create v1.0.0 release-out/StreakSaver.ipa \
+gh release create ios-v1.0.0 release-out/StreakSaver.ipa \
   --title "Streak Saver 1.0.0 (iOS)" \
   --notes "iOS build for AltStore. After install: log in to TikTok, then Profile → Shortcut setup guide."
 ```
 
-The `downloadURL` in `source.json` must match the tag:  
-`https://github.com/Jon2G/TiktokStreakSaver/releases/download/v1.0.0/StreakSaver.ipa`
+The `downloadURL` in `source.json` must match the iOS release tag:  
+`https://github.com/Jon2G/TiktokStreakSaver/releases/download/ios-v1.0.0/StreakSaver.ipa`
+
+iOS releases use the `ios-v*` tag prefix so they do not collide with Android `v*` releases.
 
 ## Install on iPhone (AltStore)
 

@@ -3,7 +3,7 @@ name: iOS Release Build
 on:
   push:
     tags:
-      - 'v*'
+      - 'ios-v*'
   workflow_dispatch:
     inputs:
       version:
@@ -14,7 +14,6 @@ on:
 env:
   DOTNET_VERSION: '9.0.203'
   PROJECT_PATH: 'src/TiktokStreakSaver/TiktokStreakSaver.csproj'
-  ALTSTORE_JSON: 'dist/altstore/source.json'
 
 jobs:
   build-ios:
@@ -85,38 +84,42 @@ jobs:
           find . -name "*.ipa" -maxdepth 6 -exec cp {} release-out/StreakSaver.ipa \;
           ls -la release-out || true
 
-      - name: Update AltStore source JSON
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Resolve iOS release version
+        id: version
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          IPA_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/StreakSaver.ipa"
-          SIZE=$(stat -f%z release-out/StreakSaver.ipa 2>/dev/null || stat -c%s release-out/StreakSaver.ipa 2>/dev/null || echo 0)
-          python3 - <<PY
-          import json, datetime
-          path = "${{ env.ALTSTORE_JSON }}"
-          with open(path) as f:
-              data = json.load(f)
-          app = data["apps"][0]
-          app.pop("marketplaceID", None)
-          app["version"] = "$VERSION"
-          app["buildVersion"] = "$VERSION".replace(".", "")
-          app["downloadURL"] = "$IPA_URL"
-          app["size"] = int("$SIZE")
-          app["versionDate"] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-          data["sourceURL"] = "https://raw.githubusercontent.com/Jon2G/TiktokStreakSaver/main/dist/altstore/source.json"
-          with open(path, "w") as f:
-              json.dump(data, f, indent=2)
-          PY
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME#ios-v}"
+          fi
+          TAG="ios-v${VERSION}"
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "TAG=$TAG" >> "$GITHUB_OUTPUT"
+          echo "iOS release: $TAG (version $VERSION)"
 
-      - name: Upload IPA to Release
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Update AltStore source JSON
+        run: |
+          chmod +x scripts/update-altstore-source.sh
+          ./scripts/update-altstore-source.sh release-out/StreakSaver.ipa \
+            "${{ steps.version.outputs.VERSION }}" \
+            "${{ steps.version.outputs.TAG }}"
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            release-out/StreakSaver.ipa
-            dist/altstore/source.json
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: ${{ steps.version.outputs.TAG }}
+          name: Streak Saver iOS v${{ steps.version.outputs.VERSION }}
+          generate_release_notes: true
+          files: release-out/StreakSaver.ipa
+
+      - name: Commit AltStore source JSON
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dist/altstore/source.json
+          git diff --staged --quiet && exit 0
+          git commit -m "chore(ios): update AltStore source ${{ steps.version.outputs.VERSION }}"
+          git push
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
