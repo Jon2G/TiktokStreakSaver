@@ -38,12 +38,32 @@ fi
 
 echo "Using DEVELOPMENT_TEAM=$DEVELOPMENT_TEAM"
 
-# iOS 26+ SDK rejects ad-hoc (CODE_SIGN_IDENTITY=-). Use automatic development signing.
-SIGNING_ARGS=(
-  "DEVELOPMENT_TEAM=$DEVELOPMENT_TEAM"
-  CODE_SIGN_STYLE=Automatic
-  -allowProvisioningUpdates
-)
+# CI has no Apple ID in Xcode; use manual signing with pre-installed profiles.
+if [ -n "${GITHUB_ACTIONS:-}" ]; then
+  BASE_SIGNING=(
+    "DEVELOPMENT_TEAM=$DEVELOPMENT_TEAM"
+    CODE_SIGN_STYLE=Manual
+    CODE_SIGN_IDENTITY="Apple Development"
+  )
+  EXTENSION_SIGNING=(
+    "${BASE_SIGNING[@]}"
+    "PROVISIONING_PROFILE_SPECIFIER=${IOS_EXTENSION_PROFILE_NAME:-iOS Team Provisioning Profile: com.jon2g.tiktokstreaksaver.StreakSaverExtension}"
+  )
+  HOST_SIGNING=(
+    "${BASE_SIGNING[@]}"
+    "PROVISIONING_PROFILE_SPECIFIER=${IOS_MAIN_PROFILE_NAME:-iOS Team Provisioning Profile: com.jon2g.tiktokstreaksaver}"
+  )
+  ENGINE_SIGNING=("${BASE_SIGNING[@]}")
+else
+  BASE_SIGNING=(
+    "DEVELOPMENT_TEAM=$DEVELOPMENT_TEAM"
+    CODE_SIGN_STYLE=Automatic
+    -allowProvisioningUpdates
+  )
+  EXTENSION_SIGNING=("${BASE_SIGNING[@]}")
+  HOST_SIGNING=("${BASE_SIGNING[@]}")
+  ENGINE_SIGNING=("${BASE_SIGNING[@]}")
+fi
 
 archive_engine() {
   local dest="$1"
@@ -55,7 +75,7 @@ archive_engine() {
     -archivePath "$path" \
     SKIP_INSTALL=NO \
     BUILD_LIBRARY_FOR_DISTRIBUTION=YES \
-    "${SIGNING_ARGS[@]}"
+    "${ENGINE_SIGNING[@]}"
 }
 
 archive_engine "generic/platform=iOS" "$ARTIFACTS/StreakEngine-iOS"
@@ -74,6 +94,14 @@ build_extension() {
   local configuration="$2"
   local build_dir="$3"
   local output_appex="$4"
+  local signing_args=()
+  if [[ "$destination" == *"iOS Simulator"* ]]; then
+    signing_args=(
+      CODE_SIGN_IDENTITY="-"
+    )
+  else
+    signing_args=("${EXTENSION_SIGNING[@]}")
+  fi
 
   rm -rf "$build_dir"
   mkdir -p "$build_dir"
@@ -85,7 +113,7 @@ build_extension() {
     -configuration "$configuration" \
     build \
     "CONFIGURATION_BUILD_DIR=$build_dir" \
-    "${SIGNING_ARGS[@]}"
+    "${signing_args[@]}"
 
   if [ ! -d "$build_dir/StreakSaverExtension.appex" ]; then
     echo "Extension build finished but StreakSaverExtension.appex was not found in $build_dir" >&2
@@ -115,7 +143,7 @@ xcodebuild -project StreakNative.xcodeproj \
   -destination "generic/platform=iOS" \
   -configuration Release \
   build \
-  "${SIGNING_ARGS[@]}"
+  "${HOST_SIGNING[@]}"
 
 ROOT_SCRIPTS="$(cd "$IOS_DIR/../.." && pwd)/scripts"
 if [ -x "$ROOT_SCRIPTS/sync-ios-provisioning-profiles.sh" ]; then

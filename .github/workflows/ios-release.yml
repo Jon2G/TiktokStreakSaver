@@ -37,49 +37,35 @@ jobs:
       - name: Install xcodegen
         run: brew install xcodegen
 
+      - name: Install iOS signing certificate and profiles
+        env:
+          IOS_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_BASE64 }}
+          IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          IOS_EXTENSION_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_EXTENSION_PROVISIONING_PROFILE_BASE64 }}
+          IOS_DEVELOPMENT_TEAM: ${{ secrets.IOS_DEVELOPMENT_TEAM }}
+        run: |
+          chmod +x scripts/install-ios-signing-ci.sh
+          ./scripts/install-ios-signing-ci.sh
+
       - name: Build native StreakEngine & extension
         env:
           DEVELOPMENT_TEAM: ${{ secrets.IOS_DEVELOPMENT_TEAM }}
+          IOS_MAIN_PROFILE_NAME: ${{ env.IOS_MAIN_PROFILE_NAME }}
+          IOS_EXTENSION_PROFILE_NAME: ${{ env.IOS_EXTENSION_PROFILE_NAME }}
         run: |
           chmod +x src/ios/build.sh scripts/ensure-ios-native-built.sh
           ./src/ios/build.sh
 
-      - name: Import signing certificate
-        env:
-          IOS_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_BASE64 }}
-          IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
-        run: |
-          if [ -z "$IOS_DISTRIBUTION_CERTIFICATE_BASE64" ]; then
-            echo "Skipping signing import — IOS_DISTRIBUTION_CERTIFICATE_BASE64 not set"
-            exit 0
-          fi
-          CERT_PATH=$RUNNER_TEMP/build_certificate.p12
-          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
-          echo "$IOS_DISTRIBUTION_CERTIFICATE_BASE64" | base64 --decode > "$CERT_PATH"
-          security create-keychain -p "" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p "" "$KEYCHAIN_PATH"
-          security import "$CERT_PATH" -P "$IOS_DISTRIBUTION_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
-          security list-keychain -d user -s "$KEYCHAIN_PATH"
-
-      - name: Install provisioning profiles
-        env:
-          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
-          IOS_EXTENSION_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_EXTENSION_PROVISIONING_PROFILE_BASE64 }}
-        run: |
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          if [ -n "$IOS_PROVISIONING_PROFILE_BASE64" ]; then
-            echo "$IOS_PROVISIONING_PROFILE_BASE64" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/main.mobileprovision
-          fi
-          if [ -n "$IOS_EXTENSION_PROVISIONING_PROFILE_BASE64" ]; then
-            echo "$IOS_EXTENSION_PROVISIONING_PROFILE_BASE64" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/extension.mobileprovision
-          fi
-
       - name: Publish iOS IPA
+        env:
+          DEVELOPMENT_TEAM: ${{ secrets.IOS_DEVELOPMENT_TEAM }}
         run: |
           dotnet publish "$PROJECT_PATH" -f net9.0-ios -c Release \
             -p:ArchiveOnBuild=true \
             -p:RuntimeIdentifier=ios-arm64 \
+            -p:DevelopmentTeam="$DEVELOPMENT_TEAM" \
+            -p:CodesignEntitlements=Platforms/iOS/Entitlements.plist \
             -p:SkipIosNativeBuild=true \
             -o ./artifacts/ios
 
@@ -101,6 +87,7 @@ jobs:
           with open(path) as f:
               data = json.load(f)
           app = data["apps"][0]
+          app.pop("marketplaceID", None)
           app["version"] = "$VERSION"
           app["buildVersion"] = "$VERSION".replace(".", "")
           app["downloadURL"] = "$IPA_URL"
