@@ -20,8 +20,16 @@
       "buildVersion": "2",
       "downloadURL": "https://github.com/Jon2G/TiktokStreakSaver/releases/download/ios-v0.0.2/StreakSaver.ipa",
       "size": 18091899,
-      "versionDate": "2026-06-10T06:25:25Z",
-      "permissions": []
+      "versionDate": "2026-06-10T06:30:26Z",
+      "appPermissions": {
+        "entitlements": [
+          "com.apple.security.application-groups",
+          "get-task-allow"
+        ],
+        "privacy": {
+          "NSUserNotificationsUsageDescription": "Streak Saver notifies you when streak runs finish or when you need to log in again."
+        }
+      }
     }
   ],
   "news": []

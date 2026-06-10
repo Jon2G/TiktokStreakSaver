@@ -45,6 +45,61 @@ DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${TAG}/StreakSaver.ip
 VERSION_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 SOURCE_URL="https://raw.githubusercontent.com/Jon2G/TiktokStreakSaver/main/dist/altstore/source.json"
 
+read_app_permissions_from_ipa() {
+  python3 - "$IPA" <<'PY'
+import plistlib, subprocess, sys, zipfile, tempfile, os
+from pathlib import Path
+
+ipa_path = sys.argv[1]
+tmpdir = tempfile.mkdtemp()
+with zipfile.ZipFile(ipa_path) as zf:
+    zf.extractall(tmpdir)
+
+skip = {"application-identifier", "com.apple.developer.team-identifier"}
+entitlements = set()
+privacy = {}
+
+def executable(bundle: Path):
+    info = plistlib.loads((bundle / "Info.plist").read_bytes())
+    name = info.get("CFBundleExecutable")
+    if not name:
+        return None
+    exe = bundle / name
+    return exe if exe.exists() else None
+
+for info_plist in Path(tmpdir).rglob("Info.plist"):
+    bundle = info_plist.parent
+    if bundle.suffix not in (".app", ".appex"):
+        continue
+    info = plistlib.loads(info_plist.read_bytes())
+    for key, value in info.items():
+        if "UsageDescription" in key and isinstance(value, str):
+            privacy[key] = value
+    exe = executable(bundle)
+    if not exe:
+        continue
+    try:
+        xml = subprocess.check_output(
+            ["codesign", "-d", "--entitlements", ":-", str(exe)],
+            stderr=subprocess.DEVNULL,
+        )
+        ent = plistlib.loads(xml)
+        for key in ent:
+            if key not in skip:
+                entitlements.add(key)
+    except subprocess.CalledProcessError:
+        pass
+
+import json
+print(json.dumps({
+    "entitlements": sorted(entitlements),
+    "privacy": privacy,
+}))
+PY
+}
+
+APP_PERMISSIONS=$(read_app_permissions_from_ipa)
+
 python3 - <<PY
 import json
 from pathlib import Path
@@ -59,10 +114,15 @@ app["buildVersion"] = "$BUILD_VERSION"
 app["downloadURL"] = "$DOWNLOAD_URL"
 app["size"] = int("$SIZE")
 app["versionDate"] = "$VERSION_DATE"
+app["appPermissions"] = json.loads('''$APP_PERMISSIONS''')
+app.pop("permissions", None)
 path.write_text(json.dumps(data, indent=2) + "\n")
 print(f"Updated {path}")
 print(f"  version:       $VERSION")
 print(f"  buildVersion:  $BUILD_VERSION")
 print(f"  size:          $SIZE bytes")
 print(f"  downloadURL:   $DOWNLOAD_URL")
+perms = app["appPermissions"]
+print(f"  entitlements:  {', '.join(perms.get('entitlements', []))}")
+print(f"  privacy keys:  {', '.join(perms.get('privacy', {}).keys())}")
 PY
