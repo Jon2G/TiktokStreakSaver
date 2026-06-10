@@ -12,7 +12,7 @@ on:
         default: '1.0.0'
 
 env:
-  DOTNET_VERSION: '9.0.x'
+  DOTNET_VERSION: '9.0.203'
   PROJECT_PATH: 'src/TiktokStreakSaver/TiktokStreakSaver.csproj'
   ALTSTORE_JSON: 'dist/altstore/source.json'
 
@@ -30,6 +30,10 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
+          global-json-file: global.json
+
+      - name: Verify .NET SDK
+        run: dotnet --info
 
       - name: Install MAUI iOS workload
         run: dotnet workload install maui-ios
