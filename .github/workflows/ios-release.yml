@@ -61,7 +61,12 @@ jobs:
         env:
           DEVELOPMENT_TEAM: ${{ secrets.IOS_DEVELOPMENT_TEAM }}
         run: |
+          chmod +x scripts/sync-ios-provisioning-profiles.sh scripts/ensure-main-ios-profile.sh
+          ./scripts/sync-ios-provisioning-profiles.sh
+          ./scripts/ensure-main-ios-profile.sh
+          dotnet restore "$PROJECT_PATH" -f net9.0-ios -p:TargetFrameworks=net9.0-ios
           dotnet publish "$PROJECT_PATH" -f net9.0-ios -c Release \
+            -p:TargetFrameworks=net9.0-ios \
             -p:ArchiveOnBuild=true \
             -p:RuntimeIdentifier=ios-arm64 \
             -p:DevelopmentTeam="$DEVELOPMENT_TEAM" \
