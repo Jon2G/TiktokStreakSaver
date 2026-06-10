@@ -37,7 +37,7 @@ jobs:
 
       - name: Install MAUI iOS workload
         run: |
-          dotnet workload restore
+          dotnet workload install maui-ios
           dotnet workload list
 
       - name: Install xcodegen
