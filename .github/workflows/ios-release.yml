@@ -64,8 +64,7 @@ jobs:
           chmod +x scripts/sync-ios-provisioning-profiles.sh scripts/ensure-main-ios-profile.sh
           ./scripts/sync-ios-provisioning-profiles.sh
           ./scripts/ensure-main-ios-profile.sh
-          dotnet restore "$PROJECT_PATH" -f net9.0-ios -p:TargetFrameworks=net9.0-ios
-          dotnet publish "$PROJECT_PATH" -f net9.0-ios -c Release \
+          dotnet publish "$PROJECT_PATH" -c Release \
             -p:TargetFrameworks=net9.0-ios \
             -p:ArchiveOnBuild=true \
             -p:RuntimeIdentifier=ios-arm64 \
