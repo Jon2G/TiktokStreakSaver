@@ -38,21 +38,16 @@ fi
 
 echo "Using DEVELOPMENT_TEAM=$DEVELOPMENT_TEAM"
 
-# CI has no Apple ID in Xcode; use manual signing with pre-installed profiles.
+# CI has no Apple ID in Xcode. Use automatic signing with pre-installed cert + profiles
+# (Personal Team profiles are Xcode-managed and cannot be used with Manual signing).
 if [ -n "${GITHUB_ACTIONS:-}" ]; then
   BASE_SIGNING=(
     "DEVELOPMENT_TEAM=$DEVELOPMENT_TEAM"
-    CODE_SIGN_STYLE=Manual
+    CODE_SIGN_STYLE=Automatic
     CODE_SIGN_IDENTITY="Apple Development"
   )
-  EXTENSION_SIGNING=(
-    "${BASE_SIGNING[@]}"
-    "PROVISIONING_PROFILE_SPECIFIER=${IOS_EXTENSION_PROFILE_NAME:-iOS Team Provisioning Profile: com.jon2g.tiktokstreaksaver.StreakSaverExtension}"
-  )
-  HOST_SIGNING=(
-    "${BASE_SIGNING[@]}"
-    "PROVISIONING_PROFILE_SPECIFIER=${IOS_MAIN_PROFILE_NAME:-iOS Team Provisioning Profile: com.jon2g.tiktokstreaksaver}"
-  )
+  EXTENSION_SIGNING=("${BASE_SIGNING[@]}")
+  HOST_SIGNING=("${BASE_SIGNING[@]}")
   ENGINE_SIGNING=("${BASE_SIGNING[@]}")
 else
   BASE_SIGNING=(
