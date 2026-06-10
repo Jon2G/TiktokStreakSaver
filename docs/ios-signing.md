@@ -5,6 +5,7 @@
 - macOS with **full Xcode** (not Command Line Tools only)
 - `xcode-select -s /Applications/Xcode.app/Contents/Developer`
 - .NET 9 SDK with **MAUI iOS workload**: `dotnet workload install maui-ios`
+- SDK pinning: [`global.json`](../global.json) targets **local Xcode 26.5** (9.0.314). GitHub Actions iOS releases use [`global.ci.json`](../global.ci.json) (9.0.203) because `macos-latest` runners ship Xcode 16.4.
 - [xcodegen](https://github.com/yonaskolb/XcodeGen): `brew install xcodegen`
 
 ## Native streak engine & widget extension

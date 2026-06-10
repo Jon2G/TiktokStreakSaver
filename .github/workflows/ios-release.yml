@@ -29,7 +29,7 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
-          global-json-file: global.json
+          global-json-file: global.ci.json
 
       - name: Verify .NET SDK
         run: dotnet --info
