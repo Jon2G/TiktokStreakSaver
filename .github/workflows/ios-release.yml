@@ -125,10 +125,15 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cp dist/altstore/source.json /tmp/altstore-source.json
+          git fetch origin main
+          git checkout main
+          git pull --rebase origin main
+          cp /tmp/altstore-source.json dist/altstore/source.json
           git add dist/altstore/source.json
           git diff --staged --quiet && exit 0
           git commit -m "chore(ios): update AltStore source ${{ steps.version.outputs.VERSION }}"
-          git push origin HEAD:main
+          git push origin main
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
