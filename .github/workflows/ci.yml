@@ -6,11 +6,13 @@ on:
     paths:
       - 'src/TiktokStreakSaver/**'
       - 'global.json'
+      - 'global.ci.json'
       - '.github/workflows/ci.yml'
   pull_request:
     paths:
       - 'src/TiktokStreakSaver/**'
       - 'global.json'
+      - 'global.ci.json'
       - '.github/workflows/ci.yml'
   workflow_dispatch:
 
@@ -22,6 +24,7 @@ permissions:
   contents: read
 
 env:
+  DOTNET_VERSION: '9.0.203'
   PROJECT_PATH: src/TiktokStreakSaver/TiktokStreakSaver.csproj
 
 jobs:
@@ -34,10 +37,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Apply CI SDK pin
+        run: cp global.ci.json global.json
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version-file: global.json
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          global-json-file: global.json
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
@@ -45,8 +52,8 @@ jobs:
           distribution: microsoft
           java-version: 17
 
-      - name: Install MAUI Android workload
-        run: dotnet workload install maui-android
+      - name: Restore workloads
+        run: dotnet workload restore ${{ env.PROJECT_PATH }}
 
       - name: Build
-        run: dotnet build ${{ env.PROJECT_PATH }} -f net9.0-android -c Debug -p:SkipIosNativeBuild=true
+        run: dotnet build ${{ env.PROJECT_PATH }} -f net9.0-android -c Debug -p:SkipIosNativeBuild=true -p:TargetFrameworks=net9.0-android
