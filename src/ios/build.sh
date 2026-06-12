@@ -108,6 +108,23 @@ xcodebuild -create-xcframework \
 
 echo "Built: $ARTIFACTS/StreakAppIntents.xcframework"
 
+copy_app_intents_metadata() {
+  local archive="$1"
+  local dest="$2"
+  local src="$archive/Products/Library/Frameworks/StreakAppIntents.appintents/Metadata.appintents"
+  if [ ! -d "$src" ]; then
+    echo "App Intents metadata not found at $src" >&2
+    exit 1
+  fi
+  rm -rf "$dest"
+  cp -R "$src" "$dest"
+  echo "Copied App Intents metadata: $dest"
+}
+
+# MAUI must copy Metadata.appintents into the main .app bundle (see TiktokStreakSaver.csproj).
+copy_app_intents_metadata "$ARTIFACTS/StreakAppIntents-iOS.xcarchive" "$ARTIFACTS/StreakAppIntentsMetadata.appintents"
+copy_app_intents_metadata "$ARTIFACTS/StreakAppIntents-Sim.xcarchive" "$ARTIFACTS/StreakAppIntentsMetadata-Sim.appintents"
+
 build_extension() {
   local destination="$1"
   local configuration="$2"

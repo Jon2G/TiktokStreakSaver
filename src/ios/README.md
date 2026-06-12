@@ -100,13 +100,14 @@ Both the MAUI app and `StreakEngine` use:
 
 ## Shortcuts troubleshooting
 
-Apple requires **`AppShortcutsProvider` in the main app executable**, not only in the widget extension. This repo ships `StreakAppIntents.xcframework` (static, force-loaded by MAUI) for that registration.
+Apple requires **`AppShortcutsProvider` in the main app executable**, not only in the widget extension. This repo ships `StreakAppIntents.xcframework` (static, force-loaded by MAUI) plus copies **`Metadata.appintents`** into the main `.app` bundle during `dotnet build` (MAUI cannot run Xcode’s `appintentsmetadataprocessor` on the app target itself).
 
-If Shortcuts logs `LNContextErrorDomain Code=2001` or `Failed to load a definition for com.jon2g.tiktokstreaksaver.<TeamID>`:
+If Shortcuts logs `Couldn't find AppShortcutsProvider`, `LNContextErrorDomain Code=2001`, or `Failed to load a definition for com.jon2g.tiktokstreaksaver.<TeamID>`:
 
 1. Rebuild native artifacts: `export DEVELOPMENT_TEAM=… && ./src/ios/build.sh`
-2. Reinstall the app on device
-3. Delete the old shortcut/automation and add **Maintain TikTok Streaks** again from the Shortcuts action list
+2. Rebuild/reinstall the MAUI app on device
+3. Verify metadata is present: `ls TiktokStreakSaver.app/Metadata.appintents/` (should contain `extract.actionsdata`, not only under `PlugIns/…`)
+4. Delete the old shortcut/automation and add **Maintain TikTok Streaks** again from the Shortcuts action list
 
 ## More documentation
 

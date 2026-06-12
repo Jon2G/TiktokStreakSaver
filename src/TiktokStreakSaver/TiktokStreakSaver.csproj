@@ -108,6 +108,29 @@
 		<Warning Text="StreakEngine.xcframework not found. On macOS this should build automatically; otherwise run ./src/ios/build.sh (see src/ios/README.md)." />
 	</Target>
 
+	<!-- iOS discovers AppShortcutsProvider via Metadata.appintents in the main app bundle (not the widget extension). -->
+	<Target Name="CopyStreakAppIntentsMetadata" AfterTargets="_CopyAppConfigFile"
+	        Condition="$(TargetFramework.Contains('-ios'))">
+		<PropertyGroup>
+			<_StreakAppIntentsMetadataDir Condition="$(RuntimeIdentifier.Contains('simulator'))">$(IosArtifactsDir)/StreakAppIntentsMetadata-Sim.appintents</_StreakAppIntentsMetadataDir>
+			<_StreakAppIntentsMetadataDir Condition="!$(RuntimeIdentifier.Contains('simulator'))">$(IosArtifactsDir)/StreakAppIntentsMetadata.appintents</_StreakAppIntentsMetadataDir>
+			<_StreakAppIntentsMetadataDir Condition="!Exists('$(_StreakAppIntentsMetadataDir)') AND $(RuntimeIdentifier.Contains('simulator'))">$(IosArtifactsDir)/StreakAppIntents-Sim.xcarchive/Products/Library/Frameworks/StreakAppIntents.appintents/Metadata.appintents</_StreakAppIntentsMetadataDir>
+			<_StreakAppIntentsMetadataDir Condition="!Exists('$(_StreakAppIntentsMetadataDir)') AND !$(RuntimeIdentifier.Contains('simulator'))">$(IosArtifactsDir)/StreakAppIntents-iOS.xcarchive/Products/Library/Frameworks/StreakAppIntents.appintents/Metadata.appintents</_StreakAppIntentsMetadataDir>
+		</PropertyGroup>
+		<ItemGroup Condition="Exists('$(_StreakAppIntentsMetadataDir)')">
+			<_StreakAppIntentsMetadata Include="$(_StreakAppIntentsMetadataDir)/**" />
+		</ItemGroup>
+		<Copy Condition="'@(_StreakAppIntentsMetadata)' != ''"
+		      SourceFiles="@(_StreakAppIntentsMetadata)"
+		      DestinationFiles="@(_StreakAppIntentsMetadata->'$(AppBundleDir)/Metadata.appintents/%(RecursiveDir)%(Filename)%(Extension)')"
+		      SkipUnchangedFiles="true" />
+		<Message Condition="'@(_StreakAppIntentsMetadata)' != ''"
+		         Text="Copied Streak App Intents metadata to $(AppBundleDir)/Metadata.appintents"
+		         Importance="high" />
+		<Warning Condition="!Exists('$(_StreakAppIntentsMetadataDir)')"
+		         Text="Streak App Intents metadata missing ($(_StreakAppIntentsMetadataDir)). Shortcuts will fail with Couldn't find AppShortcutsProvider. Run ./src/ios/build.sh" />
+	</Target>
+
 	<Target Name="CopyStreakWidgetExtension" AfterTargets="_CopyAppConfigFile"
 	        Condition="$(TargetFramework.Contains('-ios'))">
 		<PropertyGroup>
