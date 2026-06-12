@@ -24,9 +24,16 @@ struct StreakStatusProvider: TimelineProvider {
         completion(Timeline(entries: [entry], policy: .after(next)))
     }
 
+    private func exportedCookiesHaveSession() -> Bool {
+        CookieImporter.loadExportedCookies().contains {
+            $0.name.caseInsensitiveCompare("sessionid") == .orderedSame && !$0.value.isEmpty
+        }
+    }
+
     private func makeEntry() -> StreakStatusEntry {
         let settings = SharedSettings.shared
-        let auth = settings.getBool(SharedConstants.authRequiredKey)
+        let authFlag = settings.getBool(SharedConstants.authRequiredKey)
+        let auth = authFlag && !exportedCookiesHaveSession()
         let history = settings.getRunHistory()
         let lastText: String
         if let last = history.first {

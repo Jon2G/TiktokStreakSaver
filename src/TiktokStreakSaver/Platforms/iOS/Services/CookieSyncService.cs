@@ -53,6 +53,29 @@ public static class CookieSyncService
             File.Delete(path);
     }
 
+    /// <summary>
+    /// Probes WK store and existing cookies.json without clobbering a valid on-disk export
+    /// when the default store is empty on cold start.
+    /// </summary>
+    public static async Task<bool> RefreshSessionCookiesPreservingExportAsync()
+    {
+        bool hadSessionInFile = HasSessionIdInExport();
+
+        bool readyFromStore = await MainThread.InvokeOnMainThreadAsync(
+            IosWebViewConfigurator.HasValidSessionCookieInDefaultStoreAsync);
+
+        if (readyFromStore)
+        {
+            await MainThread.InvokeOnMainThreadAsync(async () => await ExportCookiesAsync());
+        }
+        else if (!hadSessionInFile)
+        {
+            await MainThread.InvokeOnMainThreadAsync(async () => await ExportCookiesAsync());
+        }
+
+        return readyFromStore || HasSessionIdInExport();
+    }
+
     /// <summary>True when cookies.json exists and contains a TikTok sessionid.</summary>
     public static bool HasSessionIdInExport()
     {

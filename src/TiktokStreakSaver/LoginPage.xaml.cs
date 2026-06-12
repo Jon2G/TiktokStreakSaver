@@ -61,6 +61,7 @@ public partial class LoginPage : ContentPage
 
         _isLoggedIn = true;
         await Platforms.iOS.Services.IosWebViewConfigurator.ExportCookiesFromCurrentWebViewAsync();
+        await SessionRefreshHelper.RefreshAndGetRunReadyAsync(_sessionService);
         await Done(showSuccessAlert: false);
 #elif ANDROID
         if (!TikTokWebViewHelper.HasValidSessionCookie())

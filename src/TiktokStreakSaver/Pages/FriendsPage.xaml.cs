@@ -70,8 +70,6 @@ public partial class FriendsPage : ContentPage
 
     private void OnStatusTimerTick(object? sender, EventArgs e)
     {
-        UpdateLoginBannerFromCache();
-
         bool isRunning = false;
 #if ANDROID
         isRunning = TiktokStreakSaver.Platforms.Android.Services.StreakService.IsRunning;
@@ -468,12 +466,6 @@ public partial class FriendsPage : ContentPage
     {
         bool runReady = await SessionRefreshHelper.RefreshAndGetRunReadyAsync(_sessionService);
         LoginRequiredBanner.IsVisible = !runReady;
-        UpdateBatteryRestrictionsBanner();
-    }
-
-    private void UpdateLoginBannerFromCache()
-    {
-        LoginRequiredBanner.IsVisible = !_sessionService.IsSessionValid();
         UpdateBatteryRestrictionsBanner();
     }
 

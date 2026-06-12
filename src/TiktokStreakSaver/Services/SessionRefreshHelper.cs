@@ -1,3 +1,5 @@
+using TiktokStreakSaver.Services.Storage;
+
 namespace TiktokStreakSaver.Services;
 
 /// <summary>
@@ -31,13 +33,11 @@ public static class SessionRefreshHelper
     {
         var previous = session.IsSessionValid();
 
-        await MainThread.InvokeOnMainThreadAsync(async () =>
-        {
-            await Platforms.iOS.Services.CookieSyncService.ExportCookiesAsync();
-        });
-
-        bool ready = Platforms.iOS.Services.CookieSyncService.HasSessionIdInExport();
+        bool ready = await Platforms.iOS.Services.CookieSyncService.RefreshSessionCookiesPreservingExportAsync();
         session.SetSessionValid(ready);
+
+        if (ready)
+            AppStorageProvider.Current.SetBool(AppConstants.AuthRequiredKey, false);
 
         if (ready != previous)
             SessionState.NotifyChanged();

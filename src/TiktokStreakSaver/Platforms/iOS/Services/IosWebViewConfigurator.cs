@@ -27,9 +27,9 @@ public static class IosWebViewConfigurator
         if (HasExportedSessionCookie())
             return true;
 
-        // Avoid blocking the UI thread with async WK cookie store probes during tab navigation.
+        // On the main thread, trust the exported file rather than blocking on WK cookie store probes.
         if (MainThread.IsMainThread)
-            return false;
+            return HasExportedSessionCookie();
 
         try
         {
