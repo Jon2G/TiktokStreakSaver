@@ -16,11 +16,11 @@
       "iconURL": "https://raw.githubusercontent.com/Jon2G/TiktokStreakSaver/main/docs/imgs/icon.png",
       "tintColor": "#FE2C55",
       "category": "utilities",
-      "version": "0.1.0",
-      "buildVersion": "100",
-      "downloadURL": "https://github.com/Jon2G/TiktokStreakSaver/releases/download/ios-v0.1.0/StreakSaver.ipa",
-      "size": 18217005,
-      "versionDate": "2026-06-12T15:29:37Z",
+      "version": "0.1.1",
+      "buildVersion": "101",
+      "downloadURL": "https://github.com/Jon2G/TiktokStreakSaver/releases/download/ios-v0.1.1/StreakSaver.ipa",
+      "size": 18213051,
+      "versionDate": "2026-06-12T15:47:53Z",
       "appPermissions": {
         "entitlements": [
           "com.apple.security.application-groups",
