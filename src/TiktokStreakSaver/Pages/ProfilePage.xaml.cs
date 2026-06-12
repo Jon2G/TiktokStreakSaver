@@ -9,6 +9,7 @@ public partial class ProfilePage : ContentPage
     private readonly SessionService _sessionService;
     private readonly SettingsService _settingsService;
     private bool _suppressIntervalChanged = false;
+    private bool _suppressRandomizeToggle = false;
 #if ANDROID
     private readonly UpdateService _updateService;
     private bool _isCheckingUpdates = false;
@@ -55,7 +56,15 @@ public partial class ProfilePage : ContentPage
 
         ScheduleSwitch.IsToggled = _settingsService.IsScheduled();
         SkipUnreachableSwitch.IsToggled = _settingsService.GetSkipUnreachableUsers();
-        RandomizeMessagesSwitch.IsToggled = _settingsService.GetRandomizeNormalMessages();
+        _suppressRandomizeToggle = true;
+        try
+        {
+            RandomizeMessagesSwitch.IsToggled = _settingsService.GetRandomizeNormalMessages();
+        }
+        finally
+        {
+            _suppressRandomizeToggle = false;
+        }
         SendOnBatteryLowSwitch.IsToggled = _settingsService.GetSendOnBatteryLow();
 
         FixedTimeSwitch.IsToggled = _settingsService.GetUseFixedTime();
@@ -269,7 +278,11 @@ public partial class ProfilePage : ContentPage
 
     private void OnRandomizeMessagesToggled(object? sender, ToggledEventArgs e)
     {
+        if (_suppressRandomizeToggle)
+            return;
+
         _settingsService.SetRandomizeNormalMessages(e.Value);
+        SessionState.NotifyChanged();
     }
 
     private void OnSendOnBatteryLowToggled(object? sender, ToggledEventArgs e)

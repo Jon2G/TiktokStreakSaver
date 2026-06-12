@@ -13,6 +13,7 @@
 		19EBD0D7069C7A080BA78277 /* MaintainStreakIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAEA520820A7E792D672DB61 /* MaintainStreakIntent.swift */; };
 		6E543F7FD5646F8A0157C71D /* SharedConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D6671F4FC0B5765ED7FCE3 /* SharedConstants.swift */; };
 		78122678C1980078D5EB059A /* StreakEngineBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 249CC27AC6E062ADD646EFD5 /* StreakEngineBridge.swift */; };
+		8AA38AA6BFD7F1A8100DF731 /* RunLogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12DF8D7729A221456B6AC292 /* RunLogStore.swift */; };
 		8DB4C0B173D17CCD14034B97 /* PendingStreakRun.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4457E6671D0833AB660FB09 /* PendingStreakRun.swift */; };
 		97933443BF78314A789476DC /* StreakEngine.h in Headers */ = {isa = PBXBuildFile; fileRef = 4D2BEB2900E9795CB56ABC7F /* StreakEngine.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		C21667C3D472E6E0B2752518 /* StreakEngine.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 177F29A74DEDF0445E4F63F9 /* StreakEngine.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -51,6 +52,7 @@
 /* Begin PBXFileReference section */
 		029CAAEF115B4E3EE55ECCA7 /* tiktok_automation.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = tiktok_automation.js; sourceTree = "<group>"; };
 		08EB7C910223A93B3BB3B466 /* StreakNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakNotifications.swift; sourceTree = "<group>"; };
+		12DF8D7729A221456B6AC292 /* RunLogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunLogStore.swift; sourceTree = "<group>"; };
 		177F29A74DEDF0445E4F63F9 /* StreakEngine.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = StreakEngine.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		249CC27AC6E062ADD646EFD5 /* StreakEngineBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakEngineBridge.swift; sourceTree = "<group>"; };
 		3E7E11615E316FFA4AAEF091 /* SharedSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedSettings.swift; sourceTree = "<group>"; };
@@ -111,6 +113,7 @@
 				68B9CDE2A28696AC0DC80A24 /* AppGroupSupport.swift */,
 				EE00F5F3FC1F6154735F2CB5 /* CookieImporter.swift */,
 				B4457E6671D0833AB660FB09 /* PendingStreakRun.swift */,
+				12DF8D7729A221456B6AC292 /* RunLogStore.swift */,
 				C8D6671F4FC0B5765ED7FCE3 /* SharedConstants.swift */,
 				3E7E11615E316FFA4AAEF091 /* SharedSettings.swift */,
 				4D2BEB2900E9795CB56ABC7F /* StreakEngine.h */,
@@ -273,6 +276,7 @@
 				EEABDF1152335D99ACC9D60B /* AppGroupSupport.swift in Sources */,
 				031191F0C9FEA2100AC3D9FB /* CookieImporter.swift in Sources */,
 				8DB4C0B173D17CCD14034B97 /* PendingStreakRun.swift in Sources */,
+				8AA38AA6BFD7F1A8100DF731 /* RunLogStore.swift in Sources */,
 				6E543F7FD5646F8A0157C71D /* SharedConstants.swift in Sources */,
 				0000BBCC5A6F1206CFE620D7 /* SharedSettings.swift in Sources */,
 				78122678C1980078D5EB059A /* StreakEngineBridge.swift in Sources */,

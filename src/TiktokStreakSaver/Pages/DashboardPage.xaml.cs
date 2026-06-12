@@ -16,6 +16,9 @@ public partial class DashboardPage : ContentPage
     private bool _isCheckingForUpdates = false;
 #endif
     private bool _isAppInForeground = false;
+    private bool _suppressMessagePersist;
+    private bool _messageSettingsLoaded;
+    private string _messageDraft = string.Empty;
     private IDispatcherTimer? _statusTimer;
     private readonly NormalProgressDrawable _normalProgressDrawable;
 
@@ -34,7 +37,22 @@ public partial class DashboardPage : ContentPage
 
     private void OnSessionStateChanged(object? sender, EventArgs e)
     {
-        MainThread.BeginInvokeOnMainThread(RefreshSessionUi);
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            RefreshSessionUi();
+            ApplyMessageEditorMode(GetIsRunInProgress());
+        });
+    }
+
+    private static bool GetIsRunInProgress()
+    {
+#if ANDROID
+        return TiktokStreakSaver.Platforms.Android.Services.StreakService.IsRunning;
+#elif IOS
+        return Platforms.iOS.Services.IosStreakRunner.IsRunning;
+#else
+        return false;
+#endif
     }
 
     private Color GetThemeColor(string key, string fallbackHex = "#92979E")
@@ -86,6 +104,10 @@ public partial class DashboardPage : ContentPage
 
     protected override void OnDisappearing()
     {
+        if (MessageEditor.IsFocused)
+            MessageEditor.Unfocus();
+
+        PersistMessageText();
         base.OnDisappearing();
         _isAppInForeground = false;
         SessionState.Changed -= OnSessionStateChanged;
@@ -147,19 +169,52 @@ public partial class DashboardPage : ContentPage
 
     private void OnStatusTimerTick(object? sender, EventArgs e)
     {
-        bool isRunning = false;
-#if ANDROID
-        isRunning = TiktokStreakSaver.Platforms.Android.Services.StreakService.IsRunning;
-#elif IOS
-        isRunning = Platforms.iOS.Services.IosStreakRunner.IsRunning;
-#endif
+        bool isRunning = GetIsRunInProgress();
         RunButtonsContainer.IsVisible = !isRunning;
         StopServiceButton.IsVisible = isRunning;
 
-        MessageEditor.IsEnabled = !isRunning;
-        MessageEditor.Opacity = isRunning ? 0.6 : 1.0;
+        ApplyMessageEditorMode(isRunning);
 
         UpdateStatus();
+    }
+
+    private void PersistMessageText()
+    {
+        if (_suppressMessagePersist)
+            return;
+
+        var text = _messageDraft;
+        if (string.IsNullOrEmpty(text) && !string.IsNullOrEmpty(MessageEditor.Text))
+            text = MessageEditor.Text;
+
+        _settingsService.SetMessageText(text ?? string.Empty);
+    }
+
+    private void SetMessageEditorText(string text)
+    {
+        _messageDraft = text;
+
+        if (string.Equals(MessageEditor.Text, text, StringComparison.Ordinal))
+            return;
+
+        _suppressMessagePersist = true;
+        try
+        {
+            MessageEditor.Text = text;
+        }
+        finally
+        {
+            _suppressMessagePersist = false;
+        }
+    }
+
+    private void ApplyMessageEditorMode(bool isRunning)
+    {
+        var isRandomized = _settingsService.GetRandomizeNormalMessages();
+        CustomMessagePanel.IsVisible = !isRandomized;
+        RandomizeModeHint.IsVisible = isRandomized;
+        MessageEditor.IsEnabled = !isRunning && !isRandomized;
+        MessageEditor.Opacity = isRunning ? 0.6 : 1.0;
     }
 
     private static string NormalizeVersion(string raw)
@@ -241,14 +296,13 @@ public partial class DashboardPage : ContentPage
 
     private void LoadSettings()
     {
-        MessageEditor.Text = _settingsService.GetMessageText();
+        if (!_messageSettingsLoaded)
+        {
+            SetMessageEditorText(_settingsService.GetMessageText());
+            _messageSettingsLoaded = true;
+        }
 
-        var isRandomized = _settingsService.GetRandomizeNormalMessages();
-        MessageEditor.IsEnabled = !isRandomized;
-        MessageEditorBorder.Opacity = isRandomized ? 0.4 : 1.0;
-        MessageEditorHint.Text = isRandomized
-            ? "Randomized messages enabled — 50 built-in variants"
-            : "Message sent to each friend during a streak run";
+        ApplyMessageEditorMode(GetIsRunInProgress());
     }
 
     private void UpdateStatus()
@@ -352,7 +406,23 @@ public partial class DashboardPage : ContentPage
 
     private void OnMessageChanged(object? sender, TextChangedEventArgs e)
     {
-        if (!string.IsNullOrEmpty(e.NewTextValue)) _settingsService.SetMessageText(e.NewTextValue);
+        if (_suppressMessagePersist)
+            return;
+
+        _messageDraft = e.NewTextValue ?? string.Empty;
+        _settingsService.SetMessageText(_messageDraft);
+    }
+
+    private void OnMessageUnfocused(object? sender, FocusEventArgs e)
+    {
+        _messageDraft = MessageEditor.Text ?? _messageDraft;
+        PersistMessageText();
+    }
+
+    private void OnMessageCompleted(object? sender, EventArgs e)
+    {
+        _messageDraft = MessageEditor.Text ?? _messageDraft;
+        PersistMessageText();
     }
 
     private async void OnMasterRunClicked(object? sender, EventArgs e)
@@ -382,6 +452,9 @@ public partial class DashboardPage : ContentPage
             "Run", "Cancel");
         if (!confirm) return;
 
+        _messageDraft = MessageEditor.Text ?? _messageDraft;
+        PersistMessageText();
+
 #if ANDROID
         bool permissionGranted = await RequestNotificationPermission();
         if (!permissionGranted) return;
@@ -399,16 +472,27 @@ public partial class DashboardPage : ContentPage
         }
 #elif IOS
         await Platforms.iOS.Services.IosNotificationService.RequestPermissionAsync();
-        bool started = await Platforms.iOS.Services.IosStreakRunner.RunNowAsync();
-        if (started)
+
+        await MainThread.InvokeOnMainThreadAsync(async () =>
         {
-            await DisplayAlert("Started", "Streak run started. You'll get a notification when it finishes.", "OK");
-            UpdateStatus();
-        }
-        else
+            await Platforms.iOS.Services.CookieSyncService.ExportCookiesAsync();
+        });
+
+        if (!Platforms.iOS.Services.CookieSyncService.HasSessionIdInExport())
         {
-            await DisplayAlert("Already Running", "A streak run is already in progress.", "OK");
+            bool signIn = await DisplayAlert(
+                "Login Required",
+                "TikTok session cookies are missing. Sign in again to send streaks.",
+                "Sign In",
+                "Cancel");
+            if (signIn)
+                await Navigation.PushAsync(new LoginPage());
+            return;
         }
+
+        var result = await Platforms.iOS.Services.IosStreakRunner.RunNowAsync(manual: true);
+        await ShowIosRunResultAsync(result);
+        UpdateStatus();
 #else
         await DisplayAlert("Info", "This feature is only available on Android", "OK");
 #endif
@@ -513,4 +597,39 @@ public partial class DashboardPage : ContentPage
 #endif
         return true;
     }
+
+#if IOS
+    private async Task ShowIosRunResultAsync(Platforms.iOS.Services.IosRunResult result)
+    {
+        var (title, message) = result.Status switch
+        {
+            Platforms.iOS.Services.IosRunStatus.Completed =>
+                ("Done", result.Message ?? "Streak run finished."),
+            Platforms.iOS.Services.IosRunStatus.AlreadyRunning =>
+                ("Already Running", result.Message ?? "A streak run is already in progress."),
+            Platforms.iOS.Services.IosRunStatus.NoCookies =>
+                ("Login Required", result.Message ?? "Sign in to TikTok again."),
+            Platforms.iOS.Services.IosRunStatus.Offline =>
+                ("Offline", result.Message ?? "No network connection."),
+            Platforms.iOS.Services.IosRunStatus.NoFriendsDue =>
+                ("No Friends Due", result.Message ?? "No friends need a message today."),
+            Platforms.iOS.Services.IosRunStatus.TimedOut =>
+                ("Timed Out", result.Message ?? "The streak run timed out."),
+            Platforms.iOS.Services.IosRunStatus.EngineMissing =>
+                ("Unavailable", result.Message ?? "Native streak engine is missing."),
+            _ =>
+                ("Run Failed", result.Message ?? "Streak run failed.")
+        };
+
+        if (result.Status == Platforms.iOS.Services.IosRunStatus.NoCookies)
+        {
+            bool signIn = await DisplayAlert(title, message, "Sign In", "OK");
+            if (signIn)
+                await Navigation.PushAsync(new LoginPage());
+            return;
+        }
+
+        await DisplayAlert(title, message, "OK");
+    }
+#endif
 }

@@ -104,17 +104,29 @@
                     <Border Style="{StaticResource SectionCard}">
                         <VerticalStackLayout Spacing="12">
                             <Label Text="Run Configuration" Style="{StaticResource SectionLabel}"/>
-                            <Label x:Name="MessageEditorHint" Text="Message sent to each friend during a streak run" Style="{StaticResource DataLabel}" LineBreakMode="WordWrap"/>
-                            <Border x:Name="MessageEditorBorder" StrokeThickness="0"
-                                    StrokeShape="RoundRectangle 16"
-                                    BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}">
-                                <Editor x:Name="MessageEditor"
-                                        Placeholder="Enter your streak message..."
-                                        HeightRequest="72"
-                                        Margin="12,8"
-                                        BackgroundColor="Transparent"
-                                        TextChanged="OnMessageChanged"/>
-                            </Border>
+                            <Label x:Name="RandomizeModeHint"
+                                   Text="Randomized messages enabled — 50 built-in variants"
+                                   Style="{StaticResource DataLabel}"
+                                   LineBreakMode="WordWrap"
+                                   IsVisible="False"/>
+                            <VerticalStackLayout x:Name="CustomMessagePanel" Spacing="4">
+                                <Label x:Name="MessageEditorHint"
+                                       Text="Message sent to each friend during a streak run"
+                                       Style="{StaticResource DataLabel}"
+                                       LineBreakMode="WordWrap"/>
+                                <Border x:Name="MessageEditorBorder" StrokeThickness="0"
+                                        StrokeShape="RoundRectangle 16"
+                                        BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}">
+                                    <Editor x:Name="MessageEditor"
+                                            Placeholder="Enter your streak message..."
+                                            HeightRequest="72"
+                                            Margin="12,8"
+                                            BackgroundColor="Transparent"
+                                            TextChanged="OnMessageChanged"
+                                            Unfocused="OnMessageUnfocused"
+                                            Completed="OnMessageCompleted"/>
+                                </Border>
+                            </VerticalStackLayout>
                         </VerticalStackLayout>
                     </Border>
                 </VerticalStackLayout>

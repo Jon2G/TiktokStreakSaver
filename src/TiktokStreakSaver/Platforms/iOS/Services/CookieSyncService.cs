@@ -53,6 +53,25 @@ public static class CookieSyncService
             File.Delete(path);
     }
 
+    /// <summary>True when cookies.json exists and contains a TikTok sessionid.</summary>
+    public static bool HasSessionIdInExport()
+    {
+        try
+        {
+            var path = AppGroupPaths.CookiesFilePath;
+            if (!File.Exists(path))
+                return false;
+
+            var json = File.ReadAllText(path);
+            return json.Contains("\"sessionid\"", StringComparison.OrdinalIgnoreCase)
+                || json.Contains("\"name\":\"sessionid\"", StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public static async Task ClearWebViewCookiesAsync(WKWebView? webView = null)
     {
         var store = webView?.Configuration?.WebsiteDataStore?.HttpCookieStore

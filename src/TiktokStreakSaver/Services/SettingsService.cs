@@ -236,13 +236,99 @@ public class SettingsService
 
     public string GetMessageText()
     {
-        return _storage.GetString(MessageTextKey, DefaultMessage);
+        var fromFile = TryReadMessageTextFile();
+        if (fromFile != null)
+            return fromFile;
+
+        var stored = _storage.GetString(MessageTextKey, string.Empty);
+        return string.IsNullOrEmpty(stored) ? DefaultMessage : stored;
     }
 
     public void SetMessageText(string message)
     {
-        _storage.SetString(MessageTextKey, message);
+        var text = message ?? string.Empty;
+        _storage.SetString(MessageTextKey, text);
+        TryWriteMessageTextFile(text);
     }
+
+    private static string SharedStorageDirectory
+    {
+        get
+        {
+#if IOS
+            return Platforms.iOS.Services.AppGroupPaths.ContainerPath ?? FileSystem.AppDataDirectory;
+#else
+            return FileSystem.AppDataDirectory;
+#endif
+        }
+    }
+
+    private static string MessageTextFilePath =>
+        Path.Combine(SharedStorageDirectory, AppConstants.MessageTextFileName);
+
+    private static string RandomizeMessagesFlagFilePath =>
+        Path.Combine(SharedStorageDirectory, AppConstants.RandomizeMessagesFlagFileName);
+
+    private static string? TryReadMessageTextFile()
+    {
+        try
+        {
+            if (!File.Exists(MessageTextFilePath))
+                return null;
+
+            return File.ReadAllText(MessageTextFilePath);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static void TryWriteMessageTextFile(string text)
+    {
+        TryWriteTextFile(MessageTextFilePath, text);
+    }
+
+    private static void TryWriteTextFile(string path, string text)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            var temp = path + ".tmp";
+            File.WriteAllText(temp, text);
+            if (File.Exists(path))
+                File.Delete(path);
+            File.Move(temp, path);
+        }
+        catch
+        {
+            // UserDefaults / Preferences mirror remains the fallback.
+        }
+    }
+
+    private static bool? TryReadBoolFlagFile(string path)
+    {
+        try
+        {
+            if (!File.Exists(path))
+                return null;
+
+            var text = File.ReadAllText(path).Trim();
+            if (text.Equals("true", StringComparison.OrdinalIgnoreCase) || text == "1")
+                return true;
+            if (text.Equals("false", StringComparison.OrdinalIgnoreCase) || text == "0")
+                return false;
+
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static void TryWriteBoolFlagFile(string path, bool value) =>
+        TryWriteTextFile(path, value ? "true" : "false");
 
     // ── Randomized Normal Messages ──
 
@@ -310,6 +396,10 @@ public class SettingsService
     /// </summary>
     public bool GetRandomizeNormalMessages()
     {
+        var fromFile = TryReadBoolFlagFile(RandomizeMessagesFlagFilePath);
+        if (fromFile.HasValue)
+            return fromFile.Value;
+
         return _storage.GetBool(RandomizeNormalMessagesKey, false);
     }
 
@@ -319,6 +409,7 @@ public class SettingsService
     public void SetRandomizeNormalMessages(bool enabled)
     {
         _storage.SetBool(RandomizeNormalMessagesKey, enabled);
+        TryWriteBoolFlagFile(RandomizeMessagesFlagFilePath, enabled);
     }
 
     #endregion

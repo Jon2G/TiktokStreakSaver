@@ -24,7 +24,7 @@ public static class IosPendingStreakRunService
         try
         {
             await Task.Delay(400);
-            await IosStreakRunner.RunNowAsync();
+            await IosStreakRunner.RunNowAsync(manual: false);
         }
         finally
         {

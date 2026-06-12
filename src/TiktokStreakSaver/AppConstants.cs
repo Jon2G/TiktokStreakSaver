@@ -21,6 +21,16 @@ public static class AppConstants
 
     public const string AuthRequiredKey = "auth_required";
 
+    public const string ForceManualRunKey = "force_manual_run";
+
+    public const string LastRunFailureReasonKey = "last_run_failure_reason";
+
+    public const string RunLogsFileName = "run_logs.txt";
+
+    public const string MessageTextFileName = "message_text.txt";
+
+    public const string RandomizeMessagesFlagFileName = "randomize_normal_messages.bool";
+
     public const string IosOnboardingCompleteKey = "ios_onboarding_complete";
 
     public const string DesktopChromeUserAgent =

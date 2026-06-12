@@ -196,12 +196,28 @@ public final class SharedSettings {
     }
 
     public func getMessageText() -> String {
+        let fileUrl = containerURL.appendingPathComponent(SharedConstants.messageTextFileName)
+        if let data = try? Data(contentsOf: fileUrl),
+           let msg = String(data: data, encoding: .utf8),
+           !msg.isEmpty {
+            return msg
+        }
+
         let msg = getString(SharedConstants.messageTextKey)
         return msg.isEmpty ? SharedConstants.defaultMessage : msg
     }
 
     public func getRandomizeMessages() -> Bool {
-        getBool(SharedConstants.randomizeMessagesKey)
+        let fileUrl = containerURL.appendingPathComponent(SharedConstants.randomizeMessagesFlagFileName)
+        if let data = try? Data(contentsOf: fileUrl),
+           let text = String(data: data, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased() {
+            if text == "true" || text == "1" { return true }
+            if text == "false" || text == "0" { return false }
+        }
+
+        return getBool(SharedConstants.randomizeMessagesKey)
     }
 
     public func getSkipUnreachable() -> Bool {

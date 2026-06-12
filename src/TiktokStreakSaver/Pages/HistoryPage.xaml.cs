@@ -204,6 +204,8 @@ public partial class HistoryPage : ContentPage
         {
 #if ANDROID
             var logs = TiktokStreakSaver.Platforms.Android.Services.StreakService.GetLogs();
+#elif IOS
+            var logs = TiktokStreakSaver.Platforms.iOS.Services.IosRunLogStore.GetLogs();
 #else
             var logs = new List<string>();
 #endif

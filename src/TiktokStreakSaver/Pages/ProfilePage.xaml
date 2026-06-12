@@ -139,6 +139,31 @@
                                     Clicked="OnShortcutTutorialClicked"/>
                         </VerticalStackLayout>
 
+                        <!-- Shared run settings (iOS + Android) -->
+                        <VerticalStackLayout x:Name="SharedRunSettingsPanel" Spacing="16">
+                            <Grid ColumnDefinitions="*, Auto" ColumnSpacing="16">
+                                <VerticalStackLayout VerticalOptions="Center" Spacing="4">
+                                    <Label Text="Skip Unreachable" Style="{StaticResource ControlTitleLabel}"/>
+                                    <Label Text="Continue to remaining users when one is not found" Style="{StaticResource DataLabel}" LineBreakMode="WordWrap"/>
+                                </VerticalStackLayout>
+                                <Switch x:Name="SkipUnreachableSwitch"
+                                        Grid.Column="1"
+                                        VerticalOptions="Center"
+                                        Toggled="OnSkipUnreachableToggled"/>
+                            </Grid>
+
+                            <Grid ColumnDefinitions="*, Auto" ColumnSpacing="16">
+                                <VerticalStackLayout VerticalOptions="Center" Spacing="4">
+                                    <Label Text="Randomize Messages" Style="{StaticResource ControlTitleLabel}"/>
+                                    <Label Text="Send a unique built-in streak message to each friend" Style="{StaticResource DataLabel}" LineBreakMode="WordWrap"/>
+                                </VerticalStackLayout>
+                                <Switch x:Name="RandomizeMessagesSwitch"
+                                        Grid.Column="1"
+                                        VerticalOptions="Center"
+                                        Toggled="OnRandomizeMessagesToggled"/>
+                            </Grid>
+                        </VerticalStackLayout>
+
                         <!-- Android: in-app background scheduling -->
                         <VerticalStackLayout x:Name="AndroidSchedulingPanel" Spacing="16">
                         <Grid ColumnDefinitions="*, Auto" ColumnSpacing="16">
@@ -205,28 +230,6 @@
                                          ValueChanged="OnIntervalHoursChanged"/>
                             </Grid>
                         </VerticalStackLayout>
-
-                        <Grid ColumnDefinitions="*, Auto" ColumnSpacing="16">
-                            <VerticalStackLayout VerticalOptions="Center" Spacing="4">
-                                <Label Text="Skip Unreachable" Style="{StaticResource ControlTitleLabel}"/>
-                                <Label Text="Continue to remaining users when one is not found" Style="{StaticResource DataLabel}" LineBreakMode="WordWrap"/>
-                            </VerticalStackLayout>
-                            <Switch x:Name="SkipUnreachableSwitch"
-                                    Grid.Column="1"
-                                    VerticalOptions="Center"
-                                    Toggled="OnSkipUnreachableToggled"/>
-                        </Grid>
-
-                        <Grid ColumnDefinitions="*, Auto" ColumnSpacing="16">
-                            <VerticalStackLayout VerticalOptions="Center" Spacing="4">
-                                <Label Text="Randomize Messages" Style="{StaticResource ControlTitleLabel}"/>
-                                <Label Text="Send a unique built-in streak message to each friend" Style="{StaticResource DataLabel}" LineBreakMode="WordWrap"/>
-                            </VerticalStackLayout>
-                            <Switch x:Name="RandomizeMessagesSwitch"
-                                    Grid.Column="1"
-                                    VerticalOptions="Center"
-                                    Toggled="OnRandomizeMessagesToggled"/>
-                        </Grid>
 
                         <Grid x:Name="BatteryLowRow" ColumnDefinitions="*, Auto" ColumnSpacing="16">
                             <VerticalStackLayout VerticalOptions="Center" Spacing="4">
