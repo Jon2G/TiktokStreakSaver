@@ -51,4 +51,4 @@ jobs:
         run: dotnet restore ${{ env.PROJECT_PATH }}
 
       - name: Build Android (Debug)
-        run: dotnet build ${{ env.PROJECT_PATH }} -f net9.0-android -c Debug --no-restore
+        run: dotnet build ${{ env.PROJECT_PATH }} -f net9.0-c Debug --no-restore
