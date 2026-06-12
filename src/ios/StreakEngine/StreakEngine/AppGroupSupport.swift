@@ -1,7 +1,7 @@
 import Foundation
 
 /// App Group container access. On Simulator without a development team, the group is unavailable —
-/// we fall back to Application Support (matches MAUI FileSystem.AppDataDirectory).
+/// we fall back to Library (matches MAUI FileSystem.AppDataDirectory).
 enum AppGroupSupport {
     private static let lock = NSLock()
     private static var didProbe = false
@@ -18,7 +18,7 @@ enum AppGroupSupport {
         if let appGroupContainer {
             return appGroupContainer
         }
-        return mauiApplicationSupportDirectory()
+        return mauiLibraryDirectory()
     }
 
     static var userDefaults: UserDefaults {
@@ -54,11 +54,8 @@ enum AppGroupSupport {
         suite.synchronize()
     }
 
-    private static func mauiApplicationSupportDirectory() -> URL {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first!
-        let bundleId = Bundle.main.bundleIdentifier ?? "com.jon2g.tiktokstreaksaver"
-        let dir = base.appendingPathComponent(bundleId, isDirectory: true)
+    private static func mauiLibraryDirectory() -> URL {
+        let dir = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first!
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }

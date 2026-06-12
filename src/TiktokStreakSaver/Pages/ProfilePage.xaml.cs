@@ -27,8 +27,8 @@ public partial class ProfilePage : ContentPage
 
     private void OnSessionStateChanged(object? sender, EventArgs e)
     {
-        MainThread.BeginInvokeOnMainThread(() =>
-            UpdateLoginButtonState(_sessionService.IsSessionValid()));
+        MainThread.BeginInvokeOnMainThread(async () =>
+            await UpdateLoginButtonStateAsync());
     }
 
     private Color GetThemeColor(string key, string fallbackHex = "#92979E")
@@ -99,7 +99,7 @@ public partial class ProfilePage : ContentPage
         AndroidSchedulingPanel.IsVisible = true;
 #endif
 
-        UpdateLoginButtonState(_sessionService.IsSessionValid());
+        await UpdateLoginButtonStateAsync();
     }
 
     protected override void OnDisappearing()
@@ -167,7 +167,13 @@ public partial class ProfilePage : ContentPage
         _sessionService.SetDisplayName(DisplayNameEntry.Text ?? "User");
     }
 
-    private async void UpdateLoginButtonState(bool isSessionValid)
+    private async Task UpdateLoginButtonStateAsync()
+    {
+        bool runReady = await SessionRefreshHelper.RefreshAndGetRunReadyAsync(_sessionService);
+        await ApplyLoginButtonStateAsync(runReady);
+    }
+
+    private async Task ApplyLoginButtonStateAsync(bool isSessionValid)
     {
         await LoginButton.FadeTo(0.5, 100);
 
@@ -194,10 +200,15 @@ public partial class ProfilePage : ContentPage
         await LoginButton.FadeTo(1.0, 200);
     }
 
+    private async void UpdateLoginButtonState(bool isSessionValid)
+    {
+        await ApplyLoginButtonStateAsync(isSessionValid);
+    }
+
     private async void OnLoginClicked(object? sender, EventArgs e)
     {
         await Navigation.PushAsync(new LoginPage());
-        UpdateLoginButtonState(_sessionService.IsSessionValid());
+        await UpdateLoginButtonStateAsync();
     }
 
     private async void OnShortcutTutorialClicked(object? sender, EventArgs e)

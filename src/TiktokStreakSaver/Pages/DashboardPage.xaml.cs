@@ -37,9 +37,9 @@ public partial class DashboardPage : ContentPage
 
     private void OnSessionStateChanged(object? sender, EventArgs e)
     {
-        MainThread.BeginInvokeOnMainThread(() =>
+        MainThread.BeginInvokeOnMainThread(async () =>
         {
-            RefreshSessionUi();
+            await RefreshSessionUiAsync();
             ApplyMessageEditorMode(GetIsRunInProgress());
         });
     }
@@ -69,8 +69,6 @@ public partial class DashboardPage : ContentPage
         SessionState.Changed -= OnSessionStateChanged;
         SessionState.Changed += OnSessionStateChanged;
 
-        RefreshSessionUi();
-
 #if IOS
         PullToRefreshHintLabel.IsVisible = false;
         NextRunTitleLabel.Text = "Automation";
@@ -85,6 +83,7 @@ public partial class DashboardPage : ContentPage
         GreetingLabel.Text = $"Hi, {_sessionService.GetDisplayName()}";
 
         LoadProfilePhoto();
+        await RefreshSessionUiAsync();
         LoadSettings();
         UpdateStatus();
 
@@ -141,30 +140,17 @@ public partial class DashboardPage : ContentPage
         }
     }
 
-    private void UpdateSessionIndicator()
+    private void UpdateSessionIndicator(bool runReady)
     {
-        bool valid = _sessionService.IsSessionValid();
         MasterRunButton.IsEnabled = true;
         MasterRunButton.Opacity = 1.0;
-        MasterRunButton.Text = valid ? "Run Now" : "Login Required";
+        MasterRunButton.Text = runReady ? "Run Now" : "Login Required";
     }
 
-    private void RefreshSessionUi()
+    private async Task RefreshSessionUiAsync()
     {
-        CheckGlobalSessionStatus();
-        UpdateSessionIndicator();
-    }
-
-    private void CheckGlobalSessionStatus()
-    {
-#if IOS
-        // session_valid (file + UserDefaults) is source of truth; cookie probes may only upgrade.
-        if (TikTokWebViewHelper.HasValidSessionCookie())
-            _sessionService.SetSessionValid(true);
-#else
-        bool isValid = TikTokWebViewHelper.HasValidSessionCookie();
-        _sessionService.SetSessionValid(isValid);
-#endif
+        bool runReady = await SessionRefreshHelper.RefreshAndGetRunReadyAsync(_sessionService);
+        UpdateSessionIndicator(runReady);
     }
 
     private void OnStatusTimerTick(object? sender, EventArgs e)
@@ -430,12 +416,11 @@ public partial class DashboardPage : ContentPage
         await MasterRunButton.ScaleTo(0.94, 60, Easing.CubicIn);
         await MasterRunButton.ScaleTo(1.0, 100, Easing.CubicOut);
 
-        CheckGlobalSessionStatus();
-        if (!_sessionService.IsSessionValid())
+        bool runReady = await SessionRefreshHelper.RefreshAndGetRunReadyAsync(_sessionService);
+        UpdateSessionIndicator(runReady);
+        if (!runReady)
         {
             await Navigation.PushAsync(new LoginPage());
-            CheckGlobalSessionStatus();
-            UpdateSessionIndicator();
             return;
         }
 
@@ -473,23 +458,6 @@ public partial class DashboardPage : ContentPage
 #elif IOS
         await Platforms.iOS.Services.IosNotificationService.RequestPermissionAsync();
 
-        await MainThread.InvokeOnMainThreadAsync(async () =>
-        {
-            await Platforms.iOS.Services.CookieSyncService.ExportCookiesAsync();
-        });
-
-        if (!Platforms.iOS.Services.CookieSyncService.HasSessionIdInExport())
-        {
-            bool signIn = await DisplayAlert(
-                "Login Required",
-                "TikTok session cookies are missing. Sign in again to send streaks.",
-                "Sign In",
-                "Cancel");
-            if (signIn)
-                await Navigation.PushAsync(new LoginPage());
-            return;
-        }
-
         var result = await Platforms.iOS.Services.IosStreakRunner.RunNowAsync(manual: true);
         await ShowIosRunResultAsync(result);
         UpdateStatus();
@@ -512,7 +480,7 @@ public partial class DashboardPage : ContentPage
     {
         GreetingLabel.Text = $"Hi, {_sessionService.GetDisplayName()}";
         LoadProfilePhoto();
-        RefreshSessionUi();
+        await RefreshSessionUiAsync();
         LoadSettings();
         UpdateStatus();
         await EvaluatePermissionsAsync();
@@ -621,6 +589,13 @@ public partial class DashboardPage : ContentPage
                 ("Run Failed", result.Message ?? "Streak run failed.")
         };
 
+        if ((result.Status is Platforms.iOS.Services.IosRunStatus.Failed
+                or Platforms.iOS.Services.IosRunStatus.TimedOut)
+            && !string.IsNullOrWhiteSpace(result.Details))
+        {
+            message = FormatIosRunAlertMessage(message, result.Details);
+        }
+
         if (result.Status == Platforms.iOS.Services.IosRunStatus.NoCookies)
         {
             bool signIn = await DisplayAlert(title, message, "Sign In", "OK");
@@ -630,6 +605,16 @@ public partial class DashboardPage : ContentPage
         }
 
         await DisplayAlert(title, message, "OK");
+    }
+
+    private static string FormatIosRunAlertMessage(string primary, string details)
+    {
+        const int maxLength = 500;
+        var combined = $"{primary}{Environment.NewLine}{Environment.NewLine}{details}";
+        if (combined.Length <= maxLength)
+            return combined;
+
+        return combined[..(maxLength - 35)] + "… (see History → Export Logs)";
     }
 #endif
 }

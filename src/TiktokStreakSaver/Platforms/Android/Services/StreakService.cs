@@ -68,6 +68,11 @@ public class StreakService : Service
         return _logs ?? new List<string>();
     }
 
+    public static void ClearLogs()
+    {
+        _logs = new List<string>();
+    }
+
     private static void AppLog(string phase, string username, string message)
     {
         var entry = $"[{DateTime.Now:HH:mm:ss}] [{phase}] [{username}] {message}";

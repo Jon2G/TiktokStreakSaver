@@ -191,9 +191,44 @@ public partial class HistoryPage : ContentPage
     private async void OnClearHistoryClicked(object? sender, EventArgs e)
     {
         var history = _settingsService.GetRunHistory();
-        if (history.Count == 0) return;
-        bool confirm = await DisplayAlert("Clear History", "Are you sure you want to clear your run history?", "Clear", "Cancel");
-        if (confirm) { _settingsService.ClearRunHistory(); LoadHistory(); LoadStats(); }
+        if (history.Count == 0 && !HasLogsToClear())
+        {
+            await DisplayAlert("Nothing to Clear", "There is no activity or log data to clear.", "OK");
+            return;
+        }
+
+        bool confirm = await DisplayAlert(
+            "Clear Activity",
+            "This will clear run history and diagnostic logs from this device.",
+            "Clear",
+            "Cancel");
+        if (!confirm)
+            return;
+
+        _settingsService.ClearRunHistory();
+        ClearPlatformLogs();
+        LoadHistory();
+        LoadStats();
+    }
+
+    private static bool HasLogsToClear()
+    {
+#if ANDROID
+        return TiktokStreakSaver.Platforms.Android.Services.StreakService.GetLogs().Count > 0;
+#elif IOS
+        return TiktokStreakSaver.Platforms.iOS.Services.IosRunLogStore.GetLogs().Count > 0;
+#else
+        return false;
+#endif
+    }
+
+    private static void ClearPlatformLogs()
+    {
+#if ANDROID
+        TiktokStreakSaver.Platforms.Android.Services.StreakService.ClearLogs();
+#elif IOS
+        TiktokStreakSaver.Platforms.iOS.Services.IosRunLogStore.Clear();
+#endif
     }
 
     private async void OnExportLogsClicked(object? sender, EventArgs e)
@@ -209,7 +244,19 @@ public partial class HistoryPage : ContentPage
 #else
             var logs = new List<string>();
 #endif
-            if (logs == null || logs.Count == 0) { await DisplayAlert("Export Logs", "No logs to export", "OK"); return; }
+            if (logs == null || logs.Count == 0)
+            {
+#if IOS
+                var paths = string.Join(Environment.NewLine, TiktokStreakSaver.Platforms.iOS.Services.AppGroupPaths.GetAllRunLogsFilePaths());
+                await DisplayAlert(
+                    "Export Logs",
+                    $"No logs to export.{Environment.NewLine}{Environment.NewLine}Checked paths:{Environment.NewLine}{paths}",
+                    "OK");
+#else
+                await DisplayAlert("Export Logs", "No logs to export.", "OK");
+#endif
+                return;
+            }
             var textContent = string.Join(Environment.NewLine, logs);
             var fileName = $"streak_logs_{DateTime.Now:yyyyMMdd_HHmm}.txt";
             var filePath = System.IO.Path.Combine(FileSystem.CacheDirectory, fileName);

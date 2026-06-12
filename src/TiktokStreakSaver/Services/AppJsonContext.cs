@@ -11,6 +11,6 @@ namespace TiktokStreakSaver.Services;
 [JsonSourceGenerationOptions(
     PropertyNameCaseInsensitive = true,
     WriteIndented = true,
-    Converters = [typeof(FlexibleNullableDateTimeConverter), typeof(FlexibleDateTimeConverter)])]
+    Converters = [typeof(FlexibleNullableDateTimeConverter), typeof(FlexibleDateTimeConverter), typeof(FlexibleNullableDurationConverter)])]
 [Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
 internal partial class AppJsonContext : JsonSerializerContext;

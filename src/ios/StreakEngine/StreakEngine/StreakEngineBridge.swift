@@ -7,10 +7,16 @@ public func StreakEngine_ConsumePendingRun() -> Bool {
 
 @_cdecl("StreakEngine_Run")
 public func StreakEngine_Run(_ callback: @escaping @convention(c) (Bool) -> Void) {
-    DispatchQueue.main.async {
+    let start = {
         StreakWebViewRunner.shared.run { success in
             callback(success)
         }
+    }
+
+    if Thread.isMainThread {
+        start()
+    } else {
+        DispatchQueue.main.async(execute: start)
     }
 }
 

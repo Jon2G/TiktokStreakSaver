@@ -128,6 +128,10 @@ public final class SharedSettings {
         containerURL.appendingPathComponent(SharedConstants.friendsListFileName)
     }
 
+    public var runHistoryFileURL: URL {
+        containerURL.appendingPathComponent(SharedConstants.runHistoryFileName)
+    }
+
     public func getString(_ key: String, default defaultValue: String = "") -> String {
         defaults.string(forKey: key) ?? defaultValue
     }
@@ -248,13 +252,47 @@ public final class SharedSettings {
         if history.count > 50 { history = Array(history.prefix(50)) }
         guard let data = try? SharedJsonCodec.encoder.encode(history),
               let json = String(data: data, encoding: .utf8) else { return }
+        saveRunHistoryToFile(json)
         setString(SharedConstants.runHistoryKey, json)
     }
 
     public func getRunHistory() -> [StreakRunResult] {
+        migrateRunHistoryToFileIfNeeded()
+        let url = runHistoryFileURL
+        if let data = try? Data(contentsOf: url),
+           let history = try? SharedJsonCodec.decoder.decode([StreakRunResult].self, from: data) {
+            return history
+        }
+
         let json = getString(SharedConstants.runHistoryKey)
         guard !json.isEmpty, let data = json.data(using: .utf8) else { return [] }
         return (try? SharedJsonCodec.decoder.decode([StreakRunResult].self, from: data)) ?? []
+    }
+
+    private func saveRunHistoryToFile(_ json: String) {
+        let url = runHistoryFileURL
+        let temp = url.appendingPathExtension("tmp")
+        do {
+            try FileManager.default.createDirectory(
+                at: url.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try json.write(to: temp, atomically: true, encoding: .utf8)
+            if FileManager.default.fileExists(atPath: url.path) {
+                try FileManager.default.removeItem(at: url)
+            }
+            try FileManager.default.moveItem(at: temp, to: url)
+        } catch {
+            // UserDefaults mirror remains for MAUI reads during transition.
+        }
+    }
+
+    private func migrateRunHistoryToFileIfNeeded() {
+        let url = runHistoryFileURL
+        guard !FileManager.default.fileExists(atPath: url.path) else { return }
+        let json = getString(SharedConstants.runHistoryKey)
+        guard !json.isEmpty else { return }
+        saveRunHistoryToFile(json)
     }
 
     public func setLastRun(_ date: Date) {

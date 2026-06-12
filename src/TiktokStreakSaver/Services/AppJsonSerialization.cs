@@ -11,7 +11,7 @@ public static class AppJsonSerialization
     {
         PropertyNameCaseInsensitive = true,
         WriteIndented = true,
-        Converters = { new FlexibleNullableDateTimeConverter(), new FlexibleDateTimeConverter() }
+        Converters = { new FlexibleNullableDateTimeConverter(), new FlexibleDateTimeConverter(), new FlexibleNullableDurationConverter() }
     };
 
     /// <summary>Exported cookies — camelCase keys for Swift ExportedCookie.</summary>
@@ -62,4 +62,49 @@ public sealed class FlexibleDateTimeConverter : JsonConverter<DateTime>
 
     public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
         => _inner.Write(writer, value, options);
+}
+
+/// <summary>Reads Swift duration strings like "12.3s", ISO time spans, or numeric seconds.</summary>
+public sealed class FlexibleNullableDurationConverter : JsonConverter<TimeSpan?>
+{
+    public override TimeSpan? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.Null)
+            return null;
+
+        if (reader.TokenType == JsonTokenType.String)
+        {
+            var s = reader.GetString();
+            if (string.IsNullOrWhiteSpace(s))
+                return null;
+
+            if (TryParseSwiftSeconds(s, out var seconds))
+                return TimeSpan.FromSeconds(seconds);
+
+            return TimeSpan.Parse(s, System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        if (reader.TokenType == JsonTokenType.Number && reader.TryGetDouble(out var num))
+            return TimeSpan.FromSeconds(num);
+
+        throw new JsonException($"Unexpected token for TimeSpan?: {reader.TokenType}");
+    }
+
+    public override void Write(Utf8JsonWriter writer, TimeSpan? value, JsonSerializerOptions options)
+    {
+        if (value is null)
+            writer.WriteNullValue();
+        else
+            writer.WriteStringValue(value.Value.ToString("c", System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    private static bool TryParseSwiftSeconds(string text, out double seconds)
+    {
+        seconds = 0;
+        var trimmed = text.Trim();
+        if (trimmed.Length > 1 && trimmed.EndsWith("s", StringComparison.OrdinalIgnoreCase))
+            trimmed = trimmed[..^1].Trim();
+
+        return double.TryParse(trimmed, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out seconds);
+    }
 }

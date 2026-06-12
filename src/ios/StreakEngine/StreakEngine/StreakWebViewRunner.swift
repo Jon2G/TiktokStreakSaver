@@ -1,10 +1,15 @@
 import Foundation
 import Network
+import os
 import UIKit
 import WebKit
 
 @objc public final class StreakWebViewRunner: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
     public static let shared = StreakWebViewRunner()
+
+    private static let logger = Logger(subsystem: "com.jon2g.tiktokstreaksaver", category: "StreakWebViewRunner")
+    private static let webViewSize = CGSize(width: 390, height: 844)
+    private static let friendAutomationTimeout: TimeInterval = 90
 
     private var webView: WKWebView?
     private var hostWindow: UIWindow?
@@ -19,6 +24,8 @@ import WebKit
     private var runStartedAt = Date()
     private var overallTimeoutWork: DispatchWorkItem?
     private var messagesTimeoutWork: DispatchWorkItem?
+    private var friendTimeoutWork: DispatchWorkItem?
+    private var pendingFriendUsername: String?
     private var didFinishRun = false
     private let settings = SharedSettings.shared
 
@@ -36,6 +43,8 @@ import WebKit
 
         RunLogStore.clear()
         RunLogStore.append("run_start")
+        RunLogStore.append("storage_path=\(RunLogStore.storagePath())")
+        Self.logger.info("run_start path=\(RunLogStore.storagePath(), privacy: .public)")
 
         let monitor = NWPathMonitor()
         let queue = DispatchQueue(label: "streak.network")
@@ -56,8 +65,6 @@ import WebKit
     }
 
     private func startRun() {
-        scheduleOverallTimeout()
-
         let all = settings.getFriends().filter { $0.isEnabled }
         let forceManual = settings.getBool(SharedConstants.forceManualRunKey)
 
@@ -75,14 +82,20 @@ import WebKit
 
         if friends.isEmpty {
             settings.setString(SharedConstants.lastRunFailureReasonKey, SharedConstants.failureNoFriendsDue)
+            runResult.success = false
+            runResult.errorMessage = "No friends due for a streak message today"
+            settings.addRunResult(runResult)
             StreakNotifications.notify(title: "Streak Saver", body: "No friends due for a streak message today.", isAlert: false)
             RunLogStore.append("no_friends_due")
             finish(success: false)
             return
         }
 
+        scheduleOverallTimeout()
+
         let cookies = CookieImporter.loadExportedCookies()
         RunLogStore.append("cookie_check count=\(cookies.count)")
+        Self.logger.info("cookie_check count=\(cookies.count)")
         guard !cookies.isEmpty else {
             settings.setBool(SharedConstants.authRequiredKey, true)
             failRun(
@@ -115,7 +128,7 @@ import WebKit
         prefs.allowsContentJavaScript = true
         config.defaultWebpagePreferences = prefs
 
-        let view = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 844), configuration: config)
+        let view = WKWebView(frame: CGRect(origin: .zero, size: Self.webViewSize), configuration: config)
         view.customUserAgent = settings.getLoginUserAgent()
         view.navigationDelegate = self
         webView = view
@@ -134,15 +147,24 @@ import WebKit
               let script = try? String(contentsOf: url, encoding: .utf8) else {
             return ""
         }
-        return script
-            .replacingOccurrences(of: "\n", with: "")
-            .replacingOccurrences(of: "\r", with: "")
-            .replacingOccurrences(of: "  ", with: " ")
+        // Match Android StreakService: drop whole-line // comments, then compact whitespace.
+        // Do NOT strip newlines alone — that turns the file header comment into an end-of-file comment
+        // and prevents the automation IIFE from ever running (js_eval_ok with zero js bridge logs).
+        let withoutCommentLines = script
+            .split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
+            .filter { line in
+                !line.trimmingCharacters(in: .whitespaces).hasPrefix("//")
+            }
+            .joined(separator: "\n")
+        return withoutCommentLines
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         guard let url = webView.url?.absoluteString.lowercased() else { return }
         RunLogStore.append("nav_finish \(url)")
+        Self.logger.info("nav_finish \(url, privacy: .public)")
 
         if url.contains("/login") {
             settings.setBool(SharedConstants.authRequiredKey, true)
@@ -196,6 +218,7 @@ import WebKit
         let message = pickMessage()
 
         RunLogStore.append("friend_start \(friend.username) index=\(friendIndex + 1)/\(friends.count)")
+        scheduleFriendTimeout(for: friend)
 
         var script = baseScript
             .replacingOccurrences(of: "[UserName]", with: lookupName.replacingOccurrences(of: "'", with: "\\'"))
@@ -211,12 +234,19 @@ import WebKit
         script = bridge + script
 
         webView.evaluateJavaScript(script) { [weak self] _, error in
+            guard let self else { return }
+
             if let error {
+                self.cancelFriendTimeout()
+                self.pendingFriendUsername = nil
                 RunLogStore.append("js_eval_error \(friend.username): \(error.localizedDescription)")
-                self?.recordFriendResult(friend: friend, success: false, error: error.localizedDescription)
-                self?.friendIndex += 1
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { self?.processNextFriend() }
+                self.recordFriendResult(friend: friend, success: false, error: error.localizedDescription)
+                self.friendIndex += 1
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { self.processNextFriend() }
+                return
             }
+
+            RunLogStore.append("js_eval_ok \(friend.username)")
         }
     }
 
@@ -240,6 +270,8 @@ import WebKit
 
         if type == "done", friendIndex < friends.count {
             let friend = friends[friendIndex]
+            cancelFriendTimeout()
+            pendingFriendUsername = nil
             let ok = (body["ok"] as? Bool) ?? false
             let err = body["err"] as? String
             RunLogStore.append("friend_done \(friend.username) ok=\(ok) err=\(err ?? "")")
@@ -283,12 +315,28 @@ import WebKit
         let duration = Date().timeIntervalSince(runStartedAt)
         runResult.duration = String(format: "%.1fs", duration)
 
+        if !runResult.success && successes == 0 && !runResult.friendResults.isEmpty {
+            let failed = runResult.friendResults.filter { !$0.success }
+            runResult.errorMessage = failed.map { result in
+                let detail = result.errorMessage?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "failed"
+                return "@\(result.username): \(detail)"
+            }.joined(separator: "; ")
+            settings.setString(SharedConstants.lastRunFailureReasonKey, SharedConstants.failureSendError)
+        } else if runResult.success {
+            settings.setString(SharedConstants.lastRunFailureReasonKey, "")
+        }
+
         settings.addRunResult(runResult)
         settings.setLastRun(Date())
         settings.setBool(SharedConstants.authRequiredKey, false)
-        settings.setString(SharedConstants.lastRunFailureReasonKey, "")
 
-        RunLogStore.append("run_finish sent=\(successes) total=\(runResult.friendResults.count)")
+        if runResult.success {
+            RunLogStore.append("run_finish success=true sent=\(successes) total=\(runResult.friendResults.count)")
+            Self.logger.info("run_finish success=true sent=\(successes) total=\(self.runResult.friendResults.count)")
+        } else {
+            RunLogStore.append("run_finish success=false sent=\(successes) total=\(runResult.friendResults.count) reason=\(settings.getString(SharedConstants.lastRunFailureReasonKey))")
+            Self.logger.error("run_finish success=false sent=\(successes) total=\(self.runResult.friendResults.count)")
+        }
 
         StreakNotifications.notify(
             title: "Streak Saver — Done",
@@ -305,6 +353,7 @@ import WebKit
         runResult.errorMessage = message
         settings.addRunResult(runResult)
         RunLogStore.append("run_fail \(reason): \(message)")
+        Self.logger.error("run_fail \(reason, privacy: .public): \(message, privacy: .public)")
         StreakNotifications.notify(title: notifyTitle, body: notifyBody, isAlert: true)
         finish(success: false)
     }
@@ -322,6 +371,8 @@ import WebKit
         webView = nil
         detachWebViewFromWindow()
 
+        RunLogStore.mirrorSnippetToDefaults()
+
         let cb = completion
         completion = nil
         cb?(success)
@@ -333,22 +384,28 @@ import WebKit
             .first { $0.activationState == .foregroundActive || $0.activationState == .foregroundInactive }
             ?? UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
 
+        let size = Self.webViewSize
         let window: UIWindow
         if let scene {
             window = UIWindow(windowScene: scene)
         } else {
-            window = UIWindow(frame: UIScreen.main.bounds)
+            window = UIWindow(frame: CGRect(origin: .zero, size: size))
         }
         window.windowLevel = .normal - 1
-        window.frame = CGRect(x: 0, y: 0, width: 1, height: 1)
+        // Full-size off-screen window so TikTok hydrates the messages DOM (1x1 windows stall JS).
+        window.frame = CGRect(x: -size.width, y: 0, width: size.width, height: size.height)
         window.alpha = 0.01
         window.isHidden = false
 
         let host = UIViewController()
+        host.view.frame = CGRect(origin: .zero, size: size)
+        webView.frame = host.view.bounds
+        webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         host.view.addSubview(webView)
         window.rootViewController = host
         window.makeKeyAndVisible()
         hostWindow = window
+        RunLogStore.append("webview_host size=\(Int(size.width))x\(Int(size.height))")
     }
 
     private func detachWebViewFromWindow() {
@@ -357,8 +414,34 @@ import WebKit
         hostWindow = nil
     }
 
+    private func scheduleFriendTimeout(for friend: FriendConfig) {
+        cancelFriendTimeout()
+        pendingFriendUsername = friend.username
+        let username = friend.username
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, !self.didFinishRun else { return }
+            guard self.pendingFriendUsername == username else { return }
+            guard self.friendIndex < self.friends.count,
+                  self.friends[self.friendIndex].username == username else { return }
+
+            let timedOutFriend = self.friends[self.friendIndex]
+            self.pendingFriendUsername = nil
+            RunLogStore.append("friend_timeout \(username) after=\(Int(Self.friendAutomationTimeout))s")
+            self.recordFriendResult(
+                friend: timedOutFriend,
+                success: false,
+                error: "Automation timed out after \(Int(Self.friendAutomationTimeout))s")
+            self.friendIndex += 1
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { self.processNextFriend() }
+        }
+        friendTimeoutWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.friendAutomationTimeout, execute: work)
+    }
+
     private func scheduleOverallTimeout() {
         cancelOverallTimeout()
+        let perFriendBudget = Self.friendAutomationTimeout + 15
+        let overallSeconds = max(90, Double(friends.count) * perFriendBudget + 30)
         let work = DispatchWorkItem { [weak self] in
             guard let self, !self.didFinishRun else { return }
             self.runResult.success = false
@@ -370,7 +453,8 @@ import WebKit
                 notifyBody: "The streak run took too long. Try again.")
         }
         overallTimeoutWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 90, execute: work)
+        RunLogStore.append("overall_timeout_scheduled seconds=\(Int(overallSeconds))")
+        DispatchQueue.main.asyncAfter(deadline: .now() + overallSeconds, execute: work)
     }
 
     private func scheduleMessagesTimeout() {
@@ -390,6 +474,12 @@ import WebKit
     private func cancelTimeouts() {
         cancelOverallTimeout()
         cancelMessagesTimeout()
+        cancelFriendTimeout()
+    }
+
+    private func cancelFriendTimeout() {
+        friendTimeoutWork?.cancel()
+        friendTimeoutWork = nil
     }
 
     private func cancelOverallTimeout() {

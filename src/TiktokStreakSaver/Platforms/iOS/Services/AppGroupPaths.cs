@@ -27,14 +27,83 @@ public static class AppGroupPaths
         }
     }
 
+    public static string SessionStateFilePath =>
+        Path.Combine(SharedStorageDirectory, AppConstants.SessionStateFileName);
+
+    public static string RunLogsFilePath =>
+        Path.Combine(SharedStorageDirectory, AppConstants.RunLogsFileName);
+
+    public static string RunHistoryFilePath =>
+        Path.Combine(SharedStorageDirectory, AppConstants.RunHistoryFileName);
+
+    public static string MauiRunTraceFilePath =>
+        Path.Combine(SharedStorageDirectory, AppConstants.MauiRunTraceFileName);
+
+    /// <summary>All directories where native or MAUI may write shared files.</summary>
+    public static IReadOnlyList<string> GetAllStorageDirectories()
+    {
+        ProbeIfNeeded();
+        var dirs = new List<string>();
+
+        void Add(string? path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return;
+
+            var normalized = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            if (!dirs.Contains(normalized, StringComparer.Ordinal))
+                dirs.Add(normalized);
+        }
+
+        Add(ContainerPath);
+        Add(FileSystem.AppDataDirectory);
+
+        try
+        {
+            var appSupport = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            Add(Path.Combine(appSupport, AppConstants.PackageName));
+
+            // Legacy native fallback before Library alignment (Application Support/{bundleId}).
+            var library = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.Personal),
+                "..",
+                "Library",
+                "Application Support",
+                AppConstants.PackageName);
+            Add(Path.GetFullPath(library));
+        }
+        catch
+        {
+            // Ignore path construction failures.
+        }
+
+        return dirs;
+    }
+
+    public static IReadOnlyList<string> GetAllRunLogsFilePaths() =>
+        GetAllStorageDirectories().Select(dir => Path.Combine(dir, AppConstants.RunLogsFileName)).ToList();
+
+    public static IReadOnlyList<string> GetAllRunHistoryFilePaths() =>
+        GetAllStorageDirectories().Select(dir => Path.Combine(dir, AppConstants.RunHistoryFileName)).ToList();
+
+    public static IReadOnlyList<string> GetAllMauiTraceFilePaths() =>
+        GetAllStorageDirectories().Select(dir => Path.Combine(dir, AppConstants.MauiRunTraceFileName)).ToList();
+
+    /// <summary>App Group container when available; otherwise MAUI Library (matches native fallback).</summary>
+    public static string SharedStorageDirectory
+    {
+        get
+        {
+            ProbeIfNeeded();
+            return ContainerPath ?? FileSystem.AppDataDirectory;
+        }
+    }
+
     public static string CookiesFilePath =>
-        Path.Combine(ContainerPath ?? FileSystem.AppDataDirectory, AppConstants.SharedCookiesFileName);
+        Path.Combine(SharedStorageDirectory, AppConstants.SharedCookiesFileName);
 
     public static string FriendsListFilePath =>
-        Path.Combine(ContainerPath ?? FileSystem.AppDataDirectory, AppConstants.FriendsListFileName);
-
-    public static string SessionStateFilePath =>
-        Path.Combine(ContainerPath ?? FileSystem.AppDataDirectory, AppConstants.SessionStateFileName);
+        Path.Combine(SharedStorageDirectory, AppConstants.FriendsListFileName);
 
     private static void ProbeIfNeeded()
     {

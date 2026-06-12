@@ -15,6 +15,8 @@ public enum SharedConstants {
     public static let forceManualRunKey = "force_manual_run"
     public static let lastRunFailureReasonKey = "last_run_failure_reason"
     public static let runLogsFileName = "run_logs.txt"
+    public static let runHistoryFileName = "run_history.json"
+    public static let lastRunLogSnippetKey = "last_run_log_snippet"
     public static let messageTextFileName = "message_text.txt"
     public static let randomizeMessagesFlagFileName = "randomize_normal_messages.bool"
     public static let messagesUrl = "https://www.tiktok.com/messages?lang=en"

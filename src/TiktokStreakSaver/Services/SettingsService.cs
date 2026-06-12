@@ -256,7 +256,7 @@ public class SettingsService
         get
         {
 #if IOS
-            return Platforms.iOS.Services.AppGroupPaths.ContainerPath ?? FileSystem.AppDataDirectory;
+            return Platforms.iOS.Services.AppGroupPaths.SharedStorageDirectory;
 #else
             return FileSystem.AppDataDirectory;
 #endif
@@ -627,6 +627,12 @@ public class SettingsService
 
     public List<StreakRunResult> GetRunHistory()
     {
+#if IOS
+        var fromFile = Platforms.iOS.Services.IosRunHistoryFileStorage.ReadHistory();
+        if (fromFile.Count > 0)
+            return fromFile;
+#endif
+
         var json = _storage.GetString(RunHistoryKey, string.Empty);
         if (string.IsNullOrWhiteSpace(json))
             return new List<StreakRunResult>();
@@ -639,6 +645,9 @@ public class SettingsService
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"GetRunHistory deserialize failed: {ex.Message}");
+#if IOS
+            Platforms.iOS.Services.IosRunTrace.Append($"GetRunHistory deserialize failed: {ex.Message}");
+#endif
             return new List<StreakRunResult>();
         }
     }
@@ -653,6 +662,9 @@ public class SettingsService
 
         var json = JsonSerializer.Serialize(history, AppJsonContext.Default.ListStreakRunResult);
         _storage.SetString(RunHistoryKey, json);
+#if IOS
+        Platforms.iOS.Services.IosRunHistoryFileStorage.WriteHistory(history);
+#endif
     }
 
     #endregion
@@ -662,6 +674,9 @@ public class SettingsService
     public void ClearRunHistory()
     {
         _storage.Remove(RunHistoryKey);
+#if IOS
+        Platforms.iOS.Services.IosRunHistoryFileStorage.Clear();
+#endif
     }
 
     public void ClearAll()

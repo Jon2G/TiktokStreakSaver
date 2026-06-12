@@ -27,6 +27,12 @@ public static class AppConstants
 
     public const string RunLogsFileName = "run_logs.txt";
 
+    public const string RunHistoryFileName = "run_history.json";
+
+    public const string MauiRunTraceFileName = "maui_run_trace.txt";
+
+    public const string LastRunLogSnippetKey = "last_run_log_snippet";
+
     public const string MessageTextFileName = "message_text.txt";
 
     public const string RandomizeMessagesFlagFileName = "randomize_normal_messages.bool";

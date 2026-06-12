@@ -16,7 +16,8 @@ public sealed record IosRunResult(
     IosRunStatus Status,
     string? Message,
     int Sent,
-    int Total)
+    int Total,
+    string? Details = null)
 {
     public bool IsSuccess => Status == IosRunStatus.Completed && Sent > 0;
 }
