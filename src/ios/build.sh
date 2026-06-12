@@ -73,8 +73,24 @@ archive_engine() {
     "${ENGINE_SIGNING[@]}"
 }
 
+archive_app_intents() {
+  local dest="$1"
+  local path="$2"
+  xcodebuild archive \
+    -project StreakNative.xcodeproj \
+    -scheme StreakAppIntents \
+    -destination "$dest" \
+    -archivePath "$path" \
+    SKIP_INSTALL=NO \
+    BUILD_LIBRARY_FOR_DISTRIBUTION=YES \
+    "${ENGINE_SIGNING[@]}"
+}
+
 archive_engine "generic/platform=iOS" "$ARTIFACTS/StreakEngine-iOS"
 archive_engine "generic/platform=iOS Simulator" "$ARTIFACTS/StreakEngine-Sim"
+
+archive_app_intents "generic/platform=iOS" "$ARTIFACTS/StreakAppIntents-iOS"
+archive_app_intents "generic/platform=iOS Simulator" "$ARTIFACTS/StreakAppIntents-Sim"
 
 rm -rf "$ARTIFACTS/StreakEngine.xcframework"
 xcodebuild -create-xcframework \
@@ -83,6 +99,14 @@ xcodebuild -create-xcframework \
   -output "$ARTIFACTS/StreakEngine.xcframework"
 
 echo "Built: $ARTIFACTS/StreakEngine.xcframework"
+
+rm -rf "$ARTIFACTS/StreakAppIntents.xcframework"
+xcodebuild -create-xcframework \
+  -framework "$ARTIFACTS/StreakAppIntents-iOS.xcarchive/Products/Library/Frameworks/StreakAppIntents.framework" \
+  -framework "$ARTIFACTS/StreakAppIntents-Sim.xcarchive/Products/Library/Frameworks/StreakAppIntents.framework" \
+  -output "$ARTIFACTS/StreakAppIntents.xcframework"
+
+echo "Built: $ARTIFACTS/StreakAppIntents.xcframework"
 
 build_extension() {
   local destination="$1"

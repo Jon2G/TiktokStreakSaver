@@ -29,10 +29,28 @@ targets:
         SKIP_INSTALL: NO
     info:
       path: StreakEngine/StreakEngine/Info.plist
+  # Static framework force-loaded into the MAUI app so Shortcuts can discover AppShortcutsProvider.
+  StreakAppIntents:
+    type: framework
+    platform: iOS
+    sources:
+      - path: SharedAppIntents
+    dependencies:
+      - target: StreakEngine
+    settings:
+      base:
+        MACH_O_TYPE: staticlib
+        PRODUCT_BUNDLE_IDENTIFIER: com.jon2g.tiktokstreaksaver.StreakAppIntents
+        DEFINES_MODULE: YES
+        BUILD_LIBRARY_FOR_DISTRIBUTION: YES
+        SKIP_INSTALL: NO
+    info:
+      path: SharedAppIntents/Info.plist
   StreakSaverExtension:
     type: app-extension
     platform: iOS
     sources:
+      - path: SharedAppIntents/MaintainStreakIntent.swift
       - path: StreakSaverExtension/StreakSaverExtension
         excludes:
           - "**/Entitlements.plist"
@@ -72,6 +90,10 @@ schemes:
     build:
       targets:
         StreakEngine: all
+  StreakAppIntents:
+    build:
+      targets:
+        StreakAppIntents: all
   StreakSaverExtension:
     build:
       targets:

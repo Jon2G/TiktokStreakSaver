@@ -11,9 +11,11 @@ src/ios/
 ├── project.yml               ← XcodeGen spec → StreakNative.xcodeproj
 ├── artifacts/                ← build outputs (gitignored)
 │   ├── StreakEngine.xcframework
+│   ├── StreakAppIntents.xcframework   ← App Shortcuts metadata (force-loaded into MAUI app)
 │   ├── StreakSaverExtension-Sim.appex
 │   ├── StreakSaverExtension.appex
 │   └── .build-inputs.sha256         ← fingerprint of last successful native build
+├── SharedAppIntents/         ← MaintainStreakIntent + StreakShortcuts (main app + widget)
 ├── StreakEngine/             ← shared framework (WebView runner, App Group I/O)
 │   └── …/Resources/tiktok_automation.js   ← copied from MAUI at build (gitignored)
 ├── StreakSaverHost/            ← minimal app (provisioning only; not shipped)
@@ -95,6 +97,16 @@ Both the MAUI app and `StreakEngine` use:
 - App Group: `group.com.jon2g.tiktokstreaksaver`
 - Shared cookies file: `cookies.json` in the group container
 - Shared settings: `NSUserDefaults` suite with the same keys as Android `Preferences`
+
+## Shortcuts troubleshooting
+
+Apple requires **`AppShortcutsProvider` in the main app executable**, not only in the widget extension. This repo ships `StreakAppIntents.xcframework` (static, force-loaded by MAUI) for that registration.
+
+If Shortcuts logs `LNContextErrorDomain Code=2001` or `Failed to load a definition for com.jon2g.tiktokstreaksaver.<TeamID>`:
+
+1. Rebuild native artifacts: `export DEVELOPMENT_TEAM=… && ./src/ios/build.sh`
+2. Reinstall the app on device
+3. Delete the old shortcut/automation and add **Maintain TikTok Streaks** again from the Shortcuts action list
 
 ## More documentation
 
