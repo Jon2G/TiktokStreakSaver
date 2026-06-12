@@ -45,7 +45,7 @@ jobs:
           java-version: '17'
 
       - name: Install MAUI workloads
-        run: dotnet workload install maui-android
+        run: dotnet workload install maui
 
       - name: Restore
         run: dotnet restore ${{ env.PROJECT_PATH }}
