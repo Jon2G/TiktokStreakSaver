@@ -95,11 +95,23 @@
 		</NativeReference>
 	</ItemGroup>
 
-	<ItemGroup Condition="$(TargetFramework.Contains('-ios')) AND Exists('$(IosArtifactsDir)/StreakAppIntents.xcframework')">
-		<NativeReference Include="$(IosArtifactsDir)/StreakAppIntents.xcframework">
-			<Kind>Framework</Kind>
+	<ItemGroup Condition="$(TargetFramework.Contains('-ios')) AND Exists('$(IosArtifactsDir)/StreakAppIntents.xcframework/ios-arm64/StreakAppIntents.framework/StreakAppIntents')">
+		<!-- Static Swift archive: must use Kind=Static + ForceLoad so AppShortcutsProvider lands in the main executable. -->
+		<NativeReference Include="$(IosArtifactsDir)/StreakAppIntents.xcframework/ios-arm64/StreakAppIntents.framework/StreakAppIntents"
+		                  Condition="'$(RuntimeIdentifier)' == 'ios-arm64'">
+			<Kind>Static</Kind>
 			<ForceLoad>true</ForceLoad>
 			<SmartLink>false</SmartLink>
+			<LinkWithSwiftSystemLibraries>true</LinkWithSwiftSystemLibraries>
+			<Frameworks>AppIntents Foundation WebKit</Frameworks>
+		</NativeReference>
+		<NativeReference Include="$(IosArtifactsDir)/StreakAppIntents.xcframework/ios-arm64_x86_64-simulator/StreakAppIntents.framework/StreakAppIntents"
+		                  Condition="$(RuntimeIdentifier.Contains('iossimulator'))">
+			<Kind>Static</Kind>
+			<ForceLoad>true</ForceLoad>
+			<SmartLink>false</SmartLink>
+			<LinkWithSwiftSystemLibraries>true</LinkWithSwiftSystemLibraries>
+			<Frameworks>AppIntents Foundation WebKit</Frameworks>
 		</NativeReference>
 	</ItemGroup>
 
