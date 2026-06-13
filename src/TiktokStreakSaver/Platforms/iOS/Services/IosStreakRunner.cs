@@ -151,6 +151,7 @@ public static class IosStreakRunner
             "login_required" => (IosRunStatus.NoCookies, "TikTok login required. Sign in again."),
             "no_friends_due" => (IosRunStatus.NoFriendsDue, "No friends are due for a streak message today."),
             "timed_out" => (IosRunStatus.TimedOut, "The streak run timed out. Try again."),
+            "scene_not_ready" => (IosRunStatus.Failed, "The app window was not ready. Open Streak Saver and try again."),
             "script_missing" => (IosRunStatus.Failed, "Automation script missing from the app bundle."),
             "navigation_failed" => (IosRunStatus.Failed, "Could not load TikTok messages."),
             "send_error" => (IosRunStatus.Failed, BuildSendErrorMessage(latest)),

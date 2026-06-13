@@ -12,6 +12,7 @@ namespace TiktokStreakSaver
         public override bool FinishedLaunching(UIKit.UIApplication application, NSDictionary launchOptions)
         {
             var result = base.FinishedLaunching(application, launchOptions);
+            IosShortcutRunBridge.Register();
             IosPendingStreakRunService.TryRunPendingFromActivation();
             return result;
         }

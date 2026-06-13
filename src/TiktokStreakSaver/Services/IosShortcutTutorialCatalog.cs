@@ -46,7 +46,7 @@ public static class IosShortcutTutorialCatalog
             TabTitle = "Run",
             Title = "Turn off “Ask Before Running”",
             Description = "On the confirmation screen, disable Ask Before Running so the automation can fire on its own. " +
-                "Streak Saver will open briefly to run TikTok in the background — that is required on iOS. Tap Done to save.",
+                "Streak Saver will come to the foreground briefly while messages send in an invisible browser — iOS does not allow fully silent background WebView automation. Tap Done to save.",
             MediaFileName = "step_05.gif"
         },
         new()

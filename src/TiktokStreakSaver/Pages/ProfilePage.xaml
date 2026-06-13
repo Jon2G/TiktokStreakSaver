@@ -122,7 +122,7 @@
                                            FontSize="13"
                                            LineBreakMode="WordWrap"
                                            TextColor="{AppThemeBinding Light=#1E3A8A, Dark={StaticResource Gray300}}"/>
-                                    <Label Text="Create a daily Shortcut automation, turn off Ask Before Running, and pick the same time each day. The app will open briefly when the automation runs."
+                                    <Label Text="Create a daily Shortcut automation, turn off Ask Before Running, and pick the same time each day. The app will come to the foreground briefly while streak messages send — iOS requires this for TikTok automation."
                                            FontFamily="InterRegular"
                                            FontSize="13"
                                            LineBreakMode="WordWrap"

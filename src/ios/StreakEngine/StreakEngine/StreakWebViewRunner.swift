@@ -121,6 +121,22 @@ import WebKit
             messageIndex = 0
         }
 
+        waitForForegroundScene(timeout: 5) { [weak self] ready in
+            guard let self else { return }
+            if !ready {
+                self.failRun(
+                    reason: SharedConstants.failureSceneNotReady,
+                    message: "Foreground window scene not ready",
+                    notifyTitle: "Streak Saver — Error",
+                    notifyBody: "Could not start automation. Open the app and try again.")
+                return
+            }
+            self.beginWebViewRun()
+        }
+    }
+
+    private func beginWebViewRun() {
+        let cookies = CookieImporter.loadExportedCookies()
         let config = WKWebViewConfiguration()
         config.defaultWebpagePreferences.allowsContentJavaScript = true
         config.userContentController.add(self, name: "streakBridge")
@@ -379,18 +395,18 @@ import WebKit
     }
 
     private func attachWebViewToWindow(_ webView: WKWebView) {
-        let scene = UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first { $0.activationState == .foregroundActive || $0.activationState == .foregroundInactive }
-            ?? UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        guard let scene = foregroundWindowScene() else {
+            RunLogStore.append("webview_host_no_scene")
+            failRun(
+                reason: SharedConstants.failureSceneNotReady,
+                message: "No foreground window scene",
+                notifyTitle: "Streak Saver — Error",
+                notifyBody: "Could not start automation. Open the app and try again.")
+            return
+        }
 
         let size = Self.webViewSize
-        let window: UIWindow
-        if let scene {
-            window = UIWindow(windowScene: scene)
-        } else {
-            window = UIWindow(frame: CGRect(origin: .zero, size: size))
-        }
+        let window = UIWindow(windowScene: scene)
         window.windowLevel = .normal - 1
         // Full-size off-screen window so TikTok hydrates the messages DOM (1x1 windows stall JS).
         window.frame = CGRect(x: -size.width, y: 0, width: size.width, height: size.height)
@@ -406,6 +422,35 @@ import WebKit
         window.makeKeyAndVisible()
         hostWindow = window
         RunLogStore.append("webview_host size=\(Int(size.width))x\(Int(size.height))")
+    }
+
+    private func foregroundWindowScene() -> UIWindowScene? {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first { $0.activationState == .foregroundActive || $0.activationState == .foregroundInactive }
+    }
+
+    private func waitForForegroundScene(timeout: TimeInterval, completion: @escaping (Bool) -> Void) {
+        let deadline = Date().addingTimeInterval(timeout)
+
+        func poll() {
+            if foregroundWindowScene() != nil {
+                completion(true)
+                return
+            }
+            if Date() >= deadline {
+                RunLogStore.append("scene_wait_timeout")
+                completion(false)
+                return
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: poll)
+        }
+
+        if Thread.isMainThread {
+            poll()
+        } else {
+            DispatchQueue.main.async(execute: poll)
+        }
     }
 
     private func detachWebViewFromWindow() {

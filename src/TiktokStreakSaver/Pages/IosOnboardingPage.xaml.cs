@@ -23,8 +23,8 @@ public partial class IosOnboardingPage : ContentPage
             case 0:
                 StepTitleLabel.Text = "Welcome to Streak Saver (iOS)";
                 StepBodyLabel.Text =
-                    "On iOS, streaks run through the Shortcuts app and a home screen widget — not Android-style background alarms. " +
-                    "You'll sign in once in the app, then schedule a daily Shortcut.";
+                    "On iOS, streaks run through the Shortcuts app and home screen widget — not Android-style silent background alarms. " +
+                    "The app must open briefly while TikTok runs in an invisible browser; then you can schedule a daily Shortcut.";
                 PrimaryButton.Text = "Continue";
                 break;
             case 1:

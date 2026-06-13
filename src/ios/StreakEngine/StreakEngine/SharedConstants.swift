@@ -29,4 +29,5 @@ public enum SharedConstants {
     public static let failureNavigationFailed = "navigation_failed"
     public static let failureTimedOut = "timed_out"
     public static let failureNoFriendsDue = "no_friends_due"
+    public static let failureSceneNotReady = "scene_not_ready"
 }

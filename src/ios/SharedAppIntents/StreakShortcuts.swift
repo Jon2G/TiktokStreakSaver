@@ -5,7 +5,7 @@ import AppIntents
 public struct StreakShortcuts: AppShortcutsProvider {
     public static var appShortcuts: [AppShortcut] {
         AppShortcut(
-            intent: MaintainStreakIntent(),
+            intent: MaintainStreakShortcutIntent(),
             phrases: [
                 "Maintain TikTok streaks with \(.applicationName)",
                 "Send streak messages with \(.applicationName)",

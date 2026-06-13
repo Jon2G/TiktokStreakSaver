@@ -109,6 +109,8 @@ If Shortcuts logs `Couldn't find AppShortcutsProvider`, `LNContextErrorDomain Co
 3. Verify metadata is present: `ls TiktokStreakSaver.app/Metadata.appintents/` (should contain `extract.actionsdata`, not only under `PlugIns/…`)
 4. Delete the old shortcut/automation and add **Maintain TikTok Streaks** again from the Shortcuts action list
 
+App Shortcuts run through `MaintainStreakShortcutIntent` → MAUI `IosStreakRunner` (session refresh + off-screen WKWebView). The widget still queues `PendingStreakRun` for the main app. After updating native artifacts, **recreate** any existing Shortcuts automation so iOS picks up the new intent metadata.
+
 ## More documentation
 
 - Signing, CI, AltStore: [`../../docs/ios-signing.md`](../../docs/ios-signing.md)

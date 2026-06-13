@@ -12,16 +12,20 @@ internal static class StreakEngineBridge
     private delegate void StreakCompletionDelegate([MarshalAs(UnmanagedType.I1)] bool success);
     private delegate void NativeRunDelegate(StreakCompletionDelegate callback);
     private delegate byte NativeConsumePendingRunDelegate();
+    private delegate void NativeRegisterShortcutRunHandlerDelegate(NativeShortcutRunHandlerDelegate? handler);
+    private delegate void NativeShortcutRunHandlerDelegate();
 
     private static readonly object LoadLock = new();
     private static IntPtr _libraryHandle;
     private static NativeRunDelegate? _run;
     private static NativeConsumePendingRunDelegate? _consumePendingRun;
+    private static NativeRegisterShortcutRunHandlerDelegate? _registerShortcutRunHandler;
     private static string? _loadError;
 
     private static Action<bool>? _runCompleteAction;
     private static GCHandle _runCompleteActionHandle;
     private static GCHandle _runCallbackDelegateHandle;
+    private static GCHandle _shortcutRunHandlerHandle;
 
     public static bool IsAvailable
     {
@@ -44,6 +48,28 @@ internal static class StreakEngineBridge
         catch (Exception ex)
         {
             IosRunTrace.Append($"native_consume_pending_failed {ex.Message}");
+            return false;
+        }
+    }
+
+    public static bool RegisterShortcutRunHandler(Action handler)
+    {
+        if (!EnsureLoaded() || _registerShortcutRunHandler == null)
+            return false;
+
+        try
+        {
+            if (_shortcutRunHandlerHandle.IsAllocated)
+                _shortcutRunHandlerHandle.Free();
+
+            var nativeHandler = new NativeShortcutRunHandlerDelegate(() => handler());
+            _shortcutRunHandlerHandle = GCHandle.Alloc(nativeHandler);
+            _registerShortcutRunHandler(nativeHandler);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            IosRunTrace.Append($"native_register_shortcut_failed {ex.Message}");
             return false;
         }
     }
@@ -143,9 +169,11 @@ internal static class StreakEngineBridge
                 _libraryHandle = NativeLibrary.Load(path);
                 var runPtr = NativeLibrary.GetExport(_libraryHandle, "StreakEngine_Run");
                 var consumePtr = NativeLibrary.GetExport(_libraryHandle, "StreakEngine_ConsumePendingRun");
+                var registerShortcutPtr = NativeLibrary.GetExport(_libraryHandle, "StreakSaver_RegisterShortcutRunHandler");
 
                 _run = Marshal.GetDelegateForFunctionPointer<NativeRunDelegate>(runPtr);
                 _consumePendingRun = Marshal.GetDelegateForFunctionPointer<NativeConsumePendingRunDelegate>(consumePtr);
+                _registerShortcutRunHandler = Marshal.GetDelegateForFunctionPointer<NativeRegisterShortcutRunHandlerDelegate>(registerShortcutPtr);
                 IosRunTrace.Append($"native_engine_loaded path={path}");
                 return true;
             }
