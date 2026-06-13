@@ -23,7 +23,7 @@
                            TextColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray400}}"
                            HorizontalOptions="Start"/>
                     <Label x:Name="EffectiveDateLabel"
-                           Text="Effective date: May 13, 2026"
+                           Text="Effective date: June 9, 2026"
                            Style="{StaticResource ControlSubLabel}"
                            Margin="0,4,0,0"/>
                 </VerticalStackLayout>
@@ -142,8 +142,8 @@
 
                 <Border Style="{StaticResource SectionCard}">
                     <VerticalStackLayout Spacing="10">
-                        <Label Text="Children" Style="{StaticResource SectionLabel}"/>
-                        <Label Text="The app is not directed at children under 13. TikTok's own age and content policies apply to your TikTok account; this app does not change them."
+                        <Label Text="Minimum Age" Style="{StaticResource SectionLabel}"/>
+                        <Label Text="The app is not intended for users below the age of 13 or your region's age requirements for TikTok."
                                Style="{StaticResource ValueLabel}"
                                LineBreakMode="WordWrap"/>
                     </VerticalStackLayout>

@@ -3,7 +3,7 @@ namespace TiktokStreakSaver.Pages;
 [Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
 public partial class PrivacyPage : ContentPage
 {
-    private const string PolicyUrl = "https://github.com/Jon2G/TiktokStreakSaver/blob/master/PRIVACY.md";
+    private const string PolicyUrl = "https://github.com/Jon2G/TiktokStreakSaver/blob/main/PRIVACY.md";
     private const string IssuesUrl = "https://github.com/Jon2G/TiktokStreakSaver/issues";
 
     public PrivacyPage()
@@ -31,7 +31,7 @@ public partial class PrivacyPage : ContentPage
     {
         try
         {
-            await Browser.OpenAsync(PolicyUrl, BrowserLaunchMode.External);
+            await Launcher.OpenAsync(PolicyUrl);
         }
         catch (Exception ex)
         {
@@ -43,7 +43,7 @@ public partial class PrivacyPage : ContentPage
     {
         try
         {
-            await Browser.OpenAsync(IssuesUrl, BrowserLaunchMode.External);
+            await Launcher.OpenAsync(IssuesUrl);
         }
         catch (Exception ex)
         {

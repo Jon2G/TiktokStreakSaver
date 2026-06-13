@@ -1,6 +1,6 @@
 # Privacy Policy — Streak Saver
 
-**Effective date:** May 13, 2026
+**Effective date:** June 9, 2026
 
 Streak Saver ("the app") is an open-source Android application maintained by
 Jon2G and contributors. This policy explains what data the app handles and
@@ -75,10 +75,10 @@ endpoints, no crash-reporting endpoints, no advertising endpoints.
 
 The app uses these permissions only for the purposes listed above.
 
-## Children
+## Minimum Age
 
-The app is not directed at children under 13. TikTok's own age and content
-policies apply to your TikTok account; this app does not change them.
+The app is not intended for users below the age of 13 or your region's age
+requirements for TikTok.
 
 ## Third parties
 
