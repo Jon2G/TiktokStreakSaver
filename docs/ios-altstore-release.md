@@ -1,5 +1,7 @@
 # iOS AltStore release (IPA + source.json)
 
+> **Experimental — not production-ready.** Do not install expecting Android-like reliability. Automations fail on a locked iPhone; WebView automation cannot run silently in the background. See **[ios-limitations.md](ios-limitations.md)** for the full explanation and official Apple documentation links. **Use Android for daily streak protection.**
+
 This is the **Option A** flow: publish `StreakSaver.ipa` on GitHub Releases and install via AltStore.
 
 ## One-time setup

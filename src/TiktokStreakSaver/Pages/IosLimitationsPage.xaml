@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="TiktokStreakSaver.Pages.IosLimitationsPage"
+             Title="Why iOS is different"
+             Shell.NavBarIsVisible="True"
+             BackgroundColor="{AppThemeBinding Light={StaticResource PageBackgroundLight}, Dark={StaticResource OffBlack}}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+
+            <Border StrokeThickness="1"
+                    StrokeShape="RoundRectangle 16"
+                    Padding="14,12"
+                    Stroke="{AppThemeBinding Light=#FCD34D, Dark=#92400E}"
+                    BackgroundColor="{AppThemeBinding Light=#FFFBEB, Dark=#451A03}">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Experimental — not production-ready"
+                           FontFamily="InterSemiBold"
+                           FontSize="15"
+                           TextColor="{AppThemeBinding Light=#92400E, Dark=#FCD34D}" />
+                    <Label LineBreakMode="WordWrap"
+                           FontSize="13"
+                           TextColor="{AppThemeBinding Light=#78350F, Dark=#FDE68A}"
+                           Text="Streak Saver on iPhone cannot match Android reliability. Do not rely on iOS for daily streak protection. Use Android for automatic messaging while your phone is locked or the app is closed." />
+                </VerticalStackLayout>
+            </Border>
+
+            <Label Text="What works on iOS (best effort)"
+                   Style="{StaticResource SectionLabel}" />
+            <Label Style="{StaticResource ValueLabel}" LineBreakMode="WordWrap"
+                   Text="• Run Now when you open the app&#10;• Shortcuts automation when your iPhone is unlocked at the scheduled time&#10;• Widget tap after you unlock&#10;• Notifications when a run finishes or login is needed" />
+
+            <Label Text="What does not work"
+                   Style="{StaticResource SectionLabel}" />
+            <Label Style="{StaticResource ValueLabel}" LineBreakMode="WordWrap"
+                   Text="• Automation while the phone is locked — Shortcuts shows: Unable to launch because the device couldn't be unlocked&#10;• Silent background runs like Android — iOS suspends WebView JavaScript when backgrounded&#10;• In-app timers — scheduling is only through the Shortcuts app&#10;• Set-and-forget sideloading — AltStore certificates expire about every 7 days" />
+
+            <Label Text="Tips if you still test on iPhone"
+                   Style="{StaticResource SectionLabel}" />
+            <Label Style="{StaticResource ValueLabel}" LineBreakMode="WordWrap"
+                   Text="Schedule your automation for a time you are usually awake and unlocked. Use Run Now as a fallback. After app updates, delete and recreate the Shortcut." />
+
+            <Label Text="Official Apple documentation"
+                   Style="{StaticResource SectionLabel}" />
+            <Label Style="{StaticResource DataLabel}" LineBreakMode="WordWrap"
+                   Text="These limits follow Apple's platform rules, not missing features we can patch in the app." />
+
+            <Button Text="App Intents — openAppWhenRun"
+                    Clicked="OnOpenAppWhenRunDoc"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource PrimarySubtle}, Dark={StaticResource Gray800}}"
+                    TextColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                    FontFamily="InterSemiBold"
+                    CornerRadius="14"
+                    HeightRequest="44" />
+            <Button Text="App Intents — foreground / background modes"
+                    Clicked="OnSupportedModesDoc"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource PrimarySubtle}, Dark={StaticResource Gray800}}"
+                    TextColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                    FontFamily="InterSemiBold"
+                    CornerRadius="14"
+                    HeightRequest="44" />
+            <Button Text="Background tasks (limits)"
+                    Clicked="OnBackgroundTasksDoc"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource PrimarySubtle}, Dark={StaticResource Gray800}}"
+                    TextColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                    FontFamily="InterSemiBold"
+                    CornerRadius="14"
+                    HeightRequest="44" />
+            <Button Text="WKWebView (WebKit)"
+                    Clicked="OnWkWebViewDoc"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource PrimarySubtle}, Dark={StaticResource Gray800}}"
+                    TextColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                    FontFamily="InterSemiBold"
+                    CornerRadius="14"
+                    HeightRequest="44" />
+            <Button Text="Shortcuts user guide"
+                    Clicked="OnShortcutsGuideDoc"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource PrimarySubtle}, Dark={StaticResource Gray800}}"
+                    TextColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                    FontFamily="InterSemiBold"
+                    CornerRadius="14"
+                    HeightRequest="44" />
+            <Button Text="Full explanation on GitHub"
+                    Clicked="OnFullDoc"
+                    BackgroundColor="Transparent"
+                    TextColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                    FontFamily="InterSemiBold"
+                    CornerRadius="14"
+                    HeightRequest="44" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

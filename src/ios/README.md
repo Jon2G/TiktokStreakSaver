@@ -2,6 +2,12 @@
 
 Swift/Xcode code used by the .NET MAUI app for **Shortcuts App Intents**, **WidgetKit**, and **WKWebView streak automation**. The main app lives in [`../TiktokStreakSaver`](../TiktokStreakSaver).
 
+## Platform limitations
+
+**The iOS port is experimental and not stable for the same use cases as Android.** Automations require an unlocked iPhone; locked-device Shortcuts runs fail, and WKWebView automation cannot run silently in the background. Android is the supported platform for daily streak protection.
+
+Read the full user-facing explanation and official Apple documentation links: **[docs/ios-limitations.md](../../docs/ios-limitations.md)**
+
 ## Layout
 
 ```

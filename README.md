@@ -6,7 +6,9 @@
 
 <p align="center"><strong>Automatically send TikTok messages to keep your streaks alive!</strong></p>
 
-Streak Saver is an open-source Android app that runs in the background and automatically sends messages to your TikTok friends every 23 hours, ensuring you never lose your streaks.
+Streak Saver is an open-source app that automatically sends messages to your TikTok friends on a schedule so you never lose your streaks.
+
+**Android is the supported, production-ready platform.** An **experimental iOS port** exists for testing, but it **cannot match Android reliability** because of Apple platform limits (locked-device Shortcuts failures, no background WebView automation). See **[docs/ios-limitations.md](docs/ios-limitations.md)** before installing on iPhone.
 
 <p align="center">
   <img src="docs/imgs/main_screen.png" alt="Streak Saver Main Screen" width="300"/>
@@ -31,8 +33,8 @@ Streak Saver is an open-source Android app that runs in the background and autom
 
 ## 📋 Requirements
 
-- **Android:** 7.0 (API 24) or higher
-- **iOS:** 17.0 or higher (Shortcuts + interactive widget)
+- **Android:** 7.0 (API 24) or higher — **recommended for daily streak protection**
+- **iOS:** 17.0 or higher — **experimental only**; see [iOS limitations](docs/ios-limitations.md)
 - TikTok account
 - Internet connection
 
@@ -45,13 +47,19 @@ Streak Saver is an open-source Android app that runs in the background and autom
 3. Enable "Install from unknown sources" on your Android device
 4. Install the APK
 
-### iOS (AltStore)
+### iOS (AltStore) — experimental, not recommended
+
+> **Do not rely on iOS for streak protection today.** The iPhone build is best-effort only: automations fail on a locked phone, WebView automation cannot run silently in the background, and AltStore certificates expire every ~7 days. **[Read why → docs/ios-limitations.md](docs/ios-limitations.md)**
+
+For testing only:
 
 1. Add the AltStore source: `https://raw.githubusercontent.com/Jon2G/TiktokStreakSaver/main/dist/altstore/source.json`
 2. Install **Streak Saver** from that source (or sideload the latest `StreakSaver.ipa` from [Releases](../../releases))
-3. Complete in-app onboarding: sign in, create a **daily Shortcuts automation** for **Maintain TikTok Streaks**, and allow notifications
+3. Complete in-app onboarding: sign in, read **Why iOS is different** on Profile, create a **daily Shortcuts automation** for **Maintain TikTok Streaks** (when phone is usually **unlocked**), and allow notifications
 4. See [docs/ios-altstore-release.md](docs/ios-altstore-release.md) to build the release IPA and publish `source.json`
 5. See [docs/ios-signing.md](docs/ios-signing.md) for signing details and CI
+
+**For reliable automatic streak messaging, use Android.**
 
 ### Option 2: Build from Source
 
@@ -68,6 +76,19 @@ dotnet build -f net9.0-android -c Release
 cd src/TiktokStreakSaver
 dotnet build TiktokStreakSaver.csproj -f net9.0-ios -c Release -r ios-arm64
 ```
+
+## ⚠️ iOS: experimental — not ready for production
+
+We invested significant effort in an iOS port (Shortcuts App Intents, native WKWebView engine, widget, App Group sharing, MAUI integration). **Apple's platform rules still block the core use case:**
+
+- **Locked iPhone** — Shortcuts cannot launch the app; error: *Unable to launch because the device couldn't be unlocked*
+- **No silent background** — WKWebView JavaScript is suspended when the app is backgrounded; there is no Android-style foreground service for WebView
+- **Shortcuts-only scheduling** — no in-app alarm equivalent to Android's `AlarmManager`
+- **Sideload maintenance** — AltStore free certificates expire about every 7 days
+
+**Use Android for production streak protection.** The iOS build remains available for testers who accept these limits.
+
+Full explanation and official Apple documentation links: **[docs/ios-limitations.md](docs/ios-limitations.md)**
 
 ## 🚀 Getting Started
 
@@ -104,10 +125,11 @@ dotnet build TiktokStreakSaver.csproj -f net9.0-ios -c Release -r ios-arm64
 
 ## 🛠️ Tech Stack
 
-- **.NET 9 MAUI** — Cross-platform framework (Android-only target)
-- **Android WebView** — TikTok web automation
-- **AlarmManager** — Exact-alarm scheduling for precise hourly triggers
-- **Foreground Service** — Reliable background execution with wake-lock
+- **.NET 9 MAUI** — Cross-platform UI (**Android: supported**, **iOS: experimental port**)
+- **Android WebView** — TikTok web automation (Android + iOS)
+- **AlarmManager** (Android) — Exact-alarm scheduling for precise hourly triggers
+- **Foreground Service** (Android) — Reliable background execution with wake-lock
+- **Shortcuts App Intents** (iOS) — User-scheduled automations; requires unlocked device + foreground app
 - **JavaScript Injection** — Web page automation
 - **Shell + custom FloatingNavBar** — Multi-page navigation
 

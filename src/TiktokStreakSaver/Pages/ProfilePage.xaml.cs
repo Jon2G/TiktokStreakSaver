@@ -216,6 +216,11 @@ public partial class ProfilePage : ContentPage
         await Navigation.PushAsync(new IosShortcutTutorialPage());
     }
 
+    private async void OnIosLimitationsClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PushAsync(new IosLimitationsPage());
+    }
+
     private void OnScheduleToggled(object? sender, ToggledEventArgs e)
     {
         ScheduleOptionsPanel.IsVisible = e.Value;

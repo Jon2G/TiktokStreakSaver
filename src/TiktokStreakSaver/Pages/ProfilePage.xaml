@@ -110,6 +110,31 @@
                             <Border StrokeThickness="1"
                                     StrokeShape="RoundRectangle 16"
                                     Padding="14,12"
+                                    Stroke="{AppThemeBinding Light=#FCD34D, Dark=#92400E}"
+                                    BackgroundColor="{AppThemeBinding Light=#FFFBEB, Dark=#451A03}">
+                                <VerticalStackLayout Spacing="8">
+                                    <Label Text="iOS is experimental"
+                                           FontFamily="InterSemiBold"
+                                           FontSize="14"
+                                           TextColor="{AppThemeBinding Light=#92400E, Dark=#FCD34D}"/>
+                                    <Label Text="Do not rely on iPhone for daily streak protection. Automation requires an unlocked phone — locked-device Shortcuts runs fail. Android is recommended for reliable background streaks."
+                                           FontFamily="InterRegular"
+                                           FontSize="13"
+                                           LineBreakMode="WordWrap"
+                                           TextColor="{AppThemeBinding Light=#78350F, Dark=#FDE68A}"/>
+                                </VerticalStackLayout>
+                            </Border>
+                            <Button x:Name="IosLimitationsButton"
+                                    Text="Why iOS is different"
+                                    BackgroundColor="{AppThemeBinding Light={StaticResource PrimarySubtle}, Dark={StaticResource Gray800}}"
+                                    TextColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                                    FontFamily="InterSemiBold"
+                                    CornerRadius="14"
+                                    HeightRequest="44"
+                                    Clicked="OnIosLimitationsClicked"/>
+                            <Border StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 16"
+                                    Padding="14,12"
                                     Stroke="{AppThemeBinding Light=#BFDBFE, Dark=#1E3A5F}"
                                     BackgroundColor="{AppThemeBinding Light=#EFF6FF, Dark=#0F1A2E}">
                                 <VerticalStackLayout Spacing="8">
@@ -122,7 +147,7 @@
                                            FontSize="13"
                                            LineBreakMode="WordWrap"
                                            TextColor="{AppThemeBinding Light=#1E3A8A, Dark={StaticResource Gray300}}"/>
-                                    <Label Text="Create a daily Shortcut automation, turn off Ask Before Running, and pick the same time each day. The app will come to the foreground briefly while streak messages send — iOS requires this for TikTok automation."
+                                    <Label Text="Create a daily Shortcut automation, turn off Ask Before Running, and pick a time each day when your iPhone is usually unlocked. The app will come to the foreground briefly while streak messages send — iOS does not allow locked-phone or silent WebView automation."
                                            FontFamily="InterRegular"
                                            FontSize="13"
                                            LineBreakMode="WordWrap"

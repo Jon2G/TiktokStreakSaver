@@ -46,7 +46,8 @@ public static class IosShortcutTutorialCatalog
             TabTitle = "Run",
             Title = "Turn off “Ask Before Running”",
             Description = "On the confirmation screen, disable Ask Before Running so the automation can fire on its own. " +
-                "Streak Saver will come to the foreground briefly while messages send in an invisible browser — iOS does not allow fully silent background WebView automation. Tap Done to save.",
+                "Pick a daily time when your iPhone is usually unlocked — automations fail on a locked phone. " +
+                "Streak Saver will come to the foreground briefly while messages send in an invisible browser. Tap Done to save.",
             MediaFileName = "step_05.gif"
         },
         new()
@@ -54,7 +55,17 @@ public static class IosShortcutTutorialCatalog
             StepNumber = 6,
             TabTitle = "Widget",
             Title = "Optional: home screen widget",
-            Description = "Long-press the home screen → Add Widget → find Streak Saver. The widget runs the same action when you tap it.",
+            Description = "Long-press the home screen → Add Widget → find Streak Saver. The widget runs the same action when you tap it (phone must be unlocked).",
+            MediaFileName = "step_06.gif"
+        },
+        new()
+        {
+            StepNumber = 7,
+            TabTitle = "Limits",
+            Title = "iPhone must be unlocked",
+            Description = "Personal automations cannot launch Streak Saver while your phone is locked. If you see Unable to launch because the device couldn't be unlocked, " +
+                "schedule the automation for when you are usually awake and unlocked, or use Run Now after unlocking. " +
+                "This iOS build is experimental — Android is recommended for reliable background streaks. Profile → Why iOS is different for details.",
             MediaFileName = "step_06.gif"
         }
     ];
