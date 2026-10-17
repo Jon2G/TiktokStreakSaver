@@ -10,6 +10,7 @@ public partial class ProfilePage : ContentPage
     private readonly SettingsService _settingsService;
     private bool _suppressIntervalChanged = false;
     private bool _suppressRandomizeToggle = false;
+    private bool _suppressChatPriorityChanged = false;
 #if ANDROID
     private readonly UpdateService _updateService;
     private bool _isCheckingUpdates = false;
@@ -66,6 +67,15 @@ public partial class ProfilePage : ContentPage
             _suppressRandomizeToggle = false;
         }
         SendOnBatteryLowSwitch.IsToggled = _settingsService.GetSendOnBatteryLow();
+
+        _suppressChatPriorityChanged = true;
+        ChatPriorityPicker.SelectedIndex = _settingsService.GetChatPriority() switch
+        {
+            SettingsService.ChatPriorityFriendsFirst => 1,
+            SettingsService.ChatPriorityGroupsFirst => 2,
+            _ => 0
+        };
+        _suppressChatPriorityChanged = false;
 
         FixedTimeSwitch.IsToggled = _settingsService.GetUseFixedTime();
         ScheduleTimePicker.Time = new TimeSpan(
@@ -299,6 +309,20 @@ public partial class ProfilePage : ContentPage
 
         _settingsService.SetRandomizeNormalMessages(e.Value);
         SessionState.NotifyChanged();
+    }
+
+    private void OnChatPriorityChanged(object? sender, EventArgs e)
+    {
+        if (_suppressChatPriorityChanged)
+            return;
+
+        var value = ChatPriorityPicker.SelectedIndex switch
+        {
+            1 => SettingsService.ChatPriorityFriendsFirst,
+            2 => SettingsService.ChatPriorityGroupsFirst,
+            _ => SettingsService.ChatPriorityMixed
+        };
+        _settingsService.SetChatPriority(value);
     }
 
     private void OnSendOnBatteryLowToggled(object? sender, ToggledEventArgs e)

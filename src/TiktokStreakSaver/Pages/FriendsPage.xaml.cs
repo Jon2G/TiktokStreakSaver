@@ -208,8 +208,37 @@ public partial class FriendsPage : ContentPage
         infoStack.Children.Add(new Label { Text = displayName, FontSize = 15, FontFamily = "InterSemiBold" });
         var subtitleText = friend.IsGroup ? "Group" : $"@{friend.Username}";
         infoStack.Children.Add(new Label { Text = subtitleText, FontSize = 13, TextColor = GetThemeColor("Gray400", "#8B8F96") });
-        if (friend.LastMessageSent.HasValue)
-            infoStack.Children.Add(new Label { Text = $"Last sent: {friend.LastMessageSent.Value:MMM dd}", FontSize = 12, TextColor = GetThemeColor("Gray400", "#8B8F96") });
+
+        var healthColor = friend.ConsecutiveFailures switch
+        {
+            >= 3 => GetThemeColor("Error", "#9C2121"),
+            > 0 => GetThemeColor("Warning", "#A87A2A"),
+            _ when friend.LastMessageSent.HasValue => GetThemeColor("Success", "#22946E"),
+            _ => GetThemeColor("Gray400", "#8B8F96")
+        };
+        var healthText = friend.ConsecutiveFailures > 0
+            ? $"{friend.ConsecutiveFailures} consecutive failure{(friend.ConsecutiveFailures == 1 ? string.Empty : "s")}" +
+              (friend.LastMessageSent.HasValue ? $" • Last success: {friend.LastMessageSent.Value:MMM dd, HH:mm}" : string.Empty)
+            : friend.LastMessageSent.HasValue
+                ? $"Last sent: {friend.LastMessageSent.Value:MMM dd, HH:mm}"
+                : "Never sent";
+        var healthRow = new HorizontalStackLayout { Spacing = 6 };
+        healthRow.Children.Add(new Ellipse
+        {
+            WidthRequest = 8,
+            HeightRequest = 8,
+            Fill = new SolidColorBrush(healthColor),
+            VerticalOptions = LayoutOptions.Center
+        });
+        healthRow.Children.Add(new Label
+        {
+            Text = healthText,
+            FontSize = 12,
+            TextColor = GetThemeColor("Gray400", "#8B8F96"),
+            VerticalOptions = LayoutOptions.Center
+        });
+        SemanticProperties.SetDescription(healthRow, healthText);
+        infoStack.Children.Add(healthRow);
         grid.Children.Add(infoStack);
 
         var editButton = new Button { Text = "Edit", BackgroundColor = Colors.Transparent, FontSize = 12, Padding = new Thickness(8), HeightRequest = 44, VerticalOptions = LayoutOptions.Center, IsEnabled = !_lastIsRunning, Opacity = _lastIsRunning ? 0.6 : 1.0 };

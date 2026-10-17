@@ -46,8 +46,13 @@ public class BatteryLowReceiver : BroadcastReceiver
             //    - the last successful run wasn't today.
             var today = DateTime.Now.Date;
             var enabled = settings.GetEnabledFriends();
-            bool anyFriendPending = enabled.Count == 0
-                || enabled.Any(f => f.LastMessageSent?.Date != today);
+            if (enabled.Count == 0)
+            {
+                System.Diagnostics.Debug.WriteLine("BatteryLowReceiver: no enabled targets — skipping");
+                return;
+            }
+
+            bool anyFriendPending = enabled.Any(f => f.LastMessageSent?.Date != today);
             bool lastRunNotToday = settings.GetLastRunTime()?.Date != today;
 
             if (!anyFriendPending && !lastRunNotToday)
@@ -56,9 +61,15 @@ public class BatteryLowReceiver : BroadcastReceiver
                 return;
             }
 
-            settings.MarkBatteryAnticipationUsedToday();
-            System.Diagnostics.Debug.WriteLine("BatteryLowReceiver: battery low — anticipating today's streak run");
-            StreakScheduler.RunNow(context);
+            if (StreakScheduler.RunNow(context))
+            {
+                settings.MarkBatteryAnticipationUsedToday();
+                System.Diagnostics.Debug.WriteLine("BatteryLowReceiver: battery low — anticipating today's streak run");
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("BatteryLowReceiver: run did not start — anticipation remains available");
+            }
         }
         catch (Exception ex)
         {

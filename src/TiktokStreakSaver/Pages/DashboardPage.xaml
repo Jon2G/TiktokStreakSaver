@@ -12,7 +12,7 @@
     <Grid>
 
         <RefreshView x:Name="MainRefreshView" Refreshing="OnRefreshing">
-            <ScrollView>
+            <ScrollView x:Name="DashboardScrollView">
             <VerticalStackLayout Padding="20" Spacing="16">
 
                 <!-- ─── Header ─── -->
@@ -129,6 +129,22 @@
                             </VerticalStackLayout>
                         </VerticalStackLayout>
                     </Border>
+
+                    <Border x:Name="LiveLogPanel"
+                            Style="{StaticResource SectionCard}"
+                            IsVisible="False">
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="Live Activity" Style="{StaticResource SectionLabel}"/>
+                            <ScrollView x:Name="LiveLogScrollView"
+                                        HeightRequest="160">
+                                <Label x:Name="LiveLogLabel"
+                                       FontFamily="monospace"
+                                       FontSize="11"
+                                       LineBreakMode="WordWrap"
+                                       TextColor="{AppThemeBinding Light={StaticResource Gray700}, Dark={StaticResource Gray300}}"/>
+                            </ScrollView>
+                        </VerticalStackLayout>
+                    </Border>
                 </VerticalStackLayout>
 
                 <Label x:Name="PullToRefreshHintLabel"
@@ -182,7 +198,9 @@
                             Clicked="OnRequestNotificationClicked"/>
                 </VerticalStackLayout>
 
-                <Grid x:Name="RunButtonsContainer">
+                <Grid x:Name="RunButtonsContainer"
+                      RowDefinitions="Auto,Auto"
+                      RowSpacing="8">
                     <Button x:Name="MasterRunButton"
                             Text="Run Now"
                             BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
@@ -192,6 +210,16 @@
                             CornerRadius="16"
                             HeightRequest="54"
                             Clicked="OnMasterRunClicked"/>
+                    <Button x:Name="RetryFailedButton"
+                            Grid.Row="1"
+                            Text="Retry Failed"
+                            IsVisible="False"
+                            BackgroundColor="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray800}}"
+                            TextColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource White}}"
+                            FontFamily="InterSemiBold"
+                            CornerRadius="14"
+                            HeightRequest="46"
+                            Clicked="OnRetryFailedClicked"/>
                 </Grid>
 
                 <Button x:Name="StopServiceButton"

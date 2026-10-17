@@ -187,6 +187,24 @@
                                         VerticalOptions="Center"
                                         Toggled="OnRandomizeMessagesToggled"/>
                             </Grid>
+
+                            <Grid ColumnDefinitions="*, 150" ColumnSpacing="16">
+                                <VerticalStackLayout VerticalOptions="Center" Spacing="4">
+                                    <Label Text="Chat Priority" Style="{StaticResource ControlTitleLabel}"/>
+                                    <Label Text="Choose whether friends or groups are processed first" Style="{StaticResource DataLabel}" LineBreakMode="WordWrap"/>
+                                </VerticalStackLayout>
+                                <Picker x:Name="ChatPriorityPicker"
+                                        Grid.Column="1"
+                                        Title="Priority"
+                                        VerticalOptions="Center"
+                                        SelectedIndexChanged="OnChatPriorityChanged">
+                                    <Picker.Items>
+                                        <x:String>Mixed</x:String>
+                                        <x:String>Friends first</x:String>
+                                        <x:String>Groups first</x:String>
+                                    </Picker.Items>
+                                </Picker>
+                            </Grid>
                         </VerticalStackLayout>
 
                         <!-- Android: in-app background scheduling -->

@@ -11,6 +11,7 @@ public partial class LoginPage : ContentPage
     private bool _isLoggedIn;
     private bool _webViewTornDown;
     private bool _completionInProgress;
+    private EventHandler? _webViewHandlerChanged;
 
     public LoginPage()
     {
@@ -41,18 +42,25 @@ public partial class LoginPage : ContentPage
 
         var desktopUa = AppConstants.DesktopChromeUserAgent;
 #if ANDROID || IOS
-        TikTokWebViewHelper.ConfigureWebView(TikTokWebView, desktopUa);
         _sessionService.SetLoginUserAgent(desktopUa);
 
-        // ConfigureWebView applies the UA on the platform WebView asynchronously.
-        // Wait briefly so TikTok does not see the default mobile agent on first load.
-        MainThread.BeginInvokeOnMainThread(async () =>
+        if (TikTokWebViewHelper.TryConfigureWebView(TikTokWebView, desktopUa))
         {
-            await Task.Delay(200);
-            if (_webViewTornDown)
-                return;
             TikTokWebView.Source = TikTokWebViewHelper.LoginUrl;
-        });
+            return;
+        }
+
+        _webViewHandlerChanged = (_, _) =>
+        {
+            if (_webViewTornDown ||
+                !TikTokWebViewHelper.TryConfigureWebView(TikTokWebView, desktopUa))
+                return;
+
+            TikTokWebView.HandlerChanged -= _webViewHandlerChanged;
+            _webViewHandlerChanged = null;
+            TikTokWebView.Source = TikTokWebViewHelper.LoginUrl;
+        };
+        TikTokWebView.HandlerChanged += _webViewHandlerChanged;
 #else
         TikTokWebView.Source = TikTokWebViewHelper.LoginUrl;
 #endif
@@ -153,6 +161,11 @@ public partial class LoginPage : ContentPage
         if (_webViewTornDown)
             return;
         _webViewTornDown = true;
+        if (_webViewHandlerChanged != null)
+        {
+            TikTokWebView.HandlerChanged -= _webViewHandlerChanged;
+            _webViewHandlerChanged = null;
+        }
         TikTokWebViewHelper.TearDownLoginWebView(TikTokWebView);
     }
 

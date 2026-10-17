@@ -45,12 +45,28 @@ public static class TikTokWebViewHelper
 #if ANDROID
         MainThread.BeginInvokeOnMainThread(() =>
         {
-            var androidWebView = webView.Handler?.PlatformView as Android.Webkit.WebView;
-            if (androidWebView != null)
-                ConfigureAndroidWebView(androidWebView, customUserAgent);
+            TryConfigureWebView(webView, customUserAgent);
         });
 #elif IOS
         Platforms.iOS.Services.IosWebViewConfigurator.Configure(webView, customUserAgent);
+#endif
+    }
+
+    /// <summary>
+    /// Configures the platform WebView synchronously when its handler is ready.
+    /// </summary>
+    public static bool TryConfigureWebView(WebView webView, string? customUserAgent = null)
+    {
+#if ANDROID
+        if (webView.Handler?.PlatformView is not Android.Webkit.WebView androidWebView)
+            return false;
+
+        ConfigureAndroidWebView(androidWebView, customUserAgent);
+        return true;
+#elif IOS
+        return Platforms.iOS.Services.IosWebViewConfigurator.TryConfigure(webView, customUserAgent);
+#else
+        return false;
 #endif
     }
 

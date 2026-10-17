@@ -30,6 +30,7 @@ public class StreakService : Service
     private List<FriendConfig>? _friendsToProcess;
     private int _currentFriendIndex;
     private StreakRunResult? _runResult;
+    private HashSet<string>? _targetFriendIds;
     private PowerManager.WakeLock? _wakeLock;
     private string _baseScript = string.Empty;
     private readonly List<string> _disabledUsernames = new();
@@ -61,22 +62,26 @@ public class StreakService : Service
     private const int MaxSendAttemptsPerFriend = 4;
     private bool _allowSendRetries = true;
 
-    private static List<string> _logs = new();
+    private static readonly object LogLock = new();
+    private static readonly List<string> _logs = new();
 
     public static List<string> GetLogs()
     {
-        return _logs ?? new List<string>();
+        lock (LogLock)
+            return new List<string>(_logs);
     }
 
     public static void ClearLogs()
     {
-        _logs = new List<string>();
+        lock (LogLock)
+            _logs.Clear();
     }
 
     private static void AppLog(string phase, string username, string message)
     {
         var entry = $"[{DateTime.Now:HH:mm:ss}] [{phase}] [{username}] {message}";
-        _logs.Add(entry);
+        lock (LogLock)
+            _logs.Add(entry);
         System.Diagnostics.Debug.WriteLine(entry);
     }
 
@@ -120,6 +125,13 @@ public class StreakService : Service
             }
             _isRunning = true;
         }
+
+        var targetIds = intent?.GetStringExtra(StreakScheduler.ExtraTargetFriendIds);
+        _targetFriendIds = string.IsNullOrWhiteSpace(targetIds)
+            ? null
+            : targetIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToHashSet(StringComparer.Ordinal);
+        _isCancelRequested = false;
 
         // Start the WebView automation on main thread
         _mainHandler?.Post(StartWebViewAutomation);
@@ -274,18 +286,28 @@ public class StreakService : Service
             _automationStarted = false;
 
             _currentFriendIndex = 0;
-            _runResult = new StreakRunResult();
+            var isTargetedRetry = _targetFriendIds is { Count: > 0 };
+            _runResult = new StreakRunResult { IsTargetedRetry = isTargetedRetry };
             _cooldownSkippedCount = 0;
-            _logs.Clear();
+            ClearLogs();
 
             _friendsToProcess = new List<FriendConfig>();
 
             var allEnabled = _settingsService?.GetEnabledFriends() ?? new List<FriendConfig>();
+            if (isTargetedRetry)
+            {
+                allEnabled = allEnabled
+                    .Where(friend => _targetFriendIds!.Contains(friend.Id))
+                    .ToList();
+                AppLog("SYSTEM", "-", $"Targeted retry requested for {_targetFriendIds!.Count} IDs; {allEnabled.Count} enabled targets matched");
+            }
             var today = DateTime.Now.Date;
 
             foreach (var friend in allEnabled)
             {
-                if (friend.LastMessageSent.HasValue && friend.LastMessageSent.Value.Date == today)
+                if (!isTargetedRetry &&
+                    friend.LastMessageSent.HasValue &&
+                    friend.LastMessageSent.Value.Date == today)
                 {
                     _cooldownSkippedCount++;
                     AppLog("SKIP", $"@{friend.Username}",
@@ -296,6 +318,8 @@ public class StreakService : Service
                     _friendsToProcess.Add(friend);
                 }
             }
+
+            ApplyChatPriority(_friendsToProcess);
 
             // Initialize randomized message pool if user opted in.
             if (_settingsService?.GetRandomizeNormalMessages() == true)
@@ -317,6 +341,8 @@ public class StreakService : Service
             {
                 var msg = _cooldownSkippedCount > 0
                     ? $"All {_cooldownSkippedCount} friends already messaged today"
+                    : isTargetedRetry
+                        ? "No matching enabled retry targets"
                     : "No friends configured";
                 CompleteService(_cooldownSkippedCount > 0, msg);
                 return;
@@ -348,6 +374,7 @@ public class StreakService : Service
                 try
                 {
                     _webView = new WebView(this);
+                    _webView.ResumeTimers();
                     _webView.Settings.JavaScriptEnabled = true;
                     _webView.Settings.DomStorageEnabled = true;
                     _webView.Settings.DatabaseEnabled = true;
@@ -499,7 +526,18 @@ public class StreakService : Service
         var target = friend.IsGroup ? friend.DisplayName : friend.Username;
         if (string.IsNullOrWhiteSpace(target))
         {
-            AppLog("FAIL", "-", friend.IsGroup ? "Group name is empty" : "Username is empty");
+            var error = friend.IsGroup ? "Group name is empty" : "Username is empty";
+            friend.FailureCount++;
+            friend.ConsecutiveFailures++;
+            _settingsService?.UpdateFriend(friend);
+            _runResult?.FriendResults.Add(new FriendMessageResult
+            {
+                FriendId = friend.Id,
+                Username = target,
+                Success = false,
+                ErrorMessage = error
+            });
+            AppLog("FAIL", "-", error);
             _currentFriendIndex++;
             _mainHandler?.PostDelayed(ProcessNextFriend, 1000);
             return;
@@ -517,6 +555,24 @@ public class StreakService : Service
             int j = _rng.Next(i + 1);
             (list[i], list[j]) = (list[j], list[i]);
         }
+    }
+
+    private void ApplyChatPriority(List<FriendConfig> friends)
+    {
+        var priority = _settingsService?.GetChatPriority() ?? SettingsService.ChatPriorityMixed;
+        if (priority == SettingsService.ChatPriorityMixed)
+            return;
+
+        bool groupsFirst = priority == SettingsService.ChatPriorityGroupsFirst;
+        var ordered = friends
+            .Select((friend, index) => new { friend, index })
+            .OrderBy(item => item.friend.IsGroup == groupsFirst ? 0 : 1)
+            .ThenBy(item => item.index)
+            .Select(item => item.friend)
+            .ToList();
+        friends.Clear();
+        friends.AddRange(ordered);
+        AppLog("SYSTEM", "-", $"Chat priority applied: {priority}");
     }
 
     private string GetFriendMessageScript(string target, string message, bool isGroup)
@@ -558,7 +614,19 @@ public class StreakService : Service
             }
             else
             {
-                AppLog("FAIL", $"@{username}", "Max retries exceeded for unmatched username");
+                var currentFriend = _friendsToProcess[_currentFriendIndex];
+                const string mismatchError = "Max retries exceeded for unmatched callback target";
+                currentFriend.FailureCount++;
+                currentFriend.ConsecutiveFailures++;
+                _settingsService.UpdateFriend(currentFriend);
+                _runResult?.FriendResults.Add(new FriendMessageResult
+                {
+                    FriendId = currentFriend.Id,
+                    Username = currentFriend.IsGroup ? currentFriend.DisplayName : currentFriend.Username,
+                    Success = false,
+                    ErrorMessage = mismatchError
+                });
+                AppLog("FAIL", $"@{username}", mismatchError);
                 _failureAttemptsForCurrentFriend = 0;
                 _currentFriendIndex++;
                 _mainHandler?.PostDelayed(ProcessNextFriend, 3000);
@@ -579,6 +647,7 @@ public class StreakService : Service
             }
 
             friend.FailureCount++;
+            friend.ConsecutiveFailures++;
             AppLog("FAIL", label, error);
 
             bool skipUnreachable = _settingsService.GetSkipUnreachableUsers();
@@ -606,6 +675,7 @@ public class StreakService : Service
         }
 
         friend.SuccessCount++;
+        friend.ConsecutiveFailures = 0;
         friend.LastMessageSent = DateTime.Now;
         AppLog("SUCCESS", label, "Message sent");
 
@@ -720,36 +790,38 @@ public class StreakService : Service
             }
 
             // Show completion notification
-            var successCount = _runResult?.FriendResults.Count(r => r.Success) ?? 0;
-            var totalSent = _runResult?.FriendResults.Count ?? 0;
-            var skippedCount = totalSent - successCount;
+            var results = _runResult?.FriendResults ?? new List<FriendMessageResult>();
+            var successCount = results.Count(r => r.Success);
+            var failedResults = results.Where(r => !r.Success).ToList();
+            var totalAttempted = results.Count;
 
-            // Build human-readable summary including cooldown-skipped friends
-            var cooldownNote = _cooldownSkippedCount > 0
-                ? $", {_cooldownSkippedCount} already sent"
-                : string.Empty;
+            var summaryParts = new List<string>();
+            if (totalAttempted > 0)
+                summaryParts.Add($"{successCount}/{totalAttempted} sent");
 
-            string finalText;
-            if (success)
+            if (failedResults.Count > 0)
             {
-                finalText = $"Done : {successCount}/{totalSent} sent successfully{cooldownNote}";
+                var failedNames = failedResults
+                    .Select(GetResultDisplayLabel)
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                var visibleNames = string.Join(", ", failedNames.Take(5));
+                var remaining = Math.Max(0, failedNames.Count - 5);
+                var namesText = string.IsNullOrEmpty(visibleNames)
+                    ? string.Empty
+                    : $" ({visibleNames}{(remaining > 0 ? $", +{remaining} more" : string.Empty)})";
+                summaryParts.Add($"{failedResults.Count} failed{namesText}");
             }
-            else if (totalSent > 0 && successCount > 0)
-            {
-                if (_disabledUsernames.Count > 0)
-                    finalText = $"Done : {successCount}/{totalSent} sent, {_disabledUsernames.Count} disabled ({string.Join(", ", _disabledUsernames)}){cooldownNote}";
-                else
-                    finalText = $"Done : {successCount}/{totalSent} sent, {skippedCount} skipped{cooldownNote}";
-            }
-            else
-            {
-                if (_disabledUsernames.Count > 0)
-                    finalText = $"Done : 0/{totalSent} sent, {_disabledUsernames.Count} disabled ({string.Join(", ", _disabledUsernames)}){cooldownNote}";
-                else if (totalSent > 0)
-                    finalText = $"Done : 0/{totalSent} sent, {skippedCount} failed{cooldownNote}";
-                else
-                    finalText = $"Stopped : {message}";
-            }
+
+            if (_disabledUsernames.Count > 0)
+                summaryParts.Add($"{_disabledUsernames.Count} disabled");
+            if (_cooldownSkippedCount > 0)
+                summaryParts.Add($"{_cooldownSkippedCount} already sent today");
+
+            string finalText = summaryParts.Count > 0
+                ? $"Done: {string.Join(", ", summaryParts)}"
+                : $"Stopped: {message}";
 
             var finalNotification = new NotificationCompat.Builder(this, StatusChannelId)
                 .SetContentTitle("TikTok Streak Saver")
@@ -803,6 +875,18 @@ public class StreakService : Service
             StopForeground(StopForegroundFlags.Remove);
             StopSelf();
         }
+    }
+
+    private string GetResultDisplayLabel(FriendMessageResult result)
+    {
+        var friend = _friendsToProcess?.FirstOrDefault(f => f.Id == result.FriendId);
+        if (friend?.IsGroup == true)
+            return string.IsNullOrWhiteSpace(friend.DisplayName) ? result.Username : friend.DisplayName;
+
+        var username = friend?.Username;
+        if (string.IsNullOrWhiteSpace(username))
+            username = result.Username;
+        return string.IsNullOrWhiteSpace(username) ? string.Empty : $"@{username}";
     }
 
     /// <summary>
@@ -866,7 +950,8 @@ public class StreakService : Service
         public void Log(string message)
         {
             var entry = $"[{DateTime.Now:HH:mm:ss}] {message}";
-            StreakService._logs.Add(entry);
+            lock (LogLock)
+                StreakService._logs.Add(entry);
             global::Android.Util.Log.Debug("StreakJS", message);
         }
     }

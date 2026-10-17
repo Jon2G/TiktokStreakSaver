@@ -42,6 +42,11 @@ public class FriendConfig
     public int FailureCount { get; set; }
 
     /// <summary>
+    /// Number of consecutive terminal send failures since the last confirmed success.
+    /// </summary>
+    public int ConsecutiveFailures { get; set; }
+
+    /// <summary>
     /// If true, this entry represents a TikTok group chat matched by display name
     /// instead of by username (groups have no profile link / @handle).
     /// </summary>
@@ -57,6 +62,7 @@ public class StreakRunResult
     public DateTime RunTime { get; set; } = DateTime.Now;
     public TimeSpan? Duration { get; set; }
     public bool Success { get; set; }
+    public bool IsTargetedRetry { get; set; }
     public string? ErrorMessage { get; set; }
     public string? FriendsErrorMessage => string.Join(',', FriendResults?.Where(x => x.Failed)?.Select(x => x.ErrorMessage) ?? []);
     public List<FriendMessageResult> FriendResults { get; set; } = new();

@@ -8,18 +8,21 @@ public static class IosWebViewConfigurator
 
     public static void Configure(WebView mauiWebView, string? customUserAgent)
     {
-        MainThread.BeginInvokeOnMainThread(() =>
-        {
-            if (mauiWebView.Handler?.PlatformView is not WKWebView wk)
-                return;
+        MainThread.BeginInvokeOnMainThread(() => TryConfigure(mauiWebView, customUserAgent));
+    }
 
-            _lastWebView = wk;
-            var config = wk.Configuration;
-            config.AllowsInlineMediaPlayback = true;
-            config.Preferences.JavaScriptEnabled = true;
-            if (!string.IsNullOrEmpty(customUserAgent))
-                wk.CustomUserAgent = customUserAgent;
-        });
+    public static bool TryConfigure(WebView mauiWebView, string? customUserAgent)
+    {
+        if (mauiWebView.Handler?.PlatformView is not WKWebView wk)
+            return false;
+
+        _lastWebView = wk;
+        var config = wk.Configuration;
+        config.AllowsInlineMediaPlayback = true;
+        config.Preferences.JavaScriptEnabled = true;
+        if (!string.IsNullOrEmpty(customUserAgent))
+            wk.CustomUserAgent = customUserAgent;
+        return true;
     }
 
     public static bool HasValidSessionCookie()

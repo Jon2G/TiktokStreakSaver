@@ -8,6 +8,7 @@ public struct FriendConfig: Codable {
     public var lastMessageSent: Date?
     public var successCount: Int
     public var failureCount: Int
+    public var consecutiveFailures: Int
     public var isGroup: Bool
 
     enum CodingKeys: String, CodingKey {
@@ -18,7 +19,34 @@ public struct FriendConfig: Codable {
         case lastMessageSent = "LastMessageSent"
         case successCount = "SuccessCount"
         case failureCount = "FailureCount"
+        case consecutiveFailures = "ConsecutiveFailures"
         case isGroup = "IsGroup"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(String.self, forKey: .id) ?? UUID().uuidString
+        username = try container.decodeIfPresent(String.self, forKey: .username) ?? ""
+        displayName = try container.decodeIfPresent(String.self, forKey: .displayName) ?? ""
+        isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
+        lastMessageSent = try container.decodeIfPresent(Date.self, forKey: .lastMessageSent)
+        successCount = try container.decodeIfPresent(Int.self, forKey: .successCount) ?? 0
+        failureCount = try container.decodeIfPresent(Int.self, forKey: .failureCount) ?? 0
+        consecutiveFailures = try container.decodeIfPresent(Int.self, forKey: .consecutiveFailures) ?? 0
+        isGroup = try container.decodeIfPresent(Bool.self, forKey: .isGroup) ?? false
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(username, forKey: .username)
+        try container.encode(displayName, forKey: .displayName)
+        try container.encode(isEnabled, forKey: .isEnabled)
+        try container.encodeIfPresent(lastMessageSent, forKey: .lastMessageSent)
+        try container.encode(successCount, forKey: .successCount)
+        try container.encode(failureCount, forKey: .failureCount)
+        try container.encode(consecutiveFailures, forKey: .consecutiveFailures)
+        try container.encode(isGroup, forKey: .isGroup)
     }
 }
 

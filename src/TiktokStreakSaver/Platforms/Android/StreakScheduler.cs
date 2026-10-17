@@ -15,6 +15,7 @@ namespace TiktokStreakSaver.Platforms.Android;
 [Microsoft.Maui.Controls.Internals.Preserve(AllMembers = true)]
 public static class StreakScheduler
 {
+    public const string ExtraTargetFriendIds = "target_friend_ids";
     private const int AlarmRequestCode = 1001;
 
     /// <summary>
@@ -215,6 +216,33 @@ public static class StreakScheduler
         }
 
         var serviceIntent = new Intent(context, typeof(StreakService));
+
+        if (Build.VERSION.SdkInt >= BuildVersionCodes.O)
+            context.StartForegroundService(serviceIntent);
+        else
+            context.StartService(serviceIntent);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Runs automation only for the enabled targets identified by stable friend IDs.
+    /// The existing daily schedule is left intact.
+    /// </summary>
+    public static bool RunFailedTargets(Context context, IEnumerable<string> friendIds)
+    {
+        if (StreakService.IsRunning)
+            return false;
+
+        var ids = friendIds
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        if (ids.Length == 0)
+            return false;
+
+        var serviceIntent = new Intent(context, typeof(StreakService));
+        serviceIntent.PutExtra(ExtraTargetFriendIds, string.Join(",", ids));
 
         if (Build.VERSION.SdkInt >= BuildVersionCodes.O)
             context.StartForegroundService(serviceIntent);

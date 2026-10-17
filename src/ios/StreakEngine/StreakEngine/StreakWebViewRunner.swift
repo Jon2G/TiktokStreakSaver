@@ -80,6 +80,8 @@ import WebKit
             RunLogStore.append("scheduled_run due=\(friends.count) enabled=\(all.count)")
         }
 
+        friends = orderedByChatPriority(friends)
+
         if friends.isEmpty {
             settings.setString(SharedConstants.lastRunFailureReasonKey, SharedConstants.failureNoFriendsDue)
             runResult.success = false
@@ -299,6 +301,22 @@ import WebKit
         }
     }
 
+    private func orderedByChatPriority(_ input: [FriendConfig]) -> [FriendConfig] {
+        let priority = settings.getString(
+            SharedConstants.chatPriorityKey,
+            default: SharedConstants.chatPriorityMixed)
+        guard priority != SharedConstants.chatPriorityMixed else { return input }
+
+        let groupsFirst = priority == SharedConstants.chatPriorityGroupsFirst
+        let ordered = input.enumerated().sorted { lhs, rhs in
+            let leftRank = lhs.element.isGroup == groupsFirst ? 0 : 1
+            let rightRank = rhs.element.isGroup == groupsFirst ? 0 : 1
+            return leftRank == rightRank ? lhs.offset < rhs.offset : leftRank < rightRank
+        }.map(\.element)
+        RunLogStore.append("chat_priority \(priority)")
+        return ordered
+    }
+
     private func recordFriendResult(friend: FriendConfig, success: Bool, error: String?) {
         runResult.friendResults.append(FriendMessageResult(
             friendId: friend.id,
@@ -312,8 +330,10 @@ import WebKit
             if success {
                 allFriends[idx].lastMessageSent = Date()
                 allFriends[idx].successCount += 1
+                allFriends[idx].consecutiveFailures = 0
             } else {
                 allFriends[idx].failureCount += 1
+                allFriends[idx].consecutiveFailures += 1
             }
             settings.saveFriends(allFriends)
         }

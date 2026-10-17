@@ -22,6 +22,7 @@ public class SettingsService
     private const string UseFixedTimeKey = "use_fixed_time";
     private const string FixedTimeHourKey = "fixed_time_hour";
     private const string FixedTimeMinuteKey = "fixed_time_minute";
+    private const string ChatPriorityKey = "chat_priority";
 
     // ── Resilience: retry tracking + event-driven recovery flags ──
     private const string RetryCountTodayKey = "retry_count_today";
@@ -62,6 +63,9 @@ public class SettingsService
     /// Default interval in hours.
     /// </summary>
     public const int DefaultIntervalHours = 23;
+    public const string ChatPriorityMixed = "mixed";
+    public const string ChatPriorityFriendsFirst = "friends_first";
+    public const string ChatPriorityGroupsFirst = "groups_first";
 
     #region Friends List
 
@@ -484,6 +488,22 @@ public class SettingsService
     public void SetSkipUnreachableUsers(bool skip)
     {
         _storage.SetBool(SkipUnreachableUsersKey, skip);
+    }
+
+    public string GetChatPriority()
+    {
+        var value = _storage.GetString(ChatPriorityKey, ChatPriorityMixed);
+        return value is ChatPriorityFriendsFirst or ChatPriorityGroupsFirst
+            ? value
+            : ChatPriorityMixed;
+    }
+
+    public void SetChatPriority(string value)
+    {
+        var normalized = value is ChatPriorityFriendsFirst or ChatPriorityGroupsFirst
+            ? value
+            : ChatPriorityMixed;
+        _storage.SetString(ChatPriorityKey, normalized);
     }
 
     public DateTime GetNextRunTime()

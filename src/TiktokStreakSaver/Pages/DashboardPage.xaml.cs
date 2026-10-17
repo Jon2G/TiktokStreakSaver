@@ -21,6 +21,7 @@ public partial class DashboardPage : ContentPage
     private string _messageDraft = string.Empty;
     private IDispatcherTimer? _statusTimer;
     private readonly NormalProgressDrawable _normalProgressDrawable;
+    private string _lastLiveLogText = string.Empty;
 
     public DashboardPage()
     {
@@ -162,6 +163,33 @@ public partial class DashboardPage : ContentPage
         ApplyMessageEditorMode(isRunning);
 
         UpdateStatus();
+        _ = UpdateLiveLogsAsync(isRunning);
+    }
+
+    private async Task UpdateLiveLogsAsync(bool isRunning)
+    {
+        List<string> logs;
+#if ANDROID
+        logs = TiktokStreakSaver.Platforms.Android.Services.StreakService.GetLogs();
+#elif IOS
+        logs = Platforms.iOS.Services.IosRunLogStore.GetRecentLines(35);
+#else
+        logs = new List<string>();
+#endif
+
+        var text = string.Join(Environment.NewLine, logs.TakeLast(35));
+        LiveLogPanel.IsVisible = isRunning && !string.IsNullOrWhiteSpace(text);
+        if (string.Equals(text, _lastLiveLogText, StringComparison.Ordinal))
+            return;
+
+        _lastLiveLogText = text;
+        LiveLogLabel.Text = text;
+        if (!LiveLogPanel.IsVisible)
+            return;
+
+        await Task.Delay(50);
+        if (LiveLogPanel.IsVisible)
+            await LiveLogScrollView.ScrollToAsync(LiveLogLabel, ScrollToPosition.End, false);
     }
 
     private void PersistMessageText()
@@ -324,31 +352,37 @@ public partial class DashboardPage : ContentPage
 #endif
 
         var history = _settingsService.GetRunHistory();
-        var latestResult = history.FirstOrDefault();
         var currentEnabledFriends = _settingsService.GetEnabledFriends();
+        var enabledIds = currentEnabledFriends.Select(friend => friend.Id).ToHashSet(StringComparer.Ordinal);
+        var todayRuns = history
+            .Where(result => result.RunTime.Date == DateTime.Today)
+            .OrderByDescending(result => result.RunTime)
+            .ToList();
+        var todayResults = todayRuns
+            .SelectMany(result => result.FriendResults)
+            .Where(result => enabledIds.Contains(result.FriendId))
+            .ToList();
 
-        bool ranToday = latestResult != null && latestResult.RunTime.Date == DateTime.Today;
+        bool ranToday = todayRuns.Count > 0;
 
-        int sentToday = 0;
+        int sentToday = todayResults
+            .Where(result => result.Success)
+            .Select(result => result.FriendId)
+            .Distinct(StringComparer.Ordinal)
+            .Count();
         int successPercent = 0;
-        int remainingToday = currentEnabledFriends.Count;
-        string progressText = $"0/{currentEnabledFriends.Count}";
-        float progressFraction = 0f;
-
-        if (ranToday && latestResult != null)
+        int attemptedToday = todayResults
+            .Select(result => result.FriendId)
+            .Distinct(StringComparer.Ordinal)
+            .Count();
+        if (attemptedToday > 0)
         {
-            sentToday = latestResult.FriendResults.Count(r => r.Success);
-            int totalAttempted = latestResult.FriendResults.Count;
-
-            if (totalAttempted > 0)
-                successPercent = (int)((double)sentToday / totalAttempted * 100);
-            else
-                successPercent = 0;
-
-            remainingToday = Math.Max(0, currentEnabledFriends.Count - sentToday);
-            progressText = $"{sentToday}/{currentEnabledFriends.Count}";
-            progressFraction = currentEnabledFriends.Count > 0 ? (float)sentToday / currentEnabledFriends.Count : 0f;
+            successPercent = (int)((double)sentToday / attemptedToday * 100);
         }
+
+        int remainingToday = Math.Max(0, currentEnabledFriends.Count - sentToday);
+        string progressText = $"{sentToday}/{currentEnabledFriends.Count}";
+        float progressFraction = currentEnabledFriends.Count > 0 ? (float)sentToday / currentEnabledFriends.Count : 0f;
 
         OverviewSentLabel.Text = sentToday.ToString();
         OverviewSuccessLabel.Text = ranToday ? $"{successPercent}%" : "--";
@@ -358,6 +392,36 @@ public partial class DashboardPage : ContentPage
         _normalProgressDrawable.Progress = progressFraction;
         _normalProgressDrawable.IsDarkTheme = Application.Current?.RequestedTheme == AppTheme.Dark;
         OverviewProgressGraphicsView.Invalidate();
+
+#if ANDROID
+        RetryFailedButton.IsVisible = GetRetryableFailedFriendIds(history, currentEnabledFriends).Count > 0;
+#else
+        RetryFailedButton.IsVisible = false;
+#endif
+    }
+
+    private static List<string> GetRetryableFailedFriendIds(
+        IEnumerable<StreakRunResult> history,
+        IEnumerable<FriendConfig> enabledFriends)
+    {
+        var enabledIds = enabledFriends
+            .Select(friend => friend.Id)
+            .ToHashSet(StringComparer.Ordinal);
+        var latestByFriend = new Dictionary<string, FriendMessageResult>(StringComparer.Ordinal);
+
+        foreach (var result in history
+                     .Where(result => result.RunTime.Date == DateTime.Today)
+                     .OrderByDescending(result => result.RunTime)
+                     .SelectMany(result => result.FriendResults))
+        {
+            if (!string.IsNullOrWhiteSpace(result.FriendId) && enabledIds.Contains(result.FriendId))
+                latestByFriend.TryAdd(result.FriendId, result);
+        }
+
+        return latestByFriend
+            .Where(pair => !pair.Value.Success)
+            .Select(pair => pair.Key)
+            .ToList();
     }
 
     /// <summary>
@@ -463,6 +527,57 @@ public partial class DashboardPage : ContentPage
         UpdateStatus();
 #else
         await DisplayAlert("Info", "This feature is only available on Android", "OK");
+#endif
+    }
+
+    private async void OnRetryFailedClicked(object? sender, EventArgs e)
+    {
+#if ANDROID
+        bool runReady = await SessionRefreshHelper.RefreshAndGetRunReadyAsync(_sessionService);
+        UpdateSessionIndicator(runReady);
+        if (!runReady)
+        {
+            await Navigation.PushAsync(new LoginPage());
+            return;
+        }
+
+        var failedIds = GetRetryableFailedFriendIds(
+            _settingsService.GetRunHistory(),
+            _settingsService.GetEnabledFriends());
+        if (failedIds.Count == 0)
+        {
+            RetryFailedButton.IsVisible = false;
+            await DisplayAlert("Nothing to Retry", "There are no enabled failed targets from today.", "OK");
+            return;
+        }
+
+        var confirm = await DisplayAlert(
+            "Retry Failed",
+            $"Retry {failedIds.Count} failed target{(failedIds.Count == 1 ? string.Empty : "s")} now?",
+            "Retry",
+            "Cancel");
+        if (!confirm)
+            return;
+
+        if (!await RequestNotificationPermission())
+            return;
+
+        _messageDraft = MessageEditor.Text ?? _messageDraft;
+        PersistMessageText();
+
+        var context = Platform.CurrentActivity ?? Android.App.Application.Context;
+        bool started = TiktokStreakSaver.Platforms.Android.StreakScheduler.RunFailedTargets(context, failedIds);
+        if (started)
+        {
+            await DisplayAlert("Started", "Retry started for failed targets. Check the notification for progress.", "OK");
+            UpdateStatus();
+        }
+        else
+        {
+            await DisplayAlert("Already Running", "A process is already running or no retry targets remain.", "OK");
+        }
+#else
+        await DisplayAlert("Unavailable", "Targeted retry is currently available on Android.", "OK");
 #endif
     }
 
