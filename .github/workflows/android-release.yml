@@ -174,13 +174,25 @@ jobs:
         path: ./artifacts/*.apk
         retention-days: 30
 
+    - name: Prepare release notes
+      shell: pwsh
+      run: |
+        $text = Get-Content CHANGELOG.md -Raw
+        $match = [regex]::Match($text, '(?ms)^## \[(?!Unreleased\]).*')
+        if (-not $match.Success) {
+          Write-Error "CHANGELOG.md has no released version section."
+          exit 1
+        }
+        Set-Content -Path release-notes.md -Value $match.Value.TrimEnd() -Encoding utf8
+
     - name: Create GitHub Release
       if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
       uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', github.event.inputs.version) || github.ref_name }}
         name: Streak Saver v${{ steps.get_version.outputs.VERSION }}
-        generate_release_notes: true
+        body_path: release-notes.md
+        generate_release_notes: false
         files: ./artifacts/*.apk
         draft: false
         prerelease: false

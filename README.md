@@ -43,7 +43,7 @@ Streak Saver is an open-source app that automatically sends messages to your Tik
 ### Option 1: Download APK (Recommended)
 
 1. Go to the [Releases](../../releases) page
-2. Download the latest `StreakSaver-vX.X.X.apk`
+2. Download the latest `StreakSaver-vX.X.X.apk` ([changelog](CHANGELOG.md))
 3. Enable "Install from unknown sources" on your Android device
 4. Install the APK
 
