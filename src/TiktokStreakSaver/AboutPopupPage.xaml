@@ -100,6 +100,21 @@
                             </FormattedString>
                         </Label.FormattedText>
                     </Label>
+                    <Label Style="{StaticResource ValueLabel}" LineBreakMode="WordWrap" Margin="0, 8, 0, 0">
+                        <Label.FormattedText>
+                            <FormattedString>
+                                <Span Text="Login and inbox fixes for the open crash and “friend skipped” reports come from " />
+                                <Span Text="RusdiEneri"
+                                      TextColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                                      TextDecorations="Underline">
+                                    <Span.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnRusdiCreditTapped" />
+                                    </Span.GestureRecognizers>
+                                </Span>
+                                <Span Text=" (commit cca1651): custom-scheme login guard, density-scaled messages WebView, tighter chat selectors, and a 3-miss auto-disable." />
+                            </FormattedString>
+                        </Label.FormattedText>
+                    </Label>
                 </VerticalStackLayout>
 
                 <!-- Data & Permissions Notice -->

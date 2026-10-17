@@ -29,6 +29,7 @@
 
         <WebView x:Name="TikTokWebView"
                  Grid.Row="1"
+                 Navigating="OnWebViewNavigating"
                  Navigated="OnWebViewNavigated"/>
 
         <Grid x:Name="LoadingOverlay"

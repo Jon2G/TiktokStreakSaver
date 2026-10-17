@@ -126,31 +126,45 @@ public static class StreakScheduler
         // Convert to milliseconds since epoch
         var triggerAtMillis = new DateTimeOffset(triggerTime).ToUnixTimeMilliseconds();
 
-        // Use exact alarm for precise timing
-        if (Build.VERSION.SdkInt >= BuildVersionCodes.S)
+        // Use exact alarm for precise timing. Some Android 12+ / HyperOS builds throw
+        // SecurityException from SetExact* even after CanScheduleExactAlarms() is true.
+        try
         {
-            // Android 12+ requires checking for exact alarm permission
-            if (alarmManager.CanScheduleExactAlarms())
+            if (Build.VERSION.SdkInt >= BuildVersionCodes.S)
+            {
+                if (alarmManager.CanScheduleExactAlarms())
+                {
+                    alarmManager.SetExactAndAllowWhileIdle(AlarmType.RtcWakeup, triggerAtMillis, pendingIntent);
+                }
+                else
+                {
+                    alarmManager.SetAndAllowWhileIdle(AlarmType.RtcWakeup, triggerAtMillis, pendingIntent);
+                }
+            }
+            else if (Build.VERSION.SdkInt >= BuildVersionCodes.M)
             {
                 alarmManager.SetExactAndAllowWhileIdle(AlarmType.RtcWakeup, triggerAtMillis, pendingIntent);
             }
+            else if (Build.VERSION.SdkInt >= BuildVersionCodes.Kitkat)
+            {
+                alarmManager.SetExact(AlarmType.RtcWakeup, triggerAtMillis, pendingIntent);
+            }
             else
             {
-                // Fall back to inexact alarm, but request permission
-                alarmManager.SetAndAllowWhileIdle(AlarmType.RtcWakeup, triggerAtMillis, pendingIntent);
+                alarmManager.Set(AlarmType.RtcWakeup, triggerAtMillis, pendingIntent);
             }
         }
-        else if (Build.VERSION.SdkInt >= BuildVersionCodes.M)
+        catch (Exception ex)
         {
-            alarmManager.SetExactAndAllowWhileIdle(AlarmType.RtcWakeup, triggerAtMillis, pendingIntent);
-        }
-        else if (Build.VERSION.SdkInt >= BuildVersionCodes.Kitkat)
-        {
-            alarmManager.SetExact(AlarmType.RtcWakeup, triggerAtMillis, pendingIntent);
-        }
-        else
-        {
-            alarmManager.Set(AlarmType.RtcWakeup, triggerAtMillis, pendingIntent);
+            System.Diagnostics.Debug.WriteLine($"StreakScheduler alarm fallback: {ex.Message}");
+            try
+            {
+                alarmManager.SetAndAllowWhileIdle(AlarmType.RtcWakeup, triggerAtMillis, pendingIntent);
+            }
+            catch
+            {
+                alarmManager.Set(AlarmType.RtcWakeup, triggerAtMillis, pendingIntent);
+            }
         }
 
         System.Diagnostics.Debug.WriteLine($"StreakScheduler: Scheduled next run at {triggerTime}");

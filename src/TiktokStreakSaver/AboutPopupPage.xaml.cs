@@ -534,6 +534,15 @@ blockquote{{
         catch { }
     }
 
+    private async void OnRusdiCreditTapped(object? sender, TappedEventArgs e)
+    {
+        try
+        {
+            await Launcher.Default.OpenAsync("https://github.com/RusdiEneri/TiktokStreakSaver");
+        }
+        catch { }
+    }
+
     private void TriggerApkInstall(string apkPath)
     {
 #if ANDROID

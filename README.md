@@ -235,7 +235,7 @@ The current architecture of this app is a direct port of the rewrite that **eulf
 - **Custom `IDrawable`s** — `NormalProgressDrawable` (linear daily-progress bar) and `SuccessRateDrawable` (donut-style success-rate chart) used on Dashboard and History
 - **Theme system** — Inter font family registration, expanded color palette (`PrimaryLight`, `PrimarySubtle`, warm `OffBlack`, semantic gray ramp, card/border tokens), and `SectionCard` / typography styles
 - **Android 12+ splash screen** — `App.StartingTheme` with `windowSplashScreenAnimatedIcon` + theme-aware splash background
-- **WebView viewport fix** — Headless WebView is sized to a real 1920×1080 viewport so TikTok's virtualized chat list actually renders its lazy children
+- **WebView viewport fix** — Headless WebView targets a 1920×1080 CSS viewport so TikTok's virtualized chat list actually renders its lazy children (physical pixels are density-scaled; see RusdiEneri below)
 - **Session-stored user agent** — The user agent captured at login is reused for every background run so TikTok cookies stay valid (with a modern Chrome desktop fallback)
 - **Cookie-based session helper** — `TikTokWebViewHelper` centralizes WebView configuration, cookie checks, and login-status detection
 - **Randomized normal messages** — Built-in pool of 50 short streak variants with shuffle / reshuffle-on-exhaust logic
@@ -248,6 +248,17 @@ The current architecture of this app is a direct port of the rewrite that **eulf
 - **CSS-style `Focused` visual states** on `Entry` and `Editor`, and `Android` handler mappers that strip the default Entry/Editor underline
 
 If you like the look and feel of this app, please go star the upstream fork as well: <https://github.com/eulfn/streak-tiktok>.
+
+### Thanks to [RusdiEneri](https://github.com/RusdiEneri)
+
+The custom-scheme login guard and the inbox/viewport fixes that address the “app closes after login” and “friend skipped” reports are ported from [RusdiEneri/TiktokStreakSaver](https://github.com/RusdiEneri/TiktokStreakSaver) commit [`cca1651`](https://github.com/RusdiEneri/TiktokStreakSaver/commit/cca1651688862e0fbb87eace55b64cc8549b672e):
+
+- Block `snssdk://` / `intent://` navigations during login and reload the embedded `params_url` when it is a normal web URL
+- Create the background messages WebView on the UI thread and size it in density-scaled pixels
+- Tighter chat-list selectors and a longer empty-inbox wait
+- Auto-disable a missing friend only after three failed runs
+
+His release-signing workflow changes were not adopted.
 
 ---
 

@@ -336,50 +336,67 @@ public class StreakService : Service
             this._baseScript = string.Join("\n", this._baseScript.Split('\n').Where(line => !line.TrimStart().StartsWith("//")));
             this._baseScript = System.Text.RegularExpressions.Regex.Replace(this._baseScript, @"\s+", " ").Trim();
 
-            _webView = new WebView(this);
-            _webView.Settings.JavaScriptEnabled = true;
-            _webView.Settings.DomStorageEnabled = true;
-            _webView.Settings.DatabaseEnabled = true;
-            _webView.Settings.CacheMode = CacheModes.Normal;
-
             // Reuse the UA captured at login time so cookies stay valid; fall back to a modern Chrome desktop UA.
             var sessionService = new SessionService();
             var loginUa = sessionService.GetLoginUserAgent()
                 ?? "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
-            _webView.Settings.UserAgentString = loginUa;
 
-            _webView.Settings.SetSupportZoom(true);
-            _webView.Settings.BuiltInZoomControls = true;
-
-            // Give the headless WebView a real viewport so TikTok's virtualized chat list
-            // actually renders its children. Without dimensions the WebView is 0x0 and
-            // lazy-rendered conversation items never appear.
-            _webView.Settings.UseWideViewPort = true;
-            _webView.Settings.LoadWithOverviewMode = true;
-            _webView.Layout(0, 0, 1920, 1080);
-
-            var cookieManager = CookieManager.Instance;
-            cookieManager?.SetAcceptCookie(true);
-            cookieManager?.SetAcceptThirdPartyCookies(_webView, true);
-
-            _webView.SetWebViewClient(new StreakWebViewClient(this));
-            _webView.AddJavascriptInterface(new StreakJsInterface(this), "StreakApp");
-            _webView.LoadUrl("https://www.tiktok.com/messages?lang=en");
-
-            _mainHandler!.PostDelayed(() =>
+            // WebView must be created on a thread with a Looper. Some OEM builds
+            // (HyperOS) crash or refuse navigation when it is constructed off the UI thread.
+            _mainHandler!.Post(() =>
             {
-                if (!(_webView?.Url ?? "").Contains("tiktok.com/messages"))
+                try
                 {
-                    _webView?.LoadUrl("https://www.tiktok.com/messages?lang=en");
+                    _webView = new WebView(this);
+                    _webView.Settings.JavaScriptEnabled = true;
+                    _webView.Settings.DomStorageEnabled = true;
+                    _webView.Settings.DatabaseEnabled = true;
+                    _webView.Settings.CacheMode = CacheModes.Normal;
+                    _webView.Settings.UserAgentString = loginUa;
+
+                    _webView.Settings.SetSupportZoom(false);
+                    _webView.Settings.BuiltInZoomControls = false;
+                    _webView.Settings.UseWideViewPort = false;
+                    _webView.Settings.LoadWithOverviewMode = false;
+                    _webView.SetInitialScale(100);
+
+                    // Layout() takes physical pixels. Scale the 1920×1080 CSS viewport by
+                    // density so TikTok's virtualized inbox still has a full desktop size.
+                    var dm = Resources?.DisplayMetrics;
+                    float density = dm?.Density ?? 2.0f;
+                    int widthPx = (int)(1920 * density);
+                    int heightPx = (int)(1080 * density);
+                    _webView.Layout(0, 0, widthPx, heightPx);
+
+                    var cookieManager = CookieManager.Instance;
+                    cookieManager?.SetAcceptCookie(true);
+                    cookieManager?.SetAcceptThirdPartyCookies(_webView, true);
+                    cookieManager?.Flush();
+
+                    _webView.SetWebViewClient(new StreakWebViewClient(this));
+                    _webView.AddJavascriptInterface(new StreakJsInterface(this), "StreakApp");
+                    _webView.LoadUrl("https://www.tiktok.com/messages?lang=en");
+
                     _mainHandler.PostDelayed(() =>
                     {
                         if (!(_webView?.Url ?? "").Contains("tiktok.com/messages"))
                         {
-                            CompleteService(false, "Could not navigate to tiktok.com/messages");
+                            _webView?.LoadUrl("https://www.tiktok.com/messages?lang=en");
+                            _mainHandler.PostDelayed(() =>
+                            {
+                                if (!(_webView?.Url ?? "").Contains("tiktok.com/messages"))
+                                {
+                                    CompleteService(false, "Could not navigate to tiktok.com/messages");
+                                }
+                            }, 5000);
                         }
                     }, 5000);
                 }
-            }, 5000);
+                catch (Exception ex)
+                {
+                    CompleteService(false, $"Error initializing WebView on MainThread: {ex.Message}");
+                }
+            });
         }
         catch (Exception ex)
         {
@@ -565,11 +582,11 @@ public class StreakService : Service
             AppLog("FAIL", label, error);
 
             bool skipUnreachable = _settingsService.GetSkipUnreachableUsers();
-            if (skipUnreachable && error == UserNotFoundError)
+            if (skipUnreachable && error == UserNotFoundError && friend.FailureCount >= 3)
             {
                 friend.IsEnabled = false;
                 _disabledUsernames.Add(label);
-                AppLog("DISABLED", label, "Auto-disabled — not found in chat list");
+                AppLog("DISABLED", label, "Auto-disabled — not found in chat list after 3 failed runs");
             }
             _settingsService.UpdateFriend(friend);
 
@@ -850,6 +867,7 @@ public class StreakService : Service
         {
             var entry = $"[{DateTime.Now:HH:mm:ss}] {message}";
             StreakService._logs.Add(entry);
+            global::Android.Util.Log.Debug("StreakJS", message);
         }
     }
 }

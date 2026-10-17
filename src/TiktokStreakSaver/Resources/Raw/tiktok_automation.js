@@ -142,17 +142,21 @@
     // ── Chat Item Discovery ──────────────────────────────────────────────────
 
     var findChatItems = function () {
-        // Primary: current TikTok DM selector
-        var items = document.querySelectorAll("[data-e2e*='dm-new-conversation-item']");
+        // Primary: current TikTok DM selectors
+        var items = document.querySelectorAll("[data-e2e*='dm-new-conversation-item'], [data-e2e*='conversation-item'], [data-e2e*='conversation']");
         if (items.length > 0) {
-            log('[FIND] Found ' + items.length + ' items via: dm-new-conversation-item');
+            log('[FIND] Found ' + items.length + ' items via: conversation selectors');
             return items;
         }
 
-        // Fallback selectors — TikTok periodically renames data-e2e values
+        // Fallback selectors — TikTok periodically renames data-e2e values.
+        // Keep these specific. Broad class/role matches click the wrong row.
         var fallbacks = [
+            "a[href*='/messages/']",
             "[data-e2e*='chat-list-item']",
-            "[data-e2e*='chat-item']"
+            "[data-e2e*='chat-item']",
+            "[class*='ConversationItem']",
+            "[class*='conversation-item']"
         ];
         for (var i = 0; i < fallbacks.length; i++) {
             try {
@@ -630,44 +634,44 @@
                 return;
             }
 
-            log('[INIT] Waiting 3s for page stabilization...');
+            log('[INIT] Waiting 4s for page stabilization...');
             setTimeout(function () {
-                // ── Checkpoint: 3 seconds ──
-                log('[CHECKPOINT-3S] Checking for chat items (attempt 1)...');
+                // ── Checkpoint: 4 seconds ──
+                log('[CHECKPOINT-4S] Checking for chat items (attempt 1)...');
                 chatItems = findChatItems();
-                log('[CHECKPOINT-3S] Found ' + chatItems.length + ' chat items');
+                log('[CHECKPOINT-4S] Found ' + chatItems.length + ' chat items');
 
                 if (chatItems.length > 0) {
-                    log('[CHECKPOINT-3S] Items found, starting chat scan');
+                    log('[CHECKPOINT-4S] Items found, starting chat scan');
                     checkNextChat();
                     return;
                 }
 
                 // Zero items — run diagnostics and retry
-                log('[CHECKPOINT-3S] Zero items found, running full diagnostics...');
+                log('[CHECKPOINT-4S] Zero items found, running full diagnostics...');
                 dumpFullDiagnostics();
-                log('[CHECKPOINT-3S] Scheduling retry in 5 more seconds...');
+                log('[CHECKPOINT-4S] Scheduling retry in 6 more seconds...');
 
                 setTimeout(function () {
-                    // ── Checkpoint: 8 seconds total ──
-                    log('[CHECKPOINT-8S] Checking for chat items (attempt 2 after 8s total)...');
+                    // ── Checkpoint: 10 seconds total ──
+                    log('[CHECKPOINT-10S] Checking for chat items (attempt 2 after 10s total)...');
                     chatItems = findChatItems();
-                    log('[CHECKPOINT-8S] Found ' + chatItems.length + ' chat items');
+                    log('[CHECKPOINT-10S] Found ' + chatItems.length + ' chat items');
 
                     if (chatItems.length > 0) {
-                        log('[CHECKPOINT-8S] Items found on retry, starting chat scan');
+                        log('[CHECKPOINT-10S] Items found on retry, starting chat scan');
                         checkNextChat();
                         return;
                     }
 
-                    log('[CHECKPOINT-8S] Still zero items after 8s, running full diagnostics again...');
+                    log('[CHECKPOINT-10S] Still zero items after 10s, running full diagnostics again...');
                     dumpFullDiagnostics();
-                    log('[CHECKPOINT-8S] Giving up - reporting error');
-                    reportError('No chat items found after 8s wait');
+                    log('[CHECKPOINT-10S] Giving up - reporting error');
+                    reportError('No chat items found after 10s wait');
 
-                }, 5000);
+                }, 6000);
 
-            }, 3000);
+            }, 4000);
 
         } catch (e) {
             log('[INIT] EXCEPTION: ' + e.message);

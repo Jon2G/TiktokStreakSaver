@@ -43,9 +43,43 @@ public partial class LoginPage : ContentPage
 #if ANDROID || IOS
         TikTokWebViewHelper.ConfigureWebView(TikTokWebView, desktopUa);
         _sessionService.SetLoginUserAgent(desktopUa);
-#endif
 
+        // ConfigureWebView applies the UA on the platform WebView asynchronously.
+        // Wait briefly so TikTok does not see the default mobile agent on first load.
+        MainThread.BeginInvokeOnMainThread(async () =>
+        {
+            await Task.Delay(200);
+            if (_webViewTornDown)
+                return;
+            TikTokWebView.Source = TikTokWebViewHelper.LoginUrl;
+        });
+#else
         TikTokWebView.Source = TikTokWebViewHelper.LoginUrl;
+#endif
+    }
+
+    private void OnWebViewNavigating(object? sender, WebNavigatingEventArgs e)
+    {
+        // http(s) navigations are real pages. Custom schemes (snssdk://, intent://)
+        // crash or white-screen the Android WebView with ERR_UNKNOWN_URL_SCHEME.
+        if (e.Url != null && e.Url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        e.Cancel = true;
+
+        const string key = "params_url=";
+        var idx = e.Url?.IndexOf(key, StringComparison.Ordinal) ?? -1;
+        if (idx < 0 || e.Url == null)
+            return;
+
+        var rest = e.Url.Substring(idx + key.Length);
+        var amp = rest.IndexOf('&');
+        if (amp > 0)
+            rest = rest.Substring(0, amp);
+
+        var decoded = Uri.UnescapeDataString(rest);
+        if (decoded.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            TikTokWebView.Source = decoded;
     }
 
     private async Task TryCompleteExistingSessionAsync()
@@ -105,7 +139,7 @@ public partial class LoginPage : ContentPage
         if (TikTokWebView.CanGoBack)
             TikTokWebView.GoBack();
         else
-            await Navigation.PopAsync();
+            await LeaveLoginPageAsync();
     }
 
     private void OnRefreshClicked(object? sender, EventArgs e)
@@ -128,10 +162,11 @@ public partial class LoginPage : ContentPage
             return;
         _completionInProgress = true;
 
-        TearDownLoginWebView();
-
         if (_isLoggedIn)
         {
+#if ANDROID
+            TikTokWebViewHelper.FlushCookies();
+#endif
             if (!_sessionService.TrySetSessionValid(true, out var persistError))
             {
                 _completionInProgress = false;
@@ -166,7 +201,7 @@ public partial class LoginPage : ContentPage
                 await DisplayAlert("Logged In", body, "OK");
             }
 
-            await Navigation.PopAsync();
+            await LeaveLoginPageAsync();
         }
         else
         {
@@ -175,5 +210,15 @@ public partial class LoginPage : ContentPage
                 "Please login to TikTok first before continuing.", "OK");
             _completionInProgress = false;
         }
+    }
+
+    private async Task LeaveLoginPageAsync()
+    {
+        if (Navigation.NavigationStack.Count > 1)
+            await Navigation.PopAsync();
+        else if (Navigation.ModalStack.Count > 0)
+            await Navigation.PopModalAsync();
+        else if (Shell.Current != null)
+            await Shell.Current.GoToAsync("//DashboardPage");
     }
 }
